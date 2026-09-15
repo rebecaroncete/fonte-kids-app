@@ -5,7 +5,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Fonte Kids</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
+  <!-- html2canvas NÃO é mais carregado aqui: ele só é baixado sob demanda (ver carregarHtml2Canvas),
+       assim ele nunca atrasa a abertura do app, que é usada muito mais vezes do que essas 2 funções. -->
   <style>
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; margin: 0; padding: 15px; color: #333; }
     .tela { display: none; max-width: 800px; margin: 0 auto; background: #fff; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border-top: 8px solid #F28C28; box-sizing: border-box;}
@@ -694,7 +695,7 @@
     var dadosAcompanhamento = null;
     var salaAbertaAtual = null;
 
-    window.onload = function() {
+    document.addEventListener('DOMContentLoaded', function() {
       var parametrosUrl = new URLSearchParams(window.location.search);
       var telaDireta = parametrosUrl.get('tela') || 'hub';
       if (telaDireta === 'cadastro_voluntaria') telaDireta = 'cadastro-voluntaria';
@@ -714,7 +715,7 @@
       } else {
         navegar('hub');
       }
-    };
+    });
 
     // Acordeão do hub: só uma seção aberta por vez, lembrando a última aberta neste navegador.
     // Recepção e Liderança pedem o PIN apenas UMA VEZ (na primeira vez que a seção é aberta nesta sessão do navegador).
@@ -2217,17 +2218,36 @@
       document.getElementById('modalEtiqueta').style.display='flex';
     }
 
+    // Carrega o html2canvas só na primeira vez que for realmente preciso (etiqueta ou cartão de aniversário),
+    // em vez de toda vez que o app abre. Chamadas seguintes reaproveitam a mesma biblioteca já carregada.
+    var promessaHtml2Canvas = null;
+    function carregarHtml2Canvas() {
+      if (window.html2canvas) return Promise.resolve();
+      if (promessaHtml2Canvas) return promessaHtml2Canvas;
+      promessaHtml2Canvas = new Promise(function(resolve, reject) {
+        var s = document.createElement('script');
+        s.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
+        s.onload = function(){ resolve(); };
+        s.onerror = function(){ promessaHtml2Canvas = null; reject(new Error("Não foi possível carregar a biblioteca de geração de imagem. Verifique sua internet e tente novamente.")); };
+        document.head.appendChild(s);
+      });
+      return promessaHtml2Canvas;
+    }
+
     function baixarImagemEtiqueta() {
       var b=document.getElementById('btnBaixarEtiqueta');
       var n=document.getElementById('etqNome').innerText;
       b.innerText="Gerando... ⏳"; b.disabled=true;
-      html2canvas(document.getElementById('caixaEtiqueta'),{scale:3,backgroundColor:"#ffffff"}).then(function(cv){
+      carregarHtml2Canvas().then(function(){
+        return html2canvas(document.getElementById('caixaEtiqueta'),{scale:3,backgroundColor:"#ffffff"});
+      }).then(function(cv){
         var l=document.createElement('a');
         l.download='Etiqueta_'+n.replace(/\s+/g,'_')+'.png';
         l.href=cv.toDataURL('image/png'); l.click();
         b.innerText="📥 Baixar Etiqueta"; b.disabled=false;
-      }).catch(function(){
-        alert("Erro."); b.innerText="📥 Baixar Etiqueta"; b.disabled=false;
+      }).catch(function(erro){
+        alert(erro && erro.message ? erro.message : "Erro.");
+        b.innerText="📥 Baixar Etiqueta"; b.disabled=false;
       });
     }
 
@@ -2241,7 +2261,9 @@
       var b = document.getElementById('btnBaixarCardAniversario');
       var nome = document.getElementById('cardAnivNome').innerText;
       b.innerText = "Gerando... ⏳"; b.disabled = true;
-      html2canvas(document.getElementById('cardAniversarioRender'), { scale: 3, backgroundColor: null, useCORS: true }).then(function(cv){
+      carregarHtml2Canvas().then(function(){
+        return html2canvas(document.getElementById('cardAniversarioRender'), { scale: 3, backgroundColor: null, useCORS: true });
+      }).then(function(cv){
         try {
           var l = document.createElement('a');
           l.download = 'Feliz_Aniversario_' + nome.replace(/\s+/g,'_') + '.png';
@@ -2251,8 +2273,8 @@
           alert("Não foi possível baixar a imagem (provavelmente por causa da foto vinda do Google Drive, que bloqueia esse tipo de exportação). Tente tirar um print da tela como alternativa.");
         }
         b.innerText = "📥 Baixar Imagem"; b.disabled = false;
-      }).catch(function(){
-        alert("Erro ao gerar a imagem.");
+      }).catch(function(erro){
+        alert(erro && erro.message ? erro.message : "Erro ao gerar a imagem.");
         b.innerText = "📥 Baixar Imagem"; b.disabled = false;
       });
     }
