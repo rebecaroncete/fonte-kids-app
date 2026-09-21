@@ -146,6 +146,11 @@
     /* CARD ALERGIA / CONTADOR SALAS (item 17/23) */
     .card-crianca-alergia { border: 1px solid #dc3545 !important; border-left: 5px solid #dc3545 !important; }
     .contador-salas-barra { display:flex; flex-wrap:wrap; gap:6px; justify-content:center; background:#f0f8ff; border:1px solid #b8e2f2; border-radius:8px; padding:8px; margin-bottom:15px; font-size:12px; font-weight:bold; color:#00669e; }
+
+    /* BOTÕES DE FOTO: Tirar Foto / Escolher da Galeria (correção pós-teste) */
+    .linha-botoes-foto { display:flex; gap:8px; margin-top:6px; }
+    .btn-foto-opcao { flex:1; background:#fff; border:2px solid #00AEEF; color:#00AEEF; padding:10px 6px; border-radius:6px; font-weight:bold; text-align:center; cursor:pointer; font-size:12px; }
+    .preview-foto { display:none; width:80px; height:80px; border-radius:8px; object-fit:cover; margin-top:10px; border:2px solid #FFD100; background:#eee; }
   </style>
 </head>
 <body>
@@ -309,6 +314,7 @@
       <label>Cultos da Semana:</label><input type="text" class="input-form" id="cg_Cultos_Semana">
       <label>Mensagem Padrão Choro (WhatsApp Pais):</label><textarea class="input-form" id="cg_Mensagem_Choro" style="height:70px;"></textarea>
       <label>Mensagem Padrão Operador do Telão:</label><textarea class="input-form" id="cg_Mensagem_Telao" style="height:70px;"></textarea>
+      <p style="font-size:11px; color:#888; margin-top:2px;">Placeholders disponíveis: {nome_crianca}, {faixa_etaria} (ou {sala}), {nome_responsavel}, {codigo}.</p>
       <label>Mensagem Padrão de Lembrete de Escala:</label><textarea class="input-form" id="cg_Mensagem_Lembrete_Escala" style="height:70px;"></textarea>
       <label>WhatsApp do Operador de Mídia (Telão):</label><input type="tel" class="input-form" id="cg_Telefone_Midia" maxlength="15" oninput="mascaraTelefone(this)">
       <label>Dia Limite no Mês para Indisponibilidade:</label><input type="number" class="input-form" id="cg_Dia_Limite_Escala">
@@ -331,7 +337,8 @@
     <div id="profEtapa1">
       <label>Nome Completo:</label><input type="text" class="input-form" id="profNome" required>
       <div class="grid-2col">
-        <div><label>WhatsApp:</label><input type="tel" class="input-form" id="profTel" maxlength="15" oninput="aplicarMascaraTelefone(this)" required></div>
+        <div><label>WhatsApp:</label><input type="tel" class="input-form" id="profTel" maxlength="15" oninput="aplicarMascaraTelefone(this)" onblur="verificarTelefoneProfessoraCliente(this.value)" required>
+        <div id="avisoTelefoneProfessora" style="display:none; margin-top:8px; font-size:13px; color:#856404; background:#fff3cd; padding:10px; border-radius:6px; border:1px solid #ffeeba;"></div></div>
         <div><label>Data de Nasc.:</label><input type="text" inputmode="numeric" class="input-form" id="profNasc" maxlength="10" oninput="mascaraData(this); atualizarIdadeExibida('profNasc','profIdadeDisplay')" placeholder="DD/MM/AAAA" required></div>
       </div>
       <div id="profIdadeDisplay" class="idade-display"></div>
@@ -369,7 +376,15 @@
 
     <!-- ETAPA 3: FOTO -->
     <div id="profEtapa3" style="display:none;">
-      <label>Sua Foto:</label><input type="file" class="input-form" id="profFoto" accept="image/*" capture="environment" required>
+      <label>Sua Foto:</label>
+      <div class="linha-botoes-foto">
+        <label class="btn-foto-opcao" for="profFotoCam">📷 Tirar Foto</label>
+        <label class="btn-foto-opcao" for="profFotoGaleria">🖼️ Escolher da Galeria</label>
+      </div>
+      <input type="file" id="profFotoCam" accept="image/*" capture="environment" style="display:none;">
+      <input type="file" id="profFotoGaleria" accept="image/*" style="display:none;">
+      <input type="file" id="profFoto" accept="image/*" style="display:none;">
+      <img id="profFotoPreview" class="preview-foto">
       <button class="btn-submit" type="button" style="background-color:#00AEEF;" onclick="profIrParaResumo()">Continuar</button>
       <button class="btn-wizard-secundario" type="button" onclick="profIrEtapa(2)">⬅️ Voltar</button>
     </div>
@@ -421,7 +436,15 @@
         <div id="cadAvisoIdadeCrianca" class="aviso-idade-alerta"></div>
         <label>Perfil:</label><select class="input-form" id="cadPerfilCrianca" required><option value="Visitante">Visitante</option><option value="Membro">Membro</option></select>
         <label>Alergias ou Observações:</label><input type="text" class="input-form" id="cadAlergiasCrianca" placeholder="Ex: Nenhuma...">
-        <label>Foto da Criança (Obrigatório):</label><input type="file" class="input-form" id="cadFotoCrianca" accept="image/*" capture="environment" required>
+        <label>Foto da Criança (Obrigatório):</label>
+        <div class="linha-botoes-foto">
+          <label class="btn-foto-opcao" for="cadFotoCriancaCam">📷 Tirar Foto</label>
+          <label class="btn-foto-opcao" for="cadFotoCriancaGaleria">🖼️ Escolher da Galeria</label>
+        </div>
+        <input type="file" id="cadFotoCriancaCam" accept="image/*" capture="environment" style="display:none;">
+        <input type="file" id="cadFotoCriancaGaleria" accept="image/*" style="display:none;">
+        <input type="file" id="cadFotoCrianca" accept="image/*" style="display:none;">
+        <img id="cadFotoCriancaPreview" class="preview-foto">
       </div>
       <div id="cadListaRascunhoCriancas" class="lista-rascunho-criancas" style="display:none;"></div>
       <button class="btn-add" type="button" onclick="cadAdicionarOutraCrianca()">+ Adicionar outra criança</button>
@@ -674,7 +697,24 @@
       <label>Faixa Etária / Sala (calculada pela data de nascimento):</label>
       <input type="text" class="input-form" id="ficha_faixa" readonly style="background:#eee;">
       <label>Alergias / Observações:</label><input type="text" class="input-form" id="ficha_alergias">
-      <label>Nova Foto (deixe em branco para manter a atual):</label><input type="file" class="input-form" id="ficha_foto" accept="image/*" capture="environment">
+      <label>Nova Foto (deixe em branco para manter a atual):</label>
+      <div class="linha-botoes-foto">
+        <label class="btn-foto-opcao" for="ficha_fotoCam">📷 Tirar Foto</label>
+        <label class="btn-foto-opcao" for="ficha_fotoGaleria">🖼️ Escolher da Galeria</label>
+      </div>
+      <input type="file" id="ficha_fotoCam" accept="image/*" capture="environment" style="display:none;">
+      <input type="file" id="ficha_fotoGaleria" accept="image/*" style="display:none;">
+      <input type="file" id="ficha_foto" accept="image/*" style="display:none;">
+      <img id="ficha_fotoPreview" class="preview-foto">
+
+      <hr style="margin:20px 0; border:none; border-top:1px dashed #ccc;">
+      <h4 style="margin-bottom:5px; color:#F28C28;">Responsáveis da Família <span style="font-weight:normal; font-size:12px; color:#856404;">(salvar aqui afeta também os irmãos, se houver)</span></h4>
+      <input type="hidden" id="ficha_idFamilia">
+      <label>Nome Responsável Principal:</label><input type="text" class="input-form" id="ficha_nomeResp1">
+      <label>WhatsApp Principal:</label><input type="tel" class="input-form" id="ficha_telResp1" maxlength="15" oninput="aplicarMascaraTelefone(this)">
+      <label>Nome Segundo Responsável (opcional):</label><input type="text" class="input-form" id="ficha_nomeResp2">
+      <label>WhatsApp Segundo Responsável (opcional):</label><input type="tel" class="input-form" id="ficha_telResp2" maxlength="15" oninput="aplicarMascaraTelefone(this)">
+
       <button class="btn-submit" style="background:#28a745; margin-top:15px;" onclick="fichaSalvarAlteracoes()">Salvar Alterações</button>
       <div id="fichaSucessoInline" style="display:none; text-align:center; color:#28a745; font-weight:bold; margin-top:10px;">✅ Cadastro Alterado!</div>
       <button class="btn-wizard-secundario" type="button" onclick="fichaBuscarOutra()">Buscar outra criança</button>
@@ -823,6 +863,10 @@
       document.getElementById('lembMes').value = (mAt < 10 ? '0'+mAt : mAt.toString());
       document.getElementById('anivMesSelectEquipe').value = mAt.toString();
       document.getElementById('anivMesSelectCriancas').value = mAt.toString();
+
+      conectarInputFoto('cadFotoCrianca', 'cadFotoCriancaCam', 'cadFotoCriancaGaleria', 'cadFotoCriancaPreview');
+      conectarInputFoto('profFoto', 'profFotoCam', 'profFotoGaleria', 'profFotoPreview');
+      conectarInputFoto('ficha_foto', 'ficha_fotoCam', 'ficha_fotoGaleria', 'ficha_fotoPreview');
 
       abrirSecaoHubInicial();
       atualizarCadeadosHub();
@@ -1109,6 +1153,40 @@
     function rotuloPapelJS(papel) { return papel==="Líder" ? "Professora" : papel; }
     function atendeFaixaJS(c, s) { return c.faixa1===s || c.faixa2===s || c.faixa3===s || c.faixa4===s; }
 
+    // Conecta os 2 botões (📷 Tirar Foto / 🖼️ Escolher da Galeria) a um único input "canônico" (escondido),
+    // que é o mesmo usado pelo restante do código pra gerar o base64 enviado ao servidor. Assim o resto do
+    // app não precisa saber de onde a foto veio - ele só lê document.getElementById(idCanonico).files[0].
+    function conectarInputFoto(idCanonico, idCam, idGaleria, idPreview) {
+      var canonico = document.getElementById(idCanonico);
+      var cam = document.getElementById(idCam);
+      var gal = document.getElementById(idGaleria);
+      function aoSelecionar() {
+        var file = this.files && this.files[0];
+        if (!file) return;
+        try {
+          var dt = new DataTransfer();
+          dt.items.add(file);
+          canonico.files = dt.files;
+        } catch (e) { /* navegador muito antigo sem suporte a DataTransfer - improvável em celular atual */ }
+        if (idPreview) {
+          var reader = new FileReader();
+          reader.onload = function(ev) {
+            var img = document.getElementById(idPreview);
+            img.src = ev.target.result; img.style.display = 'block';
+          };
+          reader.readAsDataURL(file);
+        }
+      }
+      cam.addEventListener('change', aoSelecionar);
+      gal.addEventListener('change', aoSelecionar);
+    }
+    function limparInputFoto(idCanonico, idCam, idGaleria, idPreview) {
+      document.getElementById(idCanonico).value = '';
+      document.getElementById(idCam).value = '';
+      document.getElementById(idGaleria).value = '';
+      if (idPreview) { var img = document.getElementById(idPreview); img.src = ''; img.style.display = 'none'; }
+    }
+
     function arquivoParaBase64(f) {
       return new Promise((res, rej) => {
         const r = new FileReader(); r.readAsDataURL(f);
@@ -1391,12 +1469,17 @@
       }).verificarTelefone(n);
     }
 
+    // Guarda o último resultado de verificação do telefone secundário, pra não ter que chamar o
+    // servidor de novo se o número não mudou desde o onblur (item A/1 do pedido de correção).
+    var estadoTelSecundario = { tel: null, cadastrado: false, criancas: [] };
+
     function verificarTelefoneSecundario(n) {
       var aviso = document.getElementById('avisoTelefoneSecundario');
-      if (!n || n.length < 14) { aviso.style.display = 'none'; return; }
+      if (!n || n.length < 14) { aviso.style.display = 'none'; estadoTelSecundario = { tel: null, cadastrado: false, criancas: [] }; return; }
       var telPrincipal = document.getElementById('cadTel').value;
       if (n === telPrincipal) { aviso.style.display = 'none'; return; }
       google.script.run.withSuccessHandler(function(res){
+        estadoTelSecundario = { tel: n, cadastrado: !!res.cadastrado, criancas: res.criancas || [] };
         if (res.cadastrado) {
           aviso.innerHTML = '⚠️ Este número já está cadastrado (família: ' + res.criancas.join(', ') + '). Confira se não é duplicidade.';
           aviso.style.display = 'block';
@@ -1441,7 +1524,29 @@
       if (!nome || tel.length < 14) { alert('Preencha o nome e o WhatsApp do responsável principal.'); return; }
       cadIrEtapa(2);
     }
-    function cadProximoEtapa2() { cadIrEtapa(3); }
+    // Bloqueia o avanço da etapa 2 se o telefone secundário já pertencer a outra família (bug 1 / decisão A).
+    function cadProximoEtapa2() {
+      var tel2 = document.getElementById('cadTel2').value;
+      var telPrincipal = document.getElementById('cadTel').value;
+      if (!tel2 || tel2.length < 14 || tel2 === telPrincipal) { cadIrEtapa(3); return; }
+
+      function bloquear(criancas) {
+        var msg = 'Este telefone já está cadastrado em outra família (crianças: ' + (criancas||[]).join(', ') + '). Corrija o número ou deixe o campo em branco para continuar.';
+        var aviso = document.getElementById('avisoTelefoneSecundario');
+        aviso.innerHTML = '⚠️ ' + msg; aviso.style.display = 'block';
+        alert(msg);
+      }
+
+      if (estadoTelSecundario.tel === tel2) {
+        if (estadoTelSecundario.cadastrado) { bloquear(estadoTelSecundario.criancas); return; }
+        cadIrEtapa(3); return;
+      }
+      // Estado desatualizado (número mudou sem disparar o onblur) - confere direto no servidor antes de avançar.
+      google.script.run.withSuccessHandler(function(res){
+        estadoTelSecundario = { tel: tel2, cadastrado: !!res.cadastrado, criancas: res.criancas || [] };
+        if (res.cadastrado) { bloquear(res.criancas); } else { cadIrEtapa(3); }
+      }).verificarTelefone(tel2);
+    }
     function cadPularEtapa2() {
       document.getElementById('cadNome2').value = '';
       document.getElementById('cadTel2').value = '';
@@ -1461,7 +1566,7 @@
       document.getElementById('cadNascCrianca').value = '';
       document.getElementById('cadPerfilCrianca').selectedIndex = 0;
       document.getElementById('cadAlergiasCrianca').value = '';
-      document.getElementById('cadFotoCrianca').value = '';
+      limparInputFoto('cadFotoCrianca', 'cadFotoCriancaCam', 'cadFotoCriancaGaleria', 'cadFotoCriancaPreview');
       document.getElementById('cadIdadeCriancaDisplay').innerText = '';
       document.getElementById('cadAvisoIdadeCrianca').style.display = 'none';
     }
@@ -1603,6 +1708,23 @@
       }
     }
 
+    // Mesmo padrão de estado do telefone secundário da família, aplicado ao telefone da voluntária (bug 5 / decisão A).
+    var estadoTelProfessora = { tel: null, cadastrado: false };
+
+    function verificarTelefoneProfessoraCliente(n) {
+      var aviso = document.getElementById('avisoTelefoneProfessora');
+      if (!n || n.length < 14) { aviso.style.display = 'none'; estadoTelProfessora = { tel: null, cadastrado: false }; return; }
+      google.script.run.withSuccessHandler(function(jaCadastrado){
+        estadoTelProfessora = { tel: n, cadastrado: !!jaCadastrado };
+        if (jaCadastrado) {
+          aviso.innerHTML = '⚠️ Este WhatsApp já está cadastrado para outra voluntária.';
+          aviso.style.display = 'block';
+        } else {
+          aviso.style.display = 'none';
+        }
+      }).verificarTelefoneProfessora(n);
+    }
+
     function profValidarEtapa1() {
       const dE = document.getElementById('alertaProf'); dE.style.display = 'none';
       const n = document.getElementById('profNome').value.trim();
@@ -1612,7 +1734,22 @@
       const pf = document.getElementById('profProfissao').value.trim();
       if (!n || t.length < 14 || ns.length < 10 || !pf) { dE.innerText = "Preencha todos os campos desta etapa."; dE.style.display = 'block'; return; }
       if (!validarEmail(e)) { dE.innerText = "E-mail inválido."; dE.style.display = 'block'; return; }
-      profIrEtapa(2);
+
+      function bloquearTelefone() {
+        dE.innerText = "Este WhatsApp já está cadastrado para outra voluntária. Corrija o número para continuar.";
+        dE.style.display = 'block';
+        document.getElementById('avisoTelefoneProfessora').innerHTML = '⚠️ Este WhatsApp já está cadastrado para outra voluntária.';
+        document.getElementById('avisoTelefoneProfessora').style.display = 'block';
+      }
+
+      if (estadoTelProfessora.tel === t) {
+        if (estadoTelProfessora.cadastrado) { bloquearTelefone(); return; }
+        profIrEtapa(2); return;
+      }
+      google.script.run.withSuccessHandler(function(jaCadastrado){
+        estadoTelProfessora = { tel: t, cadastrado: !!jaCadastrado };
+        if (jaCadastrado) { bloquearTelefone(); } else { profIrEtapa(2); }
+      }).verificarTelefoneProfessora(t);
     }
 
     async function profIrParaResumo() {
@@ -1681,8 +1818,10 @@
           document.getElementById('profEmail').value="";
           document.getElementById('profNasc').value="";
           document.getElementById('profProfissao').value="";
-          document.getElementById('profFoto').value="";
+          limparInputFoto('profFoto', 'profFotoCam', 'profFotoGaleria', 'profFotoPreview');
           document.getElementById('profLgpd').checked=false;
+          document.getElementById('avisoTelefoneProfessora').style.display='none';
+          estadoTelProfessora = { tel: null, cadastrado: false };
           document.getElementById('botoesSucessoFamilia').style.display = 'none';
           document.getElementById('botoesSucessoEquipe').style.display = 'block';
           document.getElementById('txtSucesso').innerText = "Bem-vinda à Equipe!";
@@ -2695,6 +2834,11 @@
       document.getElementById('fichaResultados').innerHTML = '';
       document.getElementById('fichaTermoBusca').value = '';
       document.getElementById('fichaSucessoInline').style.display = 'none';
+      document.getElementById('ficha_idFamilia').value = '';
+      document.getElementById('ficha_nomeResp1').value = '';
+      document.getElementById('ficha_telResp1').value = '';
+      document.getElementById('ficha_nomeResp2').value = '';
+      document.getElementById('ficha_telResp2').value = '';
     }
 
     function abrirFichaCriancaDoHub() {
@@ -2760,14 +2904,30 @@
       document.getElementById('ficha_alergias').value = obj.alergias;
       document.getElementById('ficha_fotoAtual').value = obj.foto;
       document.getElementById('ficha_perfil').value = obj.perfil;
-      document.getElementById('ficha_foto').value = '';
+      limparInputFoto('ficha_foto', 'ficha_fotoCam', 'ficha_fotoGaleria', 'ficha_fotoPreview');
       atualizarIdadeExibida('ficha_nasc', 'ficha_idadeDisplay');
       fichaAtualizarFaixaCalculada();
       document.getElementById('ficha_faixaOriginal').value = obj.faixa || document.getElementById('ficha_faixa').value;
       document.getElementById('fichaSucessoInline').style.display = 'none';
       document.getElementById('fichaForm').style.display = 'block';
+
+      // Item C: carrega também os dados da família (responsáveis), que ficam em Cadastro_Familias.
+      document.getElementById('ficha_idFamilia').value = '';
+      document.getElementById('ficha_nomeResp1').value = '';
+      document.getElementById('ficha_telResp1').value = '';
+      document.getElementById('ficha_nomeResp2').value = '';
+      document.getElementById('ficha_telResp2').value = '';
+      google.script.run.withSuccessHandler(function(resFam){
+        if (!resFam.sucesso) return;
+        document.getElementById('ficha_idFamilia').value = resFam.idFamilia;
+        document.getElementById('ficha_nomeResp1').value = resFam.nomeResponsavel;
+        document.getElementById('ficha_telResp1').value = resFam.telefone;
+        document.getElementById('ficha_nomeResp2').value = resFam.nomeResp2;
+        document.getElementById('ficha_telResp2').value = resFam.telefone2;
+      }).buscarFamiliaPorIdCrianca(obj.id);
     }
 
+    // Salva os dados da criança e, em seguida, os dados dos responsáveis (família) - são duas abas diferentes.
     async function fichaSalvarAlteracoes() {
       var faixaNova = document.getElementById('ficha_faixa').value;
       var faixaOriginal = document.getElementById('ficha_faixaOriginal').value;
@@ -2790,12 +2950,25 @@
       };
 
       google.script.run.withSuccessHandler(function(){
-        document.getElementById('fichaSucessoInline').style.display = 'block';
         document.getElementById('ficha_faixaOriginal').value = faixaNova;
         // Atualiza a cópia local (bancoCriancas) para não precisar buscar tudo de novo do servidor.
         var idC = document.getElementById('ficha_idCrianca').value;
         var local = bancoCriancas.find(function(c){ return c.idCrianca === idC; });
         if (local) { local.nome = d.nome; local.alergias = d.alergias; local.sala = faixaNova; }
+
+        // Item C: salva também os responsáveis da família (afeta os irmãos, se houver).
+        var idFamilia = document.getElementById('ficha_idFamilia').value;
+        if (!idFamilia) { document.getElementById('fichaSucessoInline').style.display = 'block'; return; }
+        var dResp = {
+          nomeResponsavel: document.getElementById('ficha_nomeResp1').value,
+          telefone: document.getElementById('ficha_telResp1').value,
+          nomeResp2: document.getElementById('ficha_nomeResp2').value,
+          telefone2: document.getElementById('ficha_telResp2').value
+        };
+        google.script.run.withSuccessHandler(function(resFam){
+          document.getElementById('fichaSucessoInline').style.display = 'block';
+          if (local) { local.responsavel = dResp.nomeResponsavel; local.telefone = dResp.telefone; }
+        }).salvarEdicaoResponsavelFamilia(idFamilia, dResp);
       }).salvarEdicaoCadastro("Crianca", document.getElementById('ficha_linha').value, d);
     }
 
@@ -2875,9 +3048,19 @@
 
           var msgChoro = (dadosAcompanhamento.configs['Mensagem_Choro']||'Olá! O(a) {nome_crianca} precisa de você na {sala}.').replace('{nome_crianca}',c.nome).replace('{sala}',c.sala);
           var msgTelaoPadrao = '📢 Aviso Telão: {nome_crianca} ({faixa_etaria}) - Responsável: {nome_responsavel}, favor comparecer à sala.';
-          var msgTelao = (dadosAcompanhamento.configs['Mensagem_Telao']||msgTelaoPadrao)
-            .replace('{nome_crianca}',c.nome).replace('{sala}',c.sala).replace('{faixa_etaria}',c.sala)
-            .replace('{codigo}',c.codigo).replace('{nome_responsavel}',c.responsavel).replace('{responsavel}',c.responsavel);
+          var templateTelao = dadosAcompanhamento.configs['Mensagem_Telao'] || msgTelaoPadrao;
+          var msgTelao = templateTelao
+            .replace(/\{nome_crianca\}/g, c.nome)
+            .replace(/\{sala\}/g, c.sala)
+            .replace(/\{faixa_etaria\}/g, c.sala)
+            .replace(/\{codigo\}/g, c.codigo)
+            .replace(/\{nome_responsavel\}/g, c.responsavel)
+            .replace(/\{responsavel\}/g, c.responsavel);
+          // Garante que o nome do responsável apareça mesmo se o modelo salvo em Configurações Gerais
+          // ainda não tiver sido atualizado com o placeholder {nome_responsavel} (causa do bug 3).
+          if (templateTelao.indexOf('{nome_responsavel}') === -1 && templateTelao.indexOf('{responsavel}') === -1) {
+            msgTelao += ' (Responsável: ' + c.responsavel + ')';
+          }
 
           var tCh=encodeURIComponent(msgChoro);
           var tTe=encodeURIComponent(msgTelao);
