@@ -5,6 +5,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Fonte Kids</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="https://i.postimg.cc/yYYKfDny/FK.png">
+  <meta name="theme-color" content="#00AEEF">
   <!-- html2canvas NÃO é mais carregado aqui: ele só é baixado sob demanda (ver carregarHtml2Canvas),
        assim ele nunca atrasa a abertura do app, que é usada muito mais vezes do que essas 2 funções. -->
   <style>
@@ -127,6 +130,22 @@
     .card-aniv-titulo { font-size: 22px; font-weight: 800; line-height: 1.15; margin-bottom: 4px; text-shadow: 0 1px 3px rgba(0,0,0,0.2); }
     .card-aniv-nome { font-size: 17px; font-weight: 700; color: #FFD100; margin-bottom: 10px; }
     .card-aniv-logo { width: 60px; margin-top: 6px; }
+
+    /* WIZARDS (Cadastro Família / Voluntária) */
+    .wizard-etapa-label { text-align:center; font-size:13px; font-weight:bold; color:#666; margin-bottom:6px; }
+    .wizard-barra-fundo { background:#e9ecef; border-radius:10px; height:8px; width:100%; margin-bottom:20px; overflow:hidden; }
+    .wizard-barra-preenchida { height:100%; background:#F28C28; transition:width 0.3s ease; }
+    .idade-display { font-size:12px; color:#00AEEF; font-weight:bold; margin-top:4px; }
+    .aviso-idade-alerta { background:#f8d7da; color:#721c24; border:1px solid #f5c6cb; padding:8px 10px; border-radius:6px; font-size:12px; font-weight:bold; margin-top:6px; display:none; }
+    .resumo-crianca-item { display:flex; align-items:center; gap:10px; background:#f8f9fa; border:1px solid #ddd; border-radius:8px; padding:10px; margin-bottom:8px; }
+    .resumo-crianca-foto { width:45px; height:45px; border-radius:50%; object-fit:cover; border:2px solid #FFD100; background:#eee; }
+    .lista-rascunho-criancas { font-size:12px; color:#555; background:#fffcf0; border:1px dashed #FFD100; border-radius:6px; padding:8px 10px; margin-top:10px; }
+    .btn-wizard-secundario { background:#fff; border:2px solid #6c757d; color:#6c757d; padding:12px; width:100%; border-radius:6px; font-weight:bold; cursor:pointer; margin-top:10px; }
+    .nota-instrucao { background:#e7f6ff; color:#0c5460; border:1px solid #b8e2f2; padding:10px 12px; border-radius:6px; font-size:12px; margin-bottom:15px; }
+
+    /* CARD ALERGIA / CONTADOR SALAS (item 17/23) */
+    .card-crianca-alergia { border: 1px solid #dc3545 !important; border-left: 5px solid #dc3545 !important; }
+    .contador-salas-barra { display:flex; flex-wrap:wrap; gap:6px; justify-content:center; background:#f0f8ff; border:1px solid #b8e2f2; border-radius:8px; padding:8px; margin-bottom:15px; font-size:12px; font-weight:bold; color:#00669e; }
   </style>
 </head>
 <body>
@@ -149,6 +168,7 @@
       <div class="bloco-conteudo">
         <div class="grid-botoes">
           <button class="btn-hub" onclick="navegar('recepcao-login')">Fazer Check-in</button>
+          <button class="btn-hub" onclick="abrirFichaCriancaDoHub()">Ficha da Criança ✏️</button>
           <button class="btn-hub" onclick="navegar('acompanhamento')">Monitor do Culto</button>
         </div>
       </div>
@@ -232,7 +252,7 @@
       <label>Perfil:</label>
       <select id="editC_perfil" class="input-form"><option value="Visitante">Visitante</option><option value="Membro">Membro</option></select>
       <label>Alergias:</label><input type="text" id="editC_alergias" class="input-form">
-      <label>Nova Foto (Deixe em branco para manter a atual):</label><input type="file" id="editC_foto" class="input-form" accept="image/*">
+      <label>Nova Foto (Deixe em branco para manter a atual):</label><input type="file" id="editC_foto" class="input-form" accept="image/*" capture="environment">
       <button class="btn-submit" style="background:#28a745; margin-top:15px;" onclick="salvarEdicaoCrianca()">Salvar Alterações</button>
     </div>
 
@@ -268,7 +288,7 @@
       <select class="input-form" id="editP_c3"><option value="Nenhuma / Apenas a 1ª opção">Nenhuma / Apenas a 1ª opção</option><option value="Domingo às 10h">Domingo às 10h</option><option value="Domingo às 19h">Domingo às 19h</option><option value="Terça às 20h">Terça às 20h</option></select>
       <label>Perfil:</label>
       <select class="input-form" id="editP_perfil"><option value="Auxiliar">Auxiliar</option><option value="Professora">Professora</option></select>
-      <label>Nova Foto (Deixe em branco para manter a atual):</label><input type="file" id="editP_foto" class="input-form" accept="image/*">
+      <label>Nova Foto (Deixe em branco para manter a atual):</label><input type="file" id="editP_foto" class="input-form" accept="image/*" capture="environment">
       <button class="btn-submit" style="background:#28a745; margin-top:15px;" onclick="salvarEdicaoProf()">Salvar Alterações</button>
     </div>
   </div>
@@ -296,60 +316,127 @@
     </div>
   </div>
 
-  <!-- ================= TELA: CADASTRO VOLUNTARIA ================= -->
+  <!-- ================= TELA: CADASTRO VOLUNTARIA (WIZARD 3 ETAPAS) ================= -->
   <div id="tela-cadastro-voluntaria" class="tela" style="border-top: 8px solid #00AEEF;">
     <button class="btn-voltar btn-voltar-hub" onclick="navegar('hub')">⬅️ Voltar ao Menu</button>
     <div class="header-logo"><img src="https://i.postimg.cc/yYYKfDny/FK.png" style="max-width:100px;"></div>
     <h2 style="color: #00AEEF;">Equipe Fonte Kids</h2>
-    <label>Nome Completo:</label><input type="text" class="input-form" id="profNome" required>
-    <div class="grid-2col">
-      <div><label>WhatsApp:</label><input type="tel" class="input-form" id="profTel" maxlength="15" oninput="mascaraTelefone(this)" required></div>
-      <div><label>Data de Nasc.:</label><input type="text" inputmode="numeric" class="input-form" id="profNasc" maxlength="10" oninput="mascaraData(this)" placeholder="DD/MM/AAAA" required></div>
-    </div>
-    <label>E-mail (Para Convite Agenda):</label><input type="email" class="input-form" id="profEmail" placeholder="exemplo@email.com" required>
-    <div class="grid-2col">
-      <div><label>Profissão:</label><input type="text" class="input-form" id="profProfissao" placeholder="Ex: Pedagoga..." required></div>
-      <div><label>Sexo:</label><select class="input-form" id="profSexo" required><option value="Feminino">Feminino</option><option value="Masculino">Masculino</option></select></div>
-    </div>
-    <p style="font-size:12px; color:#666; margin-top:15px;">Escolha até 4 faixas etárias de preferência, da mais desejada (Faixa 1) até a menos desejada (Faixa 4).</p>
-    <div class="grid-2col">
-      <div><label>Faixa 1 (preferida):</label><select class="input-form" id="profFaixa1" required><option value="0 a 2 anos">0 a 2 anos</option><option value="3 a 6 anos">3 a 6 anos</option><option value="7 a 9 anos">7 a 9 anos</option><option value="10 a 12 anos">10 a 12 anos</option></select></div>
-      <div><label>Faixa 2:</label><select class="input-form" id="profFaixa2" required><option value="Nenhuma / Apenas as opções anteriores">Nenhuma / Apenas as opções anteriores</option><option value="0 a 2 anos">0 a 2 anos</option><option value="3 a 6 anos">3 a 6 anos</option><option value="7 a 9 anos">7 a 9 anos</option><option value="10 a 12 anos">10 a 12 anos</option></select></div>
-    </div>
-    <div class="grid-2col">
-      <div><label>Faixa 3:</label><select class="input-form" id="profFaixa3"><option value="Nenhuma / Apenas as opções anteriores">Nenhuma / Apenas as opções anteriores</option><option value="0 a 2 anos">0 a 2 anos</option><option value="3 a 6 anos">3 a 6 anos</option><option value="7 a 9 anos">7 a 9 anos</option><option value="10 a 12 anos">10 a 12 anos</option></select></div>
-      <div><label>Faixa 4:</label><select class="input-form" id="profFaixa4"><option value="Nenhuma / Apenas as opções anteriores">Nenhuma / Apenas as opções anteriores</option><option value="0 a 2 anos">0 a 2 anos</option><option value="3 a 6 anos">3 a 6 anos</option><option value="7 a 9 anos">7 a 9 anos</option><option value="10 a 12 anos">10 a 12 anos</option></select></div>
-    </div>
-    <div class="grid-2col">
-        <div><label>Culto 1:</label><select class="input-form" id="profCulto1" required><option value="Domingo às 10h">Domingo às 10h</option><option value="Domingo às 19h">Domingo às 19h</option><option value="Terça às 20h">Terça às 20h</option></select></div>
-        <div><label>Culto 2:</label><select class="input-form" id="profCulto2" required><option value="Nenhuma / Apenas a 1ª opção">Nenhuma / Apenas a 1ª opção</option><option value="Domingo às 10h">Domingo às 10h</option><option value="Domingo às 19h">Domingo às 19h</option><option value="Terça às 20h">Terça às 20h</option></select></div>
-    </div>
-    <label>Culto 3 (Terceira Opção):</label>
-    <select class="input-form" id="profCulto3" required><option value="Nenhuma / Apenas a 1ª opção">Nenhuma / Apenas a 1ª opção</option><option value="Domingo às 10h">Domingo às 10h</option><option value="Domingo às 19h">Domingo às 19h</option><option value="Terça às 20h">Terça às 20h</option></select>
 
-    <label>Perfil:</label><select class="input-form" id="profPerfil" required><option value="Auxiliar">Auxiliar</option><option value="Professora">Professora</option></select>
-    <label>Sua Foto:</label><input type="file" class="input-form" id="profFoto" accept="image/*" required>
-    <div id="alertaProf" class="alerta-erro"></div>
-    <div class="lgpd-box"><input type="checkbox" id="profLgpd" required><label for="profLgpd">Autorizo o uso destes dados e imagem para a Equipe.</label></div>
-    <button class="btn-submit" type="button" id="btnSalvarProf" onclick="enviarDadosProfessora()" style="background-color: #00AEEF;">Enviar Cadastro</button>
+    <div id="profProgressoWrap">
+      <div class="wizard-etapa-label" id="profEtapaLabel">Etapa 1 de 3</div>
+      <div class="wizard-barra-fundo"><div class="wizard-barra-preenchida" id="profBarraProgresso" style="width:33%; background:#00AEEF;"></div></div>
+    </div>
+
+    <!-- ETAPA 1: DADOS PESSOAIS -->
+    <div id="profEtapa1">
+      <label>Nome Completo:</label><input type="text" class="input-form" id="profNome" required>
+      <div class="grid-2col">
+        <div><label>WhatsApp:</label><input type="tel" class="input-form" id="profTel" maxlength="15" oninput="aplicarMascaraTelefone(this)" required></div>
+        <div><label>Data de Nasc.:</label><input type="text" inputmode="numeric" class="input-form" id="profNasc" maxlength="10" oninput="mascaraData(this); atualizarIdadeExibida('profNasc','profIdadeDisplay')" placeholder="DD/MM/AAAA" required></div>
+      </div>
+      <div id="profIdadeDisplay" class="idade-display"></div>
+      <label>E-mail (Para Convite Agenda):</label><input type="email" class="input-form" id="profEmail" placeholder="exemplo@email.com" required>
+      <div class="grid-2col">
+        <div><label>Profissão:</label><input type="text" class="input-form" id="profProfissao" placeholder="Ex: Pedagoga..." required></div>
+        <div><label>Sexo:</label><select class="input-form" id="profSexo" required><option value="Feminino">Feminino</option><option value="Masculino">Masculino</option></select></div>
+      </div>
+      <div id="alertaProf" class="alerta-erro"></div>
+      <button class="btn-submit" type="button" style="background-color:#00AEEF;" onclick="profValidarEtapa1()">Continuar</button>
+    </div>
+
+    <!-- ETAPA 2: PREFERÊNCIAS -->
+    <div id="profEtapa2" style="display:none;">
+      <div class="nota-instrucao">Selecione o máximo de opções de preferência que puder — a escala é montada priorizando sua 1ª opção, mas pode alocar você na 2ª ou 3ª se necessário.</div>
+      <label>Perfil:</label><select class="input-form" id="profPerfil" required><option value="Auxiliar">Auxiliar</option><option value="Professora">Professora</option></select>
+      <p style="font-size:12px; color:#666; margin-top:15px;">Escolha até 4 faixas etárias de preferência, da mais desejada (Faixa 1) até a menos desejada (Faixa 4).</p>
+      <div class="grid-2col">
+        <div><label>Faixa 1 (preferida):</label><select class="input-form" id="profFaixa1" required><option value="0 a 2 anos">0 a 2 anos</option><option value="3 a 6 anos">3 a 6 anos</option><option value="7 a 9 anos">7 a 9 anos</option><option value="10 a 12 anos">10 a 12 anos</option></select></div>
+        <div><label>Faixa 2:</label><select class="input-form" id="profFaixa2" required><option value="Nenhuma / Apenas as opções anteriores">Nenhuma / Apenas as opções anteriores</option><option value="0 a 2 anos">0 a 2 anos</option><option value="3 a 6 anos">3 a 6 anos</option><option value="7 a 9 anos">7 a 9 anos</option><option value="10 a 12 anos">10 a 12 anos</option></select></div>
+      </div>
+      <div class="grid-2col">
+        <div><label>Faixa 3:</label><select class="input-form" id="profFaixa3"><option value="Nenhuma / Apenas as opções anteriores">Nenhuma / Apenas as opções anteriores</option><option value="0 a 2 anos">0 a 2 anos</option><option value="3 a 6 anos">3 a 6 anos</option><option value="7 a 9 anos">7 a 9 anos</option><option value="10 a 12 anos">10 a 12 anos</option></select></div>
+        <div><label>Faixa 4:</label><select class="input-form" id="profFaixa4"><option value="Nenhuma / Apenas as opções anteriores">Nenhuma / Apenas as opções anteriores</option><option value="0 a 2 anos">0 a 2 anos</option><option value="3 a 6 anos">3 a 6 anos</option><option value="7 a 9 anos">7 a 9 anos</option><option value="10 a 12 anos">10 a 12 anos</option></select></div>
+      </div>
+      <div class="grid-2col">
+          <div><label>Culto 1:</label><select class="input-form" id="profCulto1" required><option value="Domingo às 10h">Domingo às 10h</option><option value="Domingo às 19h">Domingo às 19h</option><option value="Terça às 20h">Terça às 20h</option></select></div>
+          <div><label>Culto 2:</label><select class="input-form" id="profCulto2" required><option value="Nenhuma / Apenas a 1ª opção">Nenhuma / Apenas a 1ª opção</option><option value="Domingo às 10h">Domingo às 10h</option><option value="Domingo às 19h">Domingo às 19h</option><option value="Terça às 20h">Terça às 20h</option></select></div>
+      </div>
+      <label>Culto 3 (Terceira Opção):</label>
+      <select class="input-form" id="profCulto3" required><option value="Nenhuma / Apenas a 1ª opção">Nenhuma / Apenas a 1ª opção</option><option value="Domingo às 10h">Domingo às 10h</option><option value="Domingo às 19h">Domingo às 19h</option><option value="Terça às 20h">Terça às 20h</option></select>
+      <button class="btn-submit" type="button" style="background-color:#00AEEF;" onclick="profIrEtapa(3)">Continuar</button>
+      <button class="btn-wizard-secundario" type="button" onclick="profIrEtapa(1)">⬅️ Voltar</button>
+    </div>
+
+    <!-- ETAPA 3: FOTO -->
+    <div id="profEtapa3" style="display:none;">
+      <label>Sua Foto:</label><input type="file" class="input-form" id="profFoto" accept="image/*" capture="environment" required>
+      <button class="btn-submit" type="button" style="background-color:#00AEEF;" onclick="profIrParaResumo()">Continuar</button>
+      <button class="btn-wizard-secundario" type="button" onclick="profIrEtapa(2)">⬅️ Voltar</button>
+    </div>
+
+    <!-- RESUMO -->
+    <div id="profResumo" style="display:none;">
+      <h3 style="color:#00AEEF; text-align:center;">Confira seus dados</h3>
+      <div id="profResumoConteudo" style="font-size:14px; line-height:1.6; background:#f8f9fa; border:1px solid #ddd; border-radius:8px; padding:15px;"></div>
+      <div class="lgpd-box"><input type="checkbox" id="profLgpd" required><label for="profLgpd">Autorizo o uso destes dados e imagem para a Equipe.</label></div>
+      <button class="btn-submit" type="button" id="btnSalvarProf" onclick="enviarDadosProfessora()" style="background-color: #00AEEF;">Confirmar e Enviar</button>
+      <button class="btn-wizard-secundario" type="button" onclick="profIrEtapa(1)">Corrigir</button>
+    </div>
   </div>
 
-  <!-- ================= TELA: CADASTRO FAMÍLIAS ================= -->
+  <!-- ================= TELA: CADASTRO FAMÍLIAS (WIZARD 3 ETAPAS) ================= -->
   <div id="tela-cadastro" class="tela">
     <button class="btn-voltar btn-voltar-hub" onclick="navegar('hub')">⬅️ Voltar ao Menu</button>
     <div class="header-logo"><img src="https://i.postimg.cc/yYYKfDny/FK.png" style="max-width:100px;"></div>
     <h2>Cadastro Fonte Kids</h2>
-    <label>Responsável Principal:</label><input type="text" class="input-form" id="cadNome" required>
-    <label>WhatsApp Principal:</label><input type="tel" class="input-form" id="cadTel" maxlength="15" oninput="mascaraTelefone(this)" onblur="verificarCadastroExistente(this.value)" required>
-    <div id="mensagemTelefone" style="display:none; margin-top: 15px; font-size: 15px; line-height: 1.5;"></div>
-    <div id="areaRestante">
+
+    <div id="cadProgressoWrap">
+      <div class="wizard-etapa-label" id="cadEtapaLabel">Etapa 1 de 3</div>
+      <div class="wizard-barra-fundo"><div class="wizard-barra-preenchida" id="cadBarraProgresso" style="width:33%;"></div></div>
+    </div>
+
+    <!-- ETAPA 1: RESPONSÁVEL PRINCIPAL -->
+    <div id="cadEtapa1">
+      <label>Responsável Principal:</label><input type="text" class="input-form" id="cadNome" required>
+      <label>WhatsApp Principal:</label><input type="tel" class="input-form" id="cadTel" maxlength="15" oninput="aplicarMascaraTelefone(this)" onblur="verificarCadastroExistente(this.value)" required>
+      <div id="mensagemTelefone" style="display:none; margin-top: 15px; font-size: 15px; line-height: 1.5;"></div>
+      <button class="btn-submit" type="button" onclick="cadValidarEtapa1()">Continuar</button>
+    </div>
+
+    <!-- ETAPA 2: RESPONSÁVEL SECUNDÁRIO (OPCIONAL) -->
+    <div id="cadEtapa2" style="display:none;">
       <label>Segundo Responsável (Opcional):</label><input type="text" class="input-form" id="cadNome2">
-      <label>WhatsApp Secundário (Opcional):</label><input type="tel" class="input-form" id="cadTel2" maxlength="15" oninput="mascaraTelefone(this)" onblur="verificarTelefoneSecundario(this.value)">
+      <label>WhatsApp Secundário (Opcional):</label><input type="tel" class="input-form" id="cadTel2" maxlength="15" oninput="aplicarMascaraTelefone(this)" onblur="verificarTelefoneSecundario(this.value)">
       <div id="avisoTelefoneSecundario" style="display:none; margin-top:8px; font-size:13px; color:#856404; background:#fff3cd; padding:10px; border-radius:6px; border:1px solid #ffeeba;"></div>
-      <div id="containerCriancas"><div class="crianca-box"><label>Nome da Criança:</label><input type="text" class="input-form nomeCrianca" required><label>Data Nasc. (DD/MM/AAAA):</label><input type="text" inputmode="numeric" class="input-form dataNascimento" maxlength="10" oninput="mascaraData(this)" required><label>Perfil:</label><select class="input-form perfilCrianca" required><option value="Visitante">Visitante</option><option value="Membro">Membro</option></select><label>Alergias ou Observações:</label><input type="text" class="input-form alergias" placeholder="Ex: Nenhuma..."><label>Foto da Criança (Obrigatório):</label><input type="file" class="input-form fotoCrianca" accept="image/*" required></div></div>
-      <button class="btn-add" type="button" onclick="adicionarCrianca()">+ Adicionar outra criança</button>
+      <button class="btn-submit" type="button" onclick="cadProximoEtapa2()">Continuar</button>
+      <button class="btn-wizard-secundario" type="button" onclick="cadPularEtapa2()">Pular ➡️</button>
+    </div>
+
+    <!-- ETAPA 3: DADOS DA(S) CRIANÇA(S) -->
+    <div id="cadEtapa3" style="display:none;">
+      <div class="crianca-box">
+        <label>Nome da Criança:</label><input type="text" class="input-form" id="cadNomeCrianca" required>
+        <label>Data Nasc. (DD/MM/AAAA):</label><input type="text" inputmode="numeric" class="input-form" id="cadNascCrianca" maxlength="10" oninput="mascaraData(this); onInputNascCrianca()" required>
+        <div id="cadIdadeCriancaDisplay" class="idade-display"></div>
+        <div id="cadAvisoIdadeCrianca" class="aviso-idade-alerta"></div>
+        <label>Perfil:</label><select class="input-form" id="cadPerfilCrianca" required><option value="Visitante">Visitante</option><option value="Membro">Membro</option></select>
+        <label>Alergias ou Observações:</label><input type="text" class="input-form" id="cadAlergiasCrianca" placeholder="Ex: Nenhuma...">
+        <label>Foto da Criança (Obrigatório):</label><input type="file" class="input-form" id="cadFotoCrianca" accept="image/*" capture="environment" required>
+      </div>
+      <div id="cadListaRascunhoCriancas" class="lista-rascunho-criancas" style="display:none;"></div>
+      <button class="btn-add" type="button" onclick="cadAdicionarOutraCrianca()">+ Adicionar outra criança</button>
+      <button class="btn-submit" type="button" onclick="cadIrParaResumo()">Finalizar</button>
+      <button class="btn-wizard-secundario" type="button" onclick="cadVoltarDeEtapa3()">⬅️ Voltar</button>
+    </div>
+
+    <!-- RESUMO -->
+    <div id="cadResumo" style="display:none;">
+      <h3 style="text-align:center; color:#F28C28;">Confira os dados da família</h3>
+      <div id="cadResumoConteudo" style="font-size:14px; line-height:1.6; background:#f8f9fa; border:1px solid #ddd; border-radius:8px; padding:15px;"></div>
+      <div id="cadResumoCriancas" style="margin-top:15px;"></div>
       <div class="lgpd-box"><input type="checkbox" id="termoLgpd" required><label for="termoLgpd">Autorizo o uso destes dados e imagem para o Ministério.</label></div>
-      <button class="btn-submit" type="button" id="btnSalvarCad" onclick="enviarDados()">Finalizar Cadastro</button>
+      <button class="btn-submit" type="button" id="btnSalvarCad" onclick="cadFinalizarEnvio()">Confirmar e Enviar</button>
+      <button class="btn-wizard-secundario" type="button" onclick="cadIrEtapa(1)">Corrigir</button>
     </div>
   </div>
 
@@ -541,10 +628,14 @@
   <div id="tela-recepcao-principal" class="tela">
     <div class="info-sessao">
       <div><b>Voluntária:</b> <span id="sessaoVoluntaria"></span><br><b>Culto:</b> <span id="sessaoCulto"></span></div>
-      <button onclick="navegar('hub')" style="background:#dc3545; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer;">Sair</button>
+      <button onclick="sairDaRecepcao()" style="background:#dc3545; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer;">Sair</button>
     </div>
     <h2>Check-in</h2>
-    <input type="text" id="campoBusca" class="barra-pesquisa" placeholder="🔍 Buscar criança..." oninput="filtrarCriancas()">
+    <div id="contadorSalasBarra" class="contador-salas-barra"></div>
+    <div style="display:flex; gap:8px; align-items:center;">
+      <input type="text" id="campoBusca" class="barra-pesquisa" style="flex:1; margin-bottom:0;" placeholder="🔍 Buscar criança..." oninput="filtrarCriancas()">
+      <button id="btnAtualizarCriancas" onclick="atualizarListaCriancas()" title="Buscar cadastros novos" style="background:#00AEEF; color:white; border:none; border-radius:8px; padding:0 14px; height:44px; font-size:18px; cursor:pointer;">🔄</button>
+    </div>
     <div id="loadingMensagem" style="text-align:center; color:#F28C28; font-weight:bold; display:none;">Baixando... ⏳</div>
     <div id="resultadoBusca"></div>
   </div>
@@ -560,6 +651,34 @@
     </select>
     <div id="acompStatus" style="text-align:center; color:#F28C28; font-weight:bold; display:none;">Atualizando... ⏳</div>
     <div id="acompPainel"></div>
+  </div>
+
+  <!-- ================= TELA: FICHA DA CRIANÇA (NOVO) ================= -->
+  <div id="tela-ficha-crianca" class="tela" style="border-top: 8px solid #FFD100;">
+    <button class="btn-voltar" id="btnFichaVoltarCheckin" style="display:none;" onclick="voltarParaCheckinDaFicha()">⬅️ Voltar para o Check-in</button>
+    <button class="btn-voltar btn-voltar-hub" id="btnFichaVoltarMenu" onclick="navegar('hub')">⬅️ Menu</button>
+    <h2 style="color:#F28C28;">Ficha da Criança ✏️</h2>
+
+    <div id="fichaBusca">
+      <label>Buscar Criança (nome):</label>
+      <input type="text" class="input-form" id="fichaTermoBusca" placeholder="Digite pelo menos 3 letras...">
+      <button class="btn-submit" type="button" style="background:#F28C28;" onclick="fichaBuscarCrianca()">Buscar</button>
+      <div id="fichaResultados" style="margin-top:15px;"></div>
+    </div>
+
+    <div id="fichaForm" style="display:none; background:#fffcf0; padding:15px; border-radius:8px; border:2px dashed #FFD100; margin-top:20px;">
+      <input type="hidden" id="ficha_linha"><input type="hidden" id="ficha_fotoAtual"><input type="hidden" id="ficha_faixaOriginal"><input type="hidden" id="ficha_idCrianca"><input type="hidden" id="ficha_perfil">
+      <label>Nome:</label><input type="text" class="input-form" id="ficha_nome">
+      <label>Data de Nasc.:</label><input type="text" class="input-form" id="ficha_nasc" maxlength="10" oninput="mascaraData(this); atualizarIdadeExibida('ficha_nasc','ficha_idadeDisplay'); fichaAtualizarFaixaCalculada()">
+      <div id="ficha_idadeDisplay" class="idade-display"></div>
+      <label>Faixa Etária / Sala (calculada pela data de nascimento):</label>
+      <input type="text" class="input-form" id="ficha_faixa" readonly style="background:#eee;">
+      <label>Alergias / Observações:</label><input type="text" class="input-form" id="ficha_alergias">
+      <label>Nova Foto (deixe em branco para manter a atual):</label><input type="file" class="input-form" id="ficha_foto" accept="image/*" capture="environment">
+      <button class="btn-submit" style="background:#28a745; margin-top:15px;" onclick="fichaSalvarAlteracoes()">Salvar Alterações</button>
+      <div id="fichaSucessoInline" style="display:none; text-align:center; color:#28a745; font-weight:bold; margin-top:10px;">✅ Cadastro Alterado!</div>
+      <button class="btn-wizard-secundario" type="button" onclick="fichaBuscarOutra()">Buscar outra criança</button>
+    </div>
   </div>
 
   <!-- MODAIS -->
@@ -786,6 +905,8 @@
       if(idTela === 'aniversariantes-criancas') { carregarAniversariantes('Criancas'); }
       if(idTela === 'config-gerais') { carregarConfigGerais(); }
       if(idTela === 'recepcao-login') { carregarListaVoluntariasAtivas(); }
+      if(idTela === 'cadastro') { cadIrEtapa(1); }
+      if(idTela === 'cadastro-voluntaria') { profIrEtapa(1); }
     }
 
     var globalNomesVoluntariasAtivas = [];
@@ -796,14 +917,16 @@
       }).obterVoluntariasAtivas();
     }
 
+    // Item 12: só permite prosseguir se um nome da lista foi de fato clicado (não apenas digitado).
+    var nomeVoluntariaSelecionadoValido = false;
+
     function filtrarSugestoesVoluntaria() {
+      nomeVoluntariaSelecionadoValido = false;
       var input = document.getElementById('nomeVoluntaria');
       var box = document.getElementById('sugestoesVoluntaria');
-      var termo = (input.value || "").trim().toLowerCase();
+      var termo = (input.value || "").trim();
       var lista = globalNomesVoluntariasAtivas;
-      var filtrados = termo === "" ? lista : lista.filter(function(n){
-        return n.toLowerCase().indexOf(termo) !== -1;
-      });
+      var filtrados = termo === "" ? lista : lista.filter(function(n){ return nomeParecido(termo, n); });
       if (filtrados.length === 0) { box.style.display = 'none'; box.innerHTML = ""; return; }
       box.innerHTML = "";
       filtrados.slice(0, 30).forEach(function(n){
@@ -815,6 +938,7 @@
         item.onmousedown = function(e){
           e.preventDefault();
           input.value = n;
+          nomeVoluntariaSelecionadoValido = true;
           box.style.display = 'none';
         };
         item.onmouseover = function(){ item.style.background = '#f5f5f5'; };
@@ -843,6 +967,7 @@
       if(tipo === 'edicao') txt = "Cadastro Alterado!";
       if(tipo === 'licao') txt = "Lição Enviada!";
       document.getElementById('txtSucesso').innerText = txt;
+      document.getElementById('descSucesso').innerText = "Os dados foram salvos com sucesso.";
       navegar('sucesso');
     }
 
@@ -895,8 +1020,89 @@
     }
 
     function mascaraTelefone(i) { let v=i.value.replace(/\D/g,""); v=v.replace(/^(\d{2})(\d)/g,"($1) $2"); v=v.replace(/(\d)(\d{4})$/,"$1-$2"); i.value=v; }
+    // Nome reutilizável pedido no plano de melhorias (item 4) - mesma lógica de mascaraTelefone, usada em todos os campos de telefone novos.
+    function aplicarMascaraTelefone(i) { mascaraTelefone(i); }
     function mascaraData(i) { let v=i.value.replace(/\D/g,""); if(v.length>2)v=v.substring(0,2)+'/'+v.substring(2); if(v.length>5)v=v.substring(0,5)+'/'+v.substring(5,9); i.value=v; }
     function validarEmail(e) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e); }
+
+    // ------ Idade / Faixa Etária (usado nos wizards de cadastro e na ficha da criança) ------
+    function calcIdadeAnosBR(dataStr) {
+      if (!dataStr) return null;
+      var p = dataStr.split('/');
+      if (p.length !== 3 || p[2].length < 4) return null;
+      var d = parseInt(p[0],10), m = parseInt(p[1],10)-1, y = parseInt(p[2],10);
+      var nasc = new Date(y, m, d);
+      if (isNaN(nasc.getTime())) return null;
+      var hoje = new Date();
+      var idade = hoje.getFullYear() - nasc.getFullYear();
+      if (hoje.getMonth() < nasc.getMonth() || (hoje.getMonth() === nasc.getMonth() && hoje.getDate() < nasc.getDate())) idade--;
+      return idade;
+    }
+    function calcFaixaPorIdade(idade) {
+      if (idade === null || idade === undefined || isNaN(idade)) return "";
+      if (idade <= 2) return "0 a 2 anos";
+      if (idade <= 6) return "3 a 6 anos";
+      if (idade <= 9) return "7 a 9 anos";
+      if (idade <= 12) return "10 a 12 anos";
+      return "Adolescentes / Adultos";
+    }
+    // Mostra "Idade: X anos" ao lado de um campo de data assim que a data for válida (itens 3 e 7).
+    function atualizarIdadeExibida(idInput, idDisplay) {
+      var v = document.getElementById(idInput).value;
+      var disp = document.getElementById(idDisplay);
+      if (!disp) return;
+      var idade = calcIdadeAnosBR(v);
+      if (idade === null) { disp.innerText = ""; return; }
+      disp.innerText = "Idade: " + idade + (idade === 1 ? " ano" : " anos");
+    }
+    // Aviso não-bloqueante (item 2): data de nascimento da criança implicando 13+ anos.
+    function onInputNascCrianca() {
+      atualizarIdadeExibida('cadNascCrianca', 'cadIdadeCriancaDisplay');
+      var idade = calcIdadeAnosBR(document.getElementById('cadNascCrianca').value);
+      var aviso = document.getElementById('cadAvisoIdadeCrianca');
+      if (idade !== null && idade >= 13) {
+        aviso.innerText = "Essa data corresponde a alguém com " + idade + " anos — confirme se é a data de nascimento DA CRIANÇA, não do responsável.";
+        aviso.style.display = 'block';
+      } else {
+        aviso.style.display = 'none';
+      }
+    }
+
+    // ------ Levenshtein / busca tolerante a erros de digitação (itens 11 e 12) ------
+    function distanciaLevenshtein(a, b) {
+      a = a || ""; b = b || "";
+      var m = a.length, n = b.length;
+      if (m === 0) return n; if (n === 0) return m;
+      var linhaAnterior = new Array(n+1); var linhaAtual = new Array(n+1);
+      for (var j=0; j<=n; j++) linhaAnterior[j] = j;
+      for (var i=1; i<=m; i++) {
+        linhaAtual[0] = i;
+        for (var j2=1; j2<=n; j2++) {
+          var custo = (a[i-1] === b[j2-1]) ? 0 : 1;
+          linhaAtual[j2] = Math.min(linhaAtual[j2-1]+1, linhaAnterior[j2]+1, linhaAnterior[j2-1]+custo);
+        }
+        for (var k=0; k<=n; k++) linhaAnterior[k] = linhaAtual[k];
+      }
+      return linhaAnterior[n];
+    }
+    // Retorna true se "termo" parece ser parte de "nomeCompleto" (substring OU distância de edição pequena, palavra a palavra).
+    function nomeParecido(termo, nomeCompleto) {
+      if (!termo) return true;
+      termo = termo.toLowerCase().trim();
+      nomeCompleto = (nomeCompleto || "").toLowerCase().trim();
+      if (!termo) return true;
+      if (nomeCompleto.indexOf(termo) !== -1) return true;
+      var palavrasNome = nomeCompleto.split(/\s+/);
+      var palavrasTermo = termo.split(/\s+/);
+      return palavrasTermo.every(function(pt) {
+        if (pt.length < 2) return nomeCompleto.indexOf(pt) !== -1;
+        var tolerancia = pt.length <= 4 ? 1 : Math.max(1, Math.round(pt.length * 0.3));
+        return palavrasNome.some(function(pn) {
+          if (pn.indexOf(pt) !== -1 || pt.indexOf(pn) !== -1) return true;
+          return distanciaLevenshtein(pt, pn) <= tolerancia;
+        });
+      });
+    }
 
     // ------ Helpers de rótulo/emoji do papel (Professora=Líder internamente / Auxiliar / Reserva) ------
     function emojiPapelJS(papel) { if(papel==="Líder") return "📚"; if(papel==="Auxiliar") return "🛟"; if(papel==="Reserva") return "😇"; return "🔹"; }
@@ -1173,17 +1379,14 @@
     function verificarCadastroExistente(n) {
       if(!n||n.length<14) return;
       const msg=document.getElementById('mensagemTelefone');
-      const ar=document.getElementById('areaRestante');
       msg.style.display='block';
       msg.innerHTML='<span style="color:#00AEEF;">Buscando... ⏳</span>';
 
       google.script.run.withSuccessHandler(function(res){
         if(res.cadastrado){
-          ar.style.display='none';
           msg.innerHTML = '<div style="background:#d1ecf1; padding:15px; border-radius:8px;"><strong>Família Cadastrada!</strong><br>Irmãos: ' + res.criancas.join(', ') + '<br><br><button style="background:#F28C28;color:white;border:none;padding:10px;border-radius:5px;" onclick="responderPergunta(true)">Cadastrar Novo</button> <button style="background:#6c757d;color:white;border:none;padding:10px;border-radius:5px;" onclick="responderPergunta(false)">Já estão todos!</button></div>';
         } else {
           msg.innerHTML='<span style="color:green;font-size:13px;">✔ Liberado</span>';
-          ar.style.display='block';
         }
       }).verificarTelefone(n);
     }
@@ -1205,74 +1408,168 @@
 
     function responderPergunta(q) {
       if(q){
-        document.getElementById('mensagemTelefone').innerHTML='<span style="color:#F28C28;font-weight:bold;">✔ Preencha abaixo:</span>';
-        document.getElementById('areaRestante').style.display='block';
+        document.getElementById('mensagemTelefone').innerHTML='<span style="color:#F28C28;font-weight:bold;">✔ Continue abaixo:</span>';
+        cadIrEtapa(2);
       } else {
         document.getElementById('mensagemTelefone').innerHTML = '<div style="background:#d4edda; padding:15px; border-radius:8px;"><strong style="color:#155724;">Tudo certo! ✅ Pode ir à recepção!</strong><br><button style="margin-top:10px;background:#28a745;color:white;border:none;padding:10px;border-radius:5px;width:100%;" onclick="resetarCadastro()">Nova Família</button></div>';
-        document.getElementById('areaRestante').style.display='none';
       }
     }
 
-    function adicionarCrianca() {
-      const c = document.getElementById('containerCriancas');
-      const n = c.querySelector('.crianca-box').cloneNode(true);
-      n.querySelectorAll('input').forEach(i => i.value = '');
-      c.appendChild(n);
+    // ==========================================
+    // WIZARD DE CADASTRO DE FAMÍLIA (itens 1-6)
+    // ==========================================
+    var cadCriancaDrafts = [];
+    var cadEtapaAtual = 1;
+
+    function cadIrEtapa(n) {
+      ['cadEtapa1','cadEtapa2','cadEtapa3','cadResumo'].forEach(function(id){ document.getElementById(id).style.display = 'none'; });
+      if (n === 'resumo') {
+        document.getElementById('cadResumo').style.display = 'block';
+        document.getElementById('cadProgressoWrap').style.display = 'none';
+      } else {
+        document.getElementById('cadEtapa' + n).style.display = 'block';
+        document.getElementById('cadProgressoWrap').style.display = 'block';
+        document.getElementById('cadEtapaLabel').innerText = 'Etapa ' + n + ' de 3';
+        document.getElementById('cadBarraProgresso').style.width = (n * 33) + '%';
+        cadEtapaAtual = n;
+      }
     }
 
-    async function enviarDados() {
-      const btn = document.getElementById('btnSalvarCad');
+    function cadValidarEtapa1() {
+      var nome = document.getElementById('cadNome').value.trim();
+      var tel = document.getElementById('cadTel').value;
+      if (!nome || tel.length < 14) { alert('Preencha o nome e o WhatsApp do responsável principal.'); return; }
+      cadIrEtapa(2);
+    }
+    function cadProximoEtapa2() { cadIrEtapa(3); }
+    function cadPularEtapa2() {
+      document.getElementById('cadNome2').value = '';
+      document.getElementById('cadTel2').value = '';
+      document.getElementById('avisoTelefoneSecundario').style.display = 'none';
+      cadIrEtapa(3);
+    }
+
+    function cadFormCriancaTemDados() {
+      return !!(document.getElementById('cadNomeCrianca').value.trim() ||
+                document.getElementById('cadNascCrianca').value.trim() ||
+                document.getElementById('cadAlergiasCrianca').value.trim() ||
+                document.getElementById('cadFotoCrianca').files.length > 0);
+    }
+
+    function cadLimparFormCrianca() {
+      document.getElementById('cadNomeCrianca').value = '';
+      document.getElementById('cadNascCrianca').value = '';
+      document.getElementById('cadPerfilCrianca').selectedIndex = 0;
+      document.getElementById('cadAlergiasCrianca').value = '';
+      document.getElementById('cadFotoCrianca').value = '';
+      document.getElementById('cadIdadeCriancaDisplay').innerText = '';
+      document.getElementById('cadAvisoIdadeCrianca').style.display = 'none';
+    }
+
+    async function cadColetarCriancaAtual() {
+      var nome = document.getElementById('cadNomeCrianca').value.trim();
+      var nasc = document.getElementById('cadNascCrianca').value;
+      var fInp = document.getElementById('cadFotoCrianca');
+      if (!nome || nasc.length < 10 || fInp.files.length === 0) {
+        alert('Preencha nome, data de nascimento e foto da criança.');
+        return null;
+      }
+      var idade = calcIdadeAnosBR(nasc);
+      var f64 = await arquivoParaBase64(fInp.files[0]);
+      return {
+        nome: nome,
+        dataNascimento: nasc,
+        alergias: document.getElementById('cadAlergiasCrianca').value,
+        perfil: document.getElementById('cadPerfilCrianca').value,
+        idade: idade,
+        faixa: calcFaixaPorIdade(idade),
+        fotoBase64: f64,
+        fotoMimeType: 'image/jpeg'
+      };
+    }
+
+    function cadRenderListaRascunho() {
+      var box = document.getElementById('cadListaRascunhoCriancas');
+      if (cadCriancaDrafts.length === 0) { box.style.display = 'none'; box.innerHTML = ''; return; }
+      box.style.display = 'block';
+      box.innerHTML = '<b>Crianças já adicionadas:</b> ' + cadCriancaDrafts.map(function(c){ return c.nome + ' (' + c.faixa + ')'; }).join(', ');
+    }
+
+    async function cadAdicionarOutraCrianca() {
+      var d = await cadColetarCriancaAtual();
+      if (!d) return;
+      cadCriancaDrafts.push(d);
+      cadLimparFormCrianca();
+      cadRenderListaRascunho();
+    }
+
+    function cadVoltarDeEtapa3() {
+      if (cadFormCriancaTemDados()) {
+        if (!confirm('Os dados desta criança serão perdidos. Deseja continuar?')) return;
+      }
+      cadLimparFormCrianca();
+      cadIrEtapa(2);
+    }
+
+    async function cadIrParaResumo() {
+      if (cadFormCriancaTemDados()) {
+        var d = await cadColetarCriancaAtual();
+        if (!d) return;
+        cadCriancaDrafts.push(d);
+        cadLimparFormCrianca();
+        cadRenderListaRascunho();
+      }
+      if (cadCriancaDrafts.length === 0) { alert('Adicione ao menos uma criança.'); return; }
+      cadRenderResumo();
+      cadIrEtapa('resumo');
+    }
+
+    function cadRenderResumo() {
+      var nomeResp = document.getElementById('cadNome').value;
+      var nomeResp2 = document.getElementById('cadNome2').value.trim();
+      var html = '<b>Responsável Principal:</b> ' + nomeResp + '<br>' +
+                 '<b>Responsável Secundário:</b> ' + (nomeResp2 ? nomeResp2 : 'Não informado');
+      document.getElementById('cadResumoConteudo').innerHTML = html;
+
+      var htmlC = '';
+      cadCriancaDrafts.forEach(function(c){
+        var thumb = 'data:image/jpeg;base64,' + c.fotoBase64;
+        htmlC += '<div class="resumo-crianca-item"><img class="resumo-crianca-foto" src="' + thumb + '">' +
+                 '<div><b>' + c.nome + '</b><br><span style="font-size:12px;color:#555;">' + (c.idade!==null?c.idade+' anos':'') + ' — ' + c.faixa + '</span></div></div>';
+      });
+      document.getElementById('cadResumoCriancas').innerHTML = htmlC;
+    }
+
+    function cadFinalizarEnvio() {
+      var btn = document.getElementById('btnSalvarCad');
+      var lgpd = document.getElementById('termoLgpd').checked;
+      if (!lgpd) { alert('É necessário autorizar o uso dos dados (LGPD).'); return; }
+
       btn.innerText = "Salvando...";
       btn.disabled = true;
 
-      const bxs = document.querySelectorAll('.crianca-box');
-      const lC = []; let err = false;
-
-      for(let i=0; i<bxs.length; i++) {
-        const nm = bxs[i].querySelector('.nomeCrianca').value;
-        const ns = bxs[i].querySelector('.dataNascimento').value;
-        const fF = bxs[i].querySelector('.fotoCrianca');
-
-        if(!nm || ns.length<10 || fF.files.length===0){
-          err=true;
-        } else {
-          lC.push({
-            nome: nm,
-            dataNascimento: ns,
-            alergias: bxs[i].querySelector('.alergias').value,
-            perfil: bxs[i].querySelector('.perfilCrianca').value,
-            fotoBase64: await arquivoParaBase64(fF.files[0]),
-            fotoMimeType: 'image/jpeg'
-          });
-        }
-      }
-
-      if(err){
-        alert('Preencha FOTOS de todos.');
-        btn.innerText="Finalizar Cadastro";
-        btn.disabled=false;
-        return;
-      }
-
-      const fam = {
+      var fam = {
         nomeResponsavel: document.getElementById('cadNome').value,
         telefone: document.getElementById('cadTel').value,
         nomeResp2: document.getElementById('cadNome2').value,
         telefone2: document.getElementById('cadTel2').value,
-        termoLgpd: document.getElementById('termoLgpd').checked
+        termoLgpd: lgpd
       };
 
-      if(!fam.nomeResponsavel || !fam.telefone || !fam.termoLgpd){
-        alert('Preencha obrigatórios.');
-        btn.innerText="Finalizar Cadastro";
-        btn.disabled=false;
-        return;
-      }
+      var lC = cadCriancaDrafts.map(function(c){
+        return { nome: c.nome, dataNascimento: c.dataNascimento, alergias: c.alergias, perfil: c.perfil, fotoBase64: c.fotoBase64, fotoMimeType: c.fotoMimeType };
+      });
+
+      var listaTxt = cadCriancaDrafts.map(function(c){ return c.nome + ' (' + c.faixa + ')'; }).join(', ');
 
       google.script.run.withSuccessHandler(function(){
-        mostrarSucesso('familia');
-        btn.innerText="Finalizar Cadastro";
-        btn.disabled=false;
+        document.getElementById('botoesSucessoFamilia').style.display = 'block';
+        document.getElementById('botoesSucessoEquipe').style.display = 'none';
+        document.getElementById('txtSucesso').innerText = "Cadastro Realizado!";
+        document.getElementById('descSucesso').innerText = "Cadastro da família " + fam.nomeResponsavel + " recebido com sucesso! Criança(s): " + listaTxt + ".";
+        navegar('sucesso');
+        btn.innerText = "Confirmar e Enviar";
+        btn.disabled = false;
       }).salvarCadastroFamilia(fam, lC);
     }
 
@@ -1282,18 +1579,62 @@
       document.getElementById('cadNome2').value="";
       document.getElementById('cadTel2').value="";
       document.getElementById('termoLgpd').checked=false;
-
-      const c = document.getElementById('containerCriancas');
-      const bx = c.querySelectorAll('.crianca-box');
-      for(let i=1;i<bx.length;i++) bx[i].remove();
-      if(bx[0]){
-        bx[0].querySelectorAll('input').forEach(i=>i.value='');
-        bx[0].querySelectorAll('select').forEach(s=>s.selectedIndex=0);
-      }
-
+      cadCriancaDrafts = [];
+      cadLimparFormCrianca();
+      document.getElementById('cadListaRascunhoCriancas').style.display = 'none';
       document.getElementById('mensagemTelefone').style.display="none";
-      document.getElementById('areaRestante').style.display="block";
       navegar('cadastro');
+      cadIrEtapa(1);
+    }
+
+    // ==========================================
+    // WIZARD DE CADASTRO DE VOLUNTÁRIA (itens 7-10)
+    // ==========================================
+    function profIrEtapa(n) {
+      ['profEtapa1','profEtapa2','profEtapa3','profResumo'].forEach(function(id){ document.getElementById(id).style.display = 'none'; });
+      if (n === 'resumo') {
+        document.getElementById('profResumo').style.display = 'block';
+        document.getElementById('profProgressoWrap').style.display = 'none';
+      } else {
+        document.getElementById('profEtapa' + n).style.display = 'block';
+        document.getElementById('profProgressoWrap').style.display = 'block';
+        document.getElementById('profEtapaLabel').innerText = 'Etapa ' + n + ' de 3';
+        document.getElementById('profBarraProgresso').style.width = (n * 33) + '%';
+      }
+    }
+
+    function profValidarEtapa1() {
+      const dE = document.getElementById('alertaProf'); dE.style.display = 'none';
+      const n = document.getElementById('profNome').value.trim();
+      const t = document.getElementById('profTel').value;
+      const e = document.getElementById('profEmail').value;
+      const ns = document.getElementById('profNasc').value;
+      const pf = document.getElementById('profProfissao').value.trim();
+      if (!n || t.length < 14 || ns.length < 10 || !pf) { dE.innerText = "Preencha todos os campos desta etapa."; dE.style.display = 'block'; return; }
+      if (!validarEmail(e)) { dE.innerText = "E-mail inválido."; dE.style.display = 'block'; return; }
+      profIrEtapa(2);
+    }
+
+    async function profIrParaResumo() {
+      const dE = document.getElementById('alertaProf'); dE.style.display = 'none';
+      const fF = document.getElementById('profFoto');
+      if (fF.files.length === 0) { alert('Envie sua foto para continuar.'); return; }
+      profRenderResumo();
+      profIrEtapa('resumo');
+    }
+
+    function profRenderResumo() {
+      var idade = calcIdadeAnosBR(document.getElementById('profNasc').value);
+      var html = '';
+      html += '<b>Nome:</b> ' + document.getElementById('profNome').value + '<br>';
+      html += '<b>WhatsApp:</b> ' + document.getElementById('profTel').value + '<br>';
+      html += '<b>E-mail:</b> ' + document.getElementById('profEmail').value + '<br>';
+      html += '<b>Nascimento:</b> ' + document.getElementById('profNasc').value + (idade!==null?' ('+idade+' anos)':'') + '<br>';
+      html += '<b>Profissão:</b> ' + document.getElementById('profProfissao').value + '<br>';
+      html += '<b>Perfil:</b> ' + document.getElementById('profPerfil').value + '<br>';
+      html += '<b>Faixas:</b> ' + [document.getElementById('profFaixa1').value, document.getElementById('profFaixa2').value, document.getElementById('profFaixa3').value, document.getElementById('profFaixa4').value].join(' / ') + '<br>';
+      html += '<b>Cultos:</b> ' + [document.getElementById('profCulto1').value, document.getElementById('profCulto2').value, document.getElementById('profCulto3').value].join(' / ');
+      document.getElementById('profResumoConteudo').innerHTML = html;
     }
 
     async function enviarDadosProfessora() {
@@ -1311,13 +1652,7 @@
       const lg=document.getElementById('profLgpd').checked;
 
       if(!n || t.length<14 || ns.length<10 || !pf || fF.files.length===0 || !lg){
-        dE.innerText="Preencha tudo e envie foto.";
-        dE.style.display="block";
-        return;
-      }
-      if(!validarEmail(e)){
-        dE.innerText="E-mail inválido.";
-        dE.style.display="block";
+        alert("Preencha tudo, envie a foto e autorize o uso dos dados (LGPD).");
         return;
       }
 
@@ -1340,6 +1675,7 @@
 
       google.script.run.withSuccessHandler(function(r){
         if(r.sucesso){
+          var nomeSalvo = n;
           document.getElementById('profNome').value="";
           document.getElementById('profTel').value="";
           document.getElementById('profEmail').value="";
@@ -1347,12 +1683,18 @@
           document.getElementById('profProfissao').value="";
           document.getElementById('profFoto').value="";
           document.getElementById('profLgpd').checked=false;
-          mostrarSucesso('equipe');
+          document.getElementById('botoesSucessoFamilia').style.display = 'none';
+          document.getElementById('botoesSucessoEquipe').style.display = 'block';
+          document.getElementById('txtSucesso').innerText = "Bem-vinda à Equipe!";
+          document.getElementById('descSucesso').innerText = "Cadastro de " + nomeSalvo + " recebido com sucesso! Bem-vindo(a) Fonte Kids!";
+          navegar('sucesso');
+          profIrEtapa(1);
         } else {
           dE.innerText=r.mensagem;
           dE.style.display="block";
+          profIrEtapa(1);
         }
-        btn.innerText="Enviar Cadastro";
+        btn.innerText="Confirmar e Enviar";
         btn.disabled=false;
       }).salvarCadastroProfessora(dd);
     }
@@ -2133,19 +2475,46 @@
     // RECEPÇÃO & MONITOR
     // ==========================================
     function iniciarSessaoRecepcao() {
-      voluntariaLogada = document.getElementById('nomeVoluntaria').value;
+      var nomeDigitado = document.getElementById('nomeVoluntaria').value;
+      if (!nomeDigitado) { alert("Preencha seu nome!"); return; }
+      if (!nomeVoluntariaSelecionadoValido) { alert("Selecione seu nome na lista de sugestões."); return; }
+
+      voluntariaLogada = nomeDigitado;
       cultoLogado = document.getElementById('cultoAtual').value;
-      if(!voluntariaLogada) { alert("Preencha seu nome!"); return; }
 
       document.getElementById('sessaoVoluntaria').innerText = voluntariaLogada;
       document.getElementById('sessaoCulto').innerText = cultoLogado;
       navegar('recepcao-principal');
       document.getElementById('loadingMensagem').style.display = 'block';
+      ultimaInteracaoRecepcao = Date.now();
 
       google.script.run.withSuccessHandler(function(lista) {
         bancoCriancas = lista.reverse();
         document.getElementById('loadingMensagem').style.display = 'none';
         filtrarCriancas();
+      }).obterListaCriancas();
+    }
+
+    // Item 14: confirmação antes de sair do check-in.
+    function sairDaRecepcao() {
+      if (confirm("Tem certeza que deseja sair? Você precisará informar seu nome novamente.")) {
+        voluntariaLogada = ""; cultoLogado = "";
+        navegar('hub');
+      }
+    }
+
+    // Item 13: recarrega a lista de crianças (cadastros novos) preservando a busca digitada.
+    function atualizarListaCriancas() {
+      var btn = document.getElementById('btnAtualizarCriancas');
+      var termoAtual = document.getElementById('campoBusca').value;
+      btn.innerText = "⏳"; btn.disabled = true;
+      google.script.run.withSuccessHandler(function(lista) {
+        bancoCriancas = lista.reverse();
+        document.getElementById('campoBusca').value = termoAtual;
+        filtrarCriancas();
+        btn.innerText = "🔄"; btn.disabled = false;
+      }).withFailureHandler(function(){
+        btn.innerText = "🔄"; btn.disabled = false;
       }).obterListaCriancas();
     }
 
@@ -2161,9 +2530,22 @@
       return f;
     }
 
+    // Item 23: contador ao vivo de crianças com check-in ativo, por sala/faixa.
+    function atualizarContadorSalas() {
+      var box = document.getElementById('contadorSalasBarra');
+      if (!box) return;
+      var salas = ["0 a 2 anos","3 a 6 anos","7 a 9 anos","10 a 12 anos"];
+      var contagem = {};
+      salas.forEach(function(s){ contagem[s] = 0; });
+      bancoCriancas.forEach(function(c){
+        if (c.codigoAtivo && contagem.hasOwnProperty(c.sala)) contagem[c.sala]++;
+      });
+      box.innerHTML = salas.map(function(s){ return '<span>' + s.replace(' anos','') + ': ' + contagem[s] + '</span>'; }).join(' <span style="color:#ccc;">|</span> ');
+    }
+
     function filtrarCriancas() {
-      var t=document.getElementById('campoBusca').value.toLowerCase().trim();
-      var f=(t==="")?bancoCriancas.slice(0,10):bancoCriancas.filter(c=>c.nome.toLowerCase().includes(t));
+      var t=document.getElementById('campoBusca').value.trim();
+      var f=(t==="")?bancoCriancas.slice(0,10):bancoCriancas.filter(c=>nomeParecido(t, c.nome));
       var h="";
       if(f.length===0){ h='<p style="text-align:center;">Nenhuma criança.</p>';}
 
@@ -2175,11 +2557,12 @@
 
         var bH=c.codigoAtivo ? '<button class="btn-checkin" disabled style="background:#28a745;">Cód: ' + c.codigoAtivo + '</button><button class="btn-imprimir" onclick="abrirEtiqueta(\'' + n_esc + '\',\'' + c.sala + '\',\'' + c.codigoAtivo + '\',\'' + r_esc + '\',\'' + c.telefone + '\',\'' + a_esc + '\')">🖨️</button>' : '<button class="btn-checkin" onclick="iniciarCheckin(\'' + c.idCrianca + '\', this)">Check-in</button>';
         var aA=temAlergia(c.alergias)? '<div style="color:red;font-size:12px;font-weight:bold;">⚠️ ' + c.alergias + '</div>' : '';
+        var classeAlergia = temAlergia(c.alergias) ? ' card-crianca-alergia' : '';
 
-        h += '<div class="card-crianca">' +
-               '<img src="' + fU + '" class="foto-crianca">' +
+        h += '<div class="card-crianca' + classeAlergia + '">' +
+               '<img src="' + fU + '" class="foto-crianca" style="cursor:zoom-in;" onclick="event.stopPropagation(); ampliarFoto(\'' + fU + '\')">' +
                '<div class="dados-crianca">' +
-                 '<h3 style="margin:0 0 5px 0;">' + c.nome + '</h3>' +
+                 '<h3 style="margin:0 0 5px 0;">' + c.nome + ' <span style="cursor:pointer;font-size:14px;" title="Editar ficha" onclick="abrirFichaCrianca(\'' + c.idCrianca + '\')">✏️</span></h3>' +
                  '<p style="margin:0;font-size:13px;">🏠 ' + c.sala + '<br>👤 ' + c.responsavel + '</p>' +
                  aA +
                '</div>' +
@@ -2187,7 +2570,24 @@
              '</div>';
       });
       document.getElementById('resultadoBusca').innerHTML=h;
+      atualizarContadorSalas();
     }
+
+    // ==========================================
+    // AUTO-LOGOUT DA RECEPÇÃO POR INATIVIDADE (item 22)
+    // ==========================================
+    var ultimaInteracaoRecepcao = Date.now();
+    document.addEventListener('click', function(){ ultimaInteracaoRecepcao = Date.now(); });
+    document.addEventListener('keydown', function(){ ultimaInteracaoRecepcao = Date.now(); });
+    setInterval(function(){
+      var telaAtiva = document.getElementById('tela-recepcao-principal');
+      if (!telaAtiva || !telaAtiva.classList.contains('ativa')) return;
+      var duasHorasMs = 2 * 60 * 60 * 1000;
+      if (Date.now() - ultimaInteracaoRecepcao > duasHorasMs) {
+        voluntariaLogada = ""; cultoLogado = "";
+        navegar('hub');
+      }
+    }, 60 * 1000);
 
     function iniciarCheckin(id, b) {
       b.innerText="⏳"; b.disabled=true;
@@ -2284,6 +2684,130 @@
       document.getElementById('modalFotoAmpliada').style.display = 'flex';
     }
 
+    // ==========================================
+    // FICHA DA CRIANÇA (item 19) - busca/edição rápida, do hub ou de dentro do check-in
+    // ==========================================
+    var fichaOrigemCheckin = false;
+
+    function fichaResetTela() {
+      document.getElementById('fichaBusca').style.display = 'block';
+      document.getElementById('fichaForm').style.display = 'none';
+      document.getElementById('fichaResultados').innerHTML = '';
+      document.getElementById('fichaTermoBusca').value = '';
+      document.getElementById('fichaSucessoInline').style.display = 'none';
+    }
+
+    function abrirFichaCriancaDoHub() {
+      fichaOrigemCheckin = false;
+      document.getElementById('btnFichaVoltarCheckin').style.display = 'none';
+      document.getElementById('btnFichaVoltarMenu').style.display = 'block';
+      fichaResetTela();
+      navegar('ficha-crianca');
+    }
+
+    // Chamada pelo ícone de lápis dentro do check-in (item 15) - pula direto para a edição da criança.
+    function abrirFichaCrianca(idCrianca) {
+      fichaOrigemCheckin = true;
+      document.getElementById('btnFichaVoltarCheckin').style.display = 'block';
+      document.getElementById('btnFichaVoltarMenu').style.display = 'none';
+      var cLocal = bancoCriancas.find(function(c){ return c.idCrianca === idCrianca; });
+      navegar('ficha-crianca');
+      document.getElementById('fichaBusca').style.display = 'none';
+      document.getElementById('fichaForm').style.display = 'none';
+      if (!cLocal) { alert('Criança não encontrada na lista atual.'); return; }
+      google.script.run.withSuccessHandler(function(res){
+        if (!res.sucesso) { alert('Não foi possível carregar os dados da criança.'); return; }
+        var obj = res.resultados.find(function(r){ return r.id === idCrianca; }) || res.resultados[0];
+        if (!obj) { alert('Criança não encontrada para edição.'); return; }
+        fichaCarregarObjeto(obj);
+      }).buscarCadastroParaEdicao("Crianca", cLocal.nome);
+    }
+
+    function fichaBuscarCrianca() {
+      var termo = document.getElementById('fichaTermoBusca').value;
+      if (termo.length < 3) { alert('Digite pelo menos 3 letras para buscar.'); return; }
+      google.script.run.withSuccessHandler(function(res){
+        var box = document.getElementById('fichaResultados');
+        if (!res.sucesso || res.resultados.length === 0) { box.innerHTML = "<p style='text-align:center;'>Nenhuma criança encontrada.</p>"; return; }
+        var h = "";
+        res.resultados.forEach(function(r, idx){
+          h += '<div class="item-edicao" onclick="fichaSelecionarResultado(' + idx + ')">' +
+                 '<img src="' + formatarUrlFoto(r.foto) + '" style="width:40px; height:40px; border-radius:50%; margin-right:10px; object-fit:cover;">' +
+                 '<div><b style="color:#F28C28;">' + r.nome + '</b><br><span style="font-size:12px; color:#666;">' + r.perfil + '</span></div>' +
+               '</div>';
+        });
+        box.innerHTML = h;
+        window.fichaResultadosCache = res.resultados;
+      }).buscarCadastroParaEdicao("Crianca", termo);
+    }
+
+    function fichaSelecionarResultado(idx) {
+      var obj = window.fichaResultadosCache[idx];
+      if (obj) fichaCarregarObjeto(obj);
+    }
+
+    function fichaAtualizarFaixaCalculada() {
+      var idade = calcIdadeAnosBR(document.getElementById('ficha_nasc').value);
+      document.getElementById('ficha_faixa').value = calcFaixaPorIdade(idade);
+    }
+
+    function fichaCarregarObjeto(obj) {
+      document.getElementById('fichaResultados').innerHTML = '';
+      document.getElementById('ficha_linha').value = obj.linha;
+      document.getElementById('ficha_idCrianca').value = obj.id;
+      document.getElementById('ficha_nome').value = obj.nome;
+      document.getElementById('ficha_nasc').value = obj.nasc;
+      document.getElementById('ficha_alergias').value = obj.alergias;
+      document.getElementById('ficha_fotoAtual').value = obj.foto;
+      document.getElementById('ficha_perfil').value = obj.perfil;
+      document.getElementById('ficha_foto').value = '';
+      atualizarIdadeExibida('ficha_nasc', 'ficha_idadeDisplay');
+      fichaAtualizarFaixaCalculada();
+      document.getElementById('ficha_faixaOriginal').value = obj.faixa || document.getElementById('ficha_faixa').value;
+      document.getElementById('fichaSucessoInline').style.display = 'none';
+      document.getElementById('fichaForm').style.display = 'block';
+    }
+
+    async function fichaSalvarAlteracoes() {
+      var faixaNova = document.getElementById('ficha_faixa').value;
+      var faixaOriginal = document.getElementById('ficha_faixaOriginal').value;
+      if (faixaOriginal && faixaNova !== faixaOriginal) {
+        if (!confirm("Você está alterando a sala/faixa etária dessa criança, o que pode afetar a contagem de vagas do culto. Confirma a alteração?")) return;
+      }
+
+      var fInp = document.getElementById('ficha_foto');
+      var f64 = ""; var fMime = "";
+      if (fInp.files.length > 0) { f64 = await arquivoParaBase64(fInp.files[0]); fMime = 'image/jpeg'; }
+
+      var d = {
+        nome: document.getElementById('ficha_nome').value,
+        nasc: document.getElementById('ficha_nasc').value,
+        perfil: document.getElementById('ficha_perfil').value,
+        alergias: document.getElementById('ficha_alergias').value,
+        fotoAtual: document.getElementById('ficha_fotoAtual').value,
+        fotoBase64: f64,
+        fotoMimeType: fMime
+      };
+
+      google.script.run.withSuccessHandler(function(){
+        document.getElementById('fichaSucessoInline').style.display = 'block';
+        document.getElementById('ficha_faixaOriginal').value = faixaNova;
+        // Atualiza a cópia local (bancoCriancas) para não precisar buscar tudo de novo do servidor.
+        var idC = document.getElementById('ficha_idCrianca').value;
+        var local = bancoCriancas.find(function(c){ return c.idCrianca === idC; });
+        if (local) { local.nome = d.nome; local.alergias = d.alergias; local.sala = faixaNova; }
+      }).salvarEdicaoCadastro("Crianca", document.getElementById('ficha_linha').value, d);
+    }
+
+    function fichaBuscarOutra() {
+      fichaResetTela();
+    }
+
+    function voltarParaCheckinDaFicha() {
+      navegar('recepcao-principal');
+      filtrarCriancas();
+    }
+
     function carregarAcompanhamento() {
       document.getElementById('acompStatus').style.display='block';
       google.script.run.withSuccessHandler(function(r){
@@ -2350,7 +2874,10 @@
           var tM=(dadosAcompanhamento.configs['Telefone_Midia']||'').replace(/\D/g,'');
 
           var msgChoro = (dadosAcompanhamento.configs['Mensagem_Choro']||'Olá! O(a) {nome_crianca} precisa de você na {sala}.').replace('{nome_crianca}',c.nome).replace('{sala}',c.sala);
-          var msgTelao = (dadosAcompanhamento.configs['Mensagem_Telao']||'Número {codigo} na {sala}.').replace('{nome_crianca}',c.nome).replace('{sala}',c.sala).replace('{codigo}',c.codigo);
+          var msgTelaoPadrao = '📢 Aviso Telão: {nome_crianca} ({faixa_etaria}) - Responsável: {nome_responsavel}, favor comparecer à sala.';
+          var msgTelao = (dadosAcompanhamento.configs['Mensagem_Telao']||msgTelaoPadrao)
+            .replace('{nome_crianca}',c.nome).replace('{sala}',c.sala).replace('{faixa_etaria}',c.sala)
+            .replace('{codigo}',c.codigo).replace('{nome_responsavel}',c.responsavel).replace('{responsavel}',c.responsavel);
 
           var tCh=encodeURIComponent(msgChoro);
           var tTe=encodeURIComponent(msgTelao);
