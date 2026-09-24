@@ -131,7 +131,7 @@
     .card-aniv-nome { font-size: 17px; font-weight: 700; color: #FFD100; margin-bottom: 10px; }
     .card-aniv-logo { width: 60px; margin-top: 6px; }
 
-    /* WIZARDS (Cadastro Família / Voluntária) */
+    /* WIZARDS (Cadastro Família / Voluntário(a)) */
     .wizard-etapa-label { text-align:center; font-size:13px; font-weight:bold; color:#666; margin-bottom:6px; }
     .wizard-barra-fundo { background:#e9ecef; border-radius:10px; height:8px; width:100%; margin-bottom:20px; overflow:hidden; }
     .wizard-barra-preenchida { height:100%; background:#F28C28; transition:width 0.3s ease; }
@@ -184,7 +184,7 @@
         <div class="grid-botoes">
           <button class="btn-hub" onclick="navegar('escala-publica')">Ver Escala / Confirmar Ciência <span>✅</span></button>
           <button class="btn-hub" onclick="navegar('licoes')">Lições da Semana 📖 <span>🔓</span></button>
-          <button class="btn-hub" onclick="navegar('cadastro-voluntaria')">Cadastro de Voluntárias <span>🔓</span></button>
+          <button class="btn-hub" onclick="navegar('cadastro-voluntaria')">Cadastro de Voluntários(as) <span>🔓</span></button>
           <button class="btn-hub" onclick="navegar('aniversariantes-equipe')">Aniversariantes do Mês 🎂 <span>🔓</span></button>
           <button class="btn-hub" onclick="abrirIndisponibilidade()">Informar Indisponibilidade <span>📅</span></button>
         </div>
@@ -239,7 +239,7 @@
       <label style="margin-top:0;">Tipo de Cadastro:</label>
       <select id="altTipoBusca" class="input-form">
         <option value="Crianca">Criança</option>
-        <option value="Professora">Professora / Voluntária</option>
+        <option value="Professora">Professora / Voluntário(a)</option>
       </select>
       <label>Nome:</label>
       <input type="text" id="altTermoBusca" class="input-form" placeholder="Digite parte do nome...">
@@ -263,7 +263,7 @@
 
     <!-- FORMULÁRIO DE EDIÇÃO: PROFESSORA -->
     <div id="formEditProf" style="display:none; background:#f0f8ff; padding:15px; border-radius:8px; border:2px dashed #00AEEF; margin-top:20px;">
-      <h3 style="margin-top:0; color:#00AEEF;">Editando Voluntária</h3>
+      <h3 style="margin-top:0; color:#00AEEF;">Editando Voluntário(a)</h3>
       <input type="hidden" id="editP_linha"><input type="hidden" id="editP_fotoAtual">
       <label>Status:</label>
       <select id="editP_status" class="input-form" style="border:2px solid #dc3545; font-weight:bold;"><option value="Ativo">Ativo</option><option value="Inativo">Inativo</option></select>
@@ -311,6 +311,7 @@
       <label>Lotação Máxima (3 a 6 anos):</label><input type="number" class="input-form" id="cg_Limite_3_6_anos">
       <label>Lotação Máxima (7 a 9 anos):</label><input type="number" class="input-form" id="cg_Limite_7_9_anos">
       <label>Lotação Máxima (10 a 12 anos):</label><input type="number" class="input-form" id="cg_Limite_10_12_anos">
+      <label>Lotação Máxima (7 a 12 anos - Turma Combinada de Terça):</label><input type="number" class="input-form" id="cg_Limite_7_12_Terca">
       <label>Cultos da Semana:</label><input type="text" class="input-form" id="cg_Cultos_Semana">
       <label>Mensagem Padrão Choro (WhatsApp Pais):</label><textarea class="input-form" id="cg_Mensagem_Choro" style="height:70px;"></textarea>
       <label>Mensagem Padrão Operador do Telão:</label><textarea class="input-form" id="cg_Mensagem_Telao" style="height:70px;"></textarea>
@@ -493,13 +494,19 @@
         <button type="button" style="width:100%; padding:10px; margin-top:15px; background:#6c757d; color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer;" onclick="carregarDatasCancelamento()">Carregar Datas do Mês</button>
       </div>
       <label>2. Regras e Vagas:</label>
-      <div style="margin-bottom:10px;"><label style="display:inline;">Teto de Cultos (Por Voluntária): </label><input type="number" id="cfgTeto" style="width:60px; padding:5px; text-align:center;" min="1" value="3"></div>
+      <div style="margin-bottom:10px;"><label style="display:inline;">Teto de Cultos (Por Voluntário(a)): </label><input type="number" id="cfgTeto" style="width:60px; padding:5px; text-align:center;" min="1" value="3"></div>
       <table class="tabela-vagas">
         <tr><th>Sala</th><th>Professora</th><th>Auxiliar</th><th>Reserva</th></tr>
         <tr><td>0 a 2</td><td><input type="number" id="v_l_0" min="0"></td><td><input type="number" id="v_a_0" min="0"></td><td><input type="number" id="v_r_0" min="0"></td></tr>
         <tr><td>3 a 6</td><td><input type="number" id="v_l_3" min="0"></td><td><input type="number" id="v_a_3" min="0"></td><td><input type="number" id="v_r_3" min="0"></td></tr>
         <tr><td>7 a 9</td><td><input type="number" id="v_l_7" min="0"></td><td><input type="number" id="v_a_7" min="0"></td><td><input type="number" id="v_r_7" min="0"></td></tr>
         <tr><td>10 a 12</td><td><input type="number" id="v_l_10" min="0"></td><td><input type="number" id="v_a_10" min="0"></td><td><input type="number" id="v_r_10" min="0"></td></tr>
+      </table>
+      <label style="margin-top:20px; color:#dc3545;">Terça-feira (Turma Combinada 7 a 12 anos)</label>
+      <p style="font-size:12px; color:#666; margin-top:2px;">Só nas terças, as salas de 7-9 e 10-12 funcionam juntas como uma turma só, com estas quantidades (as de cima continuam valendo só pra domingo).</p>
+      <table class="tabela-vagas">
+        <tr><th>Turma</th><th>Professora</th><th>Auxiliar</th><th>Reserva</th></tr>
+        <tr><td>7 a 12 (Terça)</td><td><input type="number" id="v_l_712" min="0"></td><td><input type="number" id="v_a_712" min="0"></td><td><input type="number" id="v_r_712" min="0"></td></tr>
       </table>
       <label style="margin-top:25px;">3. Cancelamentos:</label>
       <div id="containerCancelamentos" class="lista-cultos" style="background:#fff; padding:0; border:none;"></div>
@@ -634,7 +641,7 @@
   <div id="tela-recepcao-login" class="tela">
     <button class="btn-voltar" onclick="navegar('hub')">⬅️ Menu</button>
     <h2>Recepção</h2>
-    <label>Voluntária:</label>
+    <label>Voluntário(a):</label>
     <div style="position:relative;">
       <input type="text" class="input-form" id="nomeVoluntaria" placeholder="Digite ou selecione seu nome" autocomplete="off" oninput="filtrarSugestoesVoluntaria()" onfocus="filtrarSugestoesVoluntaria()">
       <div id="sugestoesVoluntaria" style="display:none; position:absolute; top:100%; left:0; right:0; background:#fff; border:1px solid #ddd; border-top:none; border-radius:0 0 8px 8px; max-height:220px; overflow-y:auto; z-index:50; box-shadow:0 4px 10px rgba(0,0,0,0.1);"></div>
@@ -650,7 +657,7 @@
 
   <div id="tela-recepcao-principal" class="tela">
     <div class="info-sessao">
-      <div><b>Voluntária:</b> <span id="sessaoVoluntaria"></span><br><b>Culto:</b> <span id="sessaoCulto"></span></div>
+      <div><b>Voluntário(a):</b> <span id="sessaoVoluntaria"></span><br><b>Culto:</b> <span id="sessaoCulto"></span></div>
       <button onclick="sairDaRecepcao()" style="background:#dc3545; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer;">Sair</button>
     </div>
     <h2>Check-in</h2>
@@ -1149,9 +1156,14 @@
     }
 
     // ------ Helpers de rótulo/emoji do papel (Professora=Líder internamente / Auxiliar / Reserva) ------
-    function emojiPapelJS(papel) { if(papel==="Líder") return "📚"; if(papel==="Auxiliar") return "🛟"; if(papel==="Reserva") return "😇"; return "🔹"; }
-    function rotuloPapelJS(papel) { return papel==="Líder" ? "Professora" : papel; }
+    function emojiPapelJS(papel) { if(papel==="Líder") return "📚"; if(papel==="Auxiliar") return "🛟"; if(papel==="Reserva") return "😇"; if(papel==="Líder do Culto") return "🎤"; return "🔹"; }
+    function rotuloPapelJS(papel) { if(papel==="Líder") return "Professora"; if(papel==="Líder do Culto") return "Líder do Culto"; return papel; }
     function atendeFaixaJS(c, s) { return c.faixa1===s || c.faixa2===s || c.faixa3===s || c.faixa4===s; }
+    function atendeFaixaTercaJS(c) { return atendeFaixaJS(c,"7 a 9 anos") || atendeFaixaJS(c,"10 a 12 anos"); }
+    // Retorna as "salas" a percorrer pra um culto, dependendo se é terça (turma combinada) ou domingo (4 salas).
+    function salasParaTipoCulto(isTer) {
+      return isTer ? ["0 a 2 anos", "3 a 6 anos", "7 a 12 anos"] : ["0 a 2 anos", "3 a 6 anos", "7 a 9 anos", "10 a 12 anos"];
+    }
 
     // Conecta os 2 botões (📷 Tirar Foto / 🖼️ Escolher da Galeria) a um único input "canônico" (escondido),
     // que é o mesmo usado pelo restante do código pra gerar o base64 enviado ao servidor. Assim o resto do
@@ -1273,6 +1285,7 @@
           document.getElementById('cg_Limite_3_6_anos').value = cfg['Limite_3_6_anos'] || "";
           document.getElementById('cg_Limite_7_9_anos').value = cfg['Limite_7_9_anos'] || "";
           document.getElementById('cg_Limite_10_12_anos').value = cfg['Limite_10_12_anos'] || "";
+          document.getElementById('cg_Limite_7_12_Terca').value = cfg['Limite_7_12_Terca'] || "";
           document.getElementById('cg_Cultos_Semana').value = cfg['Cultos_Semana'] || "";
           document.getElementById('cg_Mensagem_Choro').value = cfg['Mensagem_Choro'] || "";
           document.getElementById('cg_Mensagem_Telao').value = cfg['Mensagem_Telao'] || "";
@@ -1295,6 +1308,7 @@
         'Limite_3_6_anos': document.getElementById('cg_Limite_3_6_anos').value,
         'Limite_7_9_anos': document.getElementById('cg_Limite_7_9_anos').value,
         'Limite_10_12_anos': document.getElementById('cg_Limite_10_12_anos').value,
+        'Limite_7_12_Terca': document.getElementById('cg_Limite_7_12_Terca').value,
         'Cultos_Semana': document.getElementById('cg_Cultos_Semana').value,
         'Mensagem_Choro': document.getElementById('cg_Mensagem_Choro').value,
         'Mensagem_Telao': document.getElementById('cg_Mensagem_Telao').value,
@@ -1708,7 +1722,7 @@
       }
     }
 
-    // Mesmo padrão de estado do telefone secundário da família, aplicado ao telefone da voluntária (bug 5 / decisão A).
+    // Mesmo padrão de estado do telefone secundário da família, aplicado ao telefone da voluntário(a) (bug 5 / decisão A).
     var estadoTelProfessora = { tel: null, cadastrado: false };
 
     function verificarTelefoneProfessoraCliente(n) {
@@ -1717,7 +1731,7 @@
       google.script.run.withSuccessHandler(function(jaCadastrado){
         estadoTelProfessora = { tel: n, cadastrado: !!jaCadastrado };
         if (jaCadastrado) {
-          aviso.innerHTML = '⚠️ Este WhatsApp já está cadastrado para outra voluntária.';
+          aviso.innerHTML = '⚠️ Este WhatsApp já está cadastrado para outro(a) voluntário(a).';
           aviso.style.display = 'block';
         } else {
           aviso.style.display = 'none';
@@ -1736,9 +1750,9 @@
       if (!validarEmail(e)) { dE.innerText = "E-mail inválido."; dE.style.display = 'block'; return; }
 
       function bloquearTelefone() {
-        dE.innerText = "Este WhatsApp já está cadastrado para outra voluntária. Corrija o número para continuar.";
+        dE.innerText = "Este WhatsApp já está cadastrado para outro(a) voluntário(a). Corrija o número para continuar.";
         dE.style.display = 'block';
-        document.getElementById('avisoTelefoneProfessora').innerHTML = '⚠️ Este WhatsApp já está cadastrado para outra voluntária.';
+        document.getElementById('avisoTelefoneProfessora').innerHTML = '⚠️ Este WhatsApp já está cadastrado para outro(a) voluntário(a).';
         document.getElementById('avisoTelefoneProfessora').style.display = 'block';
       }
 
@@ -1931,6 +1945,9 @@
         document.getElementById('v_l_10').value=r.vagas['10_12'].l;
         document.getElementById('v_a_10').value=r.vagas['10_12'].a;
         document.getElementById('v_r_10').value=r.vagas['10_12'].r;
+        document.getElementById('v_l_712').value=r.vagas['7_12_terca'].l;
+        document.getElementById('v_a_712').value=r.vagas['7_12_terca'].a;
+        document.getElementById('v_r_712').value=r.vagas['7_12_terca'].r;
 
         preCanc=r.canceladosGeral||[];
         preExc=r.excecoesParciais||[];
@@ -1967,7 +1984,8 @@
     function renderizarBlocoCancelamento(dt, hr) {
       var iS=dt+" - "+hr;
       var eC=preCanc.indexOf(iS)!==-1;
-      var i02=false,i36=false,i79=false,i10=false;
+      var isTer = (hr === "20h");
+      var i02=false,i36=false,i79=false,i10=false,i712=false;
 
       preExc.forEach(function(e){
         if(e.data===dt&&e.hora===hr){
@@ -1975,6 +1993,7 @@
           if(e.sala==="3 a 6 anos")i36=true;
           if(e.sala==="7 a 9 anos")i79=true;
           if(e.sala==="10 a 12 anos")i10=true;
+          if(e.sala==="7 a 12 anos")i712=true;
         }
       });
 
@@ -1984,6 +2003,13 @@
       var ch36 = i36 ? 'checked' : '';
       var ch79 = i79 ? 'checked' : '';
       var ch10 = i10 ? 'checked' : '';
+      var ch712 = i712 ? 'checked' : '';
+
+      // Terça: 1 checkbox "7 a 12" combinado. Domingo: os 2 checkboxes de sempre.
+      var checkboxSalasEspecificas = isTer
+        ? '<label><input type="checkbox" class="cb-canc-parcial" data-data="' + dt + '" data-hora="' + hr + '" data-sala="7 a 12 anos" ' + ch712 + '> 7-12</label>'
+        : ('<label><input type="checkbox" class="cb-canc-parcial" data-data="' + dt + '" data-hora="' + hr + '" data-sala="7 a 9 anos" ' + ch79 + '> 7-9</label>' +
+           '<label><input type="checkbox" class="cb-canc-parcial" data-data="' + dt + '" data-hora="' + hr + '" data-sala="10 a 12 anos" ' + ch10 + '> 10-12</label>');
 
       var h = '<div class="card-cancelamento">' +
                 '<div class="header-canc">' +
@@ -1995,8 +2021,7 @@
                 '<div class="sub-canc" style="' + opac + '">' +
                   '<label><input type="checkbox" class="cb-canc-parcial" data-data="' + dt + '" data-hora="' + hr + '" data-sala="0 a 2 anos" ' + ch02 + '> 0-2</label>' +
                   '<label><input type="checkbox" class="cb-canc-parcial" data-data="' + dt + '" data-hora="' + hr + '" data-sala="3 a 6 anos" ' + ch36 + '> 3-6</label>' +
-                  '<label><input type="checkbox" class="cb-canc-parcial" data-data="' + dt + '" data-hora="' + hr + '" data-sala="7 a 9 anos" ' + ch79 + '> 7-9</label>' +
-                  '<label><input type="checkbox" class="cb-canc-parcial" data-data="' + dt + '" data-hora="' + hr + '" data-sala="10 a 12 anos" ' + ch10 + '> 10-12</label>' +
+                  checkboxSalasEspecificas +
                 '</div>' +
               '</div>';
       document.getElementById('containerCancelamentos').insertAdjacentHTML('beforeend', h);
@@ -2026,7 +2051,8 @@
           '0_2':{l:document.getElementById('v_l_0').value,a:document.getElementById('v_a_0').value,r:document.getElementById('v_r_0').value},
           '3_6':{l:document.getElementById('v_l_3').value,a:document.getElementById('v_a_3').value,r:document.getElementById('v_r_3').value},
           '7_9':{l:document.getElementById('v_l_7').value,a:document.getElementById('v_a_7').value,r:document.getElementById('v_r_7').value},
-          '10_12':{l:document.getElementById('v_l_10').value,a:document.getElementById('v_a_10').value,r:document.getElementById('v_r_10').value}
+          '10_12':{l:document.getElementById('v_l_10').value,a:document.getElementById('v_a_10').value,r:document.getElementById('v_r_10').value},
+          '7_12_terca':{l:document.getElementById('v_l_712').value,a:document.getElementById('v_a_712').value,r:document.getElementById('v_r_712').value}
         },
         canceladosGeral:[],
         excecoesParciais:[]
@@ -2093,11 +2119,22 @@
       });
 
       var ht="";
-      var os = ["0 a 2 anos", "3 a 6 anos", "7 a 9 anos", "10 a 12 anos"];
 
       for(var kc in ag) {
         var ds=kc.includes("10h")||kc.includes("19h")?"Dom":"Ter";
+        var os = salasParaTipoCulto(ds === "Ter");
         ht += '<div class="culto-card"><div class="culto-header">📅 ' + ds + ', ' + kc.substring(0,5) + ' - ' + kc.substring(13) + '</div><div class="culto-body">';
+
+        // "Líder do Culto": linha própria do culto, não é uma sala.
+        if (ag[kc]['Geral']) {
+          ag[kc]['Geral'].forEach(function(v){
+            var iV = (!v.nomeAlocado || v.nomeAlocado==="VAZIO");
+            var nA_esc = v.nomeAlocado ? v.nomeAlocado.replace(/'/g, "\\'") : '';
+            var txt = iV ? '➕ Adicionar Líder do Culto' : ('🎤 Líder do Culto: ' + v.nomeAlocado);
+            var estilo = iV ? 'padding:8px; border:1px dashed #ccc; border-radius:6px; cursor:pointer; color:#888;' : 'font-weight:bold; color:#222; cursor:pointer;';
+            ht += '<div class="vaga' + (iV?'-vazia':'') + '" style="width:96%; margin:1% auto; text-align:center; background:#fff8e1; border:2px solid #FFD100; ' + estilo + '" onclick="abrirModalTroca(\'' + v.idEscala + '\',\'' + v.dataCulto + '\',\'' + v.horario + '\',\'' + nA_esc + '\',\'Geral\',\'Líder do Culto\')">' + txt + '</div>';
+          });
+        }
 
         os.forEach(function(s) {
           if(!ag[kc][s]) return;
@@ -2145,12 +2182,25 @@
       var sel=document.getElementById('tmSelectVoluntaria');
       sel.innerHTML='<option value="">-- Vazio --</option>';
 
+      // "Líder do Culto": qualquer voluntária ativa serve, sem filtro nenhum de faixa/perfil/preferência/culto.
+      if (p === "Líder do Culto") {
+        listaCands.slice().sort(function(a,b){ return a.nome.localeCompare(b.nome); }).forEach(function(c){
+          var o=document.createElement('option');
+          o.value=c.nome; o.innerText=c.nome;
+          if(c.nome===nA) o.selected=true;
+          sel.appendChild(o);
+        });
+        document.getElementById('modalTrocaManual').style.display='flex';
+        return;
+      }
+
       var ptD = d.split('/');
       var dtObj = new Date(parseInt(ptD[2],10), parseInt(ptD[1],10)-1, parseInt(ptD[0],10));
       var isDom = (dtObj.getDay() === 0); var isTer = (dtObj.getDay() === 2);
+      var atendeSalaFn = (s === "7 a 12 anos") ? atendeFaixaTercaJS : function(c){ return atendeFaixaJS(c, s); };
 
       listaCands.forEach(function(c){
-        if(!atendeFaixaJS(c, s)) return;
+        if(!atendeSalaFn(c)) return;
 
         var match = [c.culto1, c.culto2, c.culto3].some(a => {
           if(isDom && a.includes('Domingo') && a.includes(h)) return true;
@@ -2241,11 +2291,23 @@
         });
 
         var html = "";
-        var os = ["0 a 2 anos", "3 a 6 anos", "7 a 9 anos", "10 a 12 anos"];
 
         for (var kc in ag) {
           var ds=kc.includes("10h")||kc.includes("19h")?"Dom":"Ter";
+          var os = salasParaTipoCulto(ds === "Ter");
           html += '<div class="culto-card"><div class="culto-header" style="background:#00AEEF;">📅 ' + ds + ', ' + kc.substring(0,5) + ' - ' + kc.substring(13) + '</div><div class="culto-body">';
+
+          // "Líder do Culto": linha própria do culto (não é sala).
+          if (ag[kc]['Geral']) {
+            ag[kc]['Geral'].forEach(function(v){
+              var isVazioG = (!v.nomeAlocado || v.nomeAlocado==="VAZIO");
+              if (isVazioG) {
+                html += '<div class="vaga-publica" onclick="pedirSenha(\'PIN_Lideranca\', \'vaga_manual_' + v.idEscala + '\')" style="cursor:pointer; background:#fff3cd; color:#856404; text-align:center; padding:10px; border:1px dashed #ffeeba; border-radius:6px; margin-bottom:8px; width:96%; margin-left:2%;"><b>🎤 Líder do Culto - ⚠️ Vaga Aberta</b></div>';
+              } else {
+                html += '<div class="vaga-publica" style="background:#fff8e1; border:2px solid #FFD100; padding:10px; border-radius:6px; margin-bottom:8px; width:96%; margin-left:2%; text-align:center;"><b>🎤 Líder do Culto: ' + v.nomeAlocado + '</b></div>';
+              }
+            });
+          }
 
           os.forEach(function(s) {
             if(!ag[kc][s]) return;
@@ -2352,11 +2414,18 @@
         if (!ag[k][v.sala]) ag[k][v.sala] = [];
         ag[k][v.sala].push(v);
       });
-      var os = ["0 a 2 anos", "3 a 6 anos", "7 a 9 anos", "10 a 12 anos"];
-
       for (var kc in ag) {
         var ds=kc.includes("10h")||kc.includes("19h")?"Dom":"Ter";
+        var os = salasParaTipoCulto(ds === "Ter");
         text += "📅 *" + ds + ", " + kc.substring(0,5) + " - " + kc.substring(13) + "*\n";
+
+        if (ag[kc]['Geral']) {
+          ag[kc]['Geral'].forEach(function(v){
+            var txt = (!v.nomeAlocado || v.nomeAlocado==="VAZIO") ? "⚠️ Vaga Aberta" : "*" + v.nomeAlocado + "*";
+            text += "🎤 *Líder do Culto:* " + txt + "\n";
+          });
+          text += "\n";
+        }
 
         os.forEach(function(s) {
           if(!ag[kc][s]) return;
@@ -2500,9 +2569,17 @@
         if(!ag[k][v.sala]) ag[k][v.sala] = [];
         ag[k][v.sala].push(v);
       });
-      var os = ["0 a 2 anos", "3 a 6 anos", "7 a 9 anos", "10 a 12 anos"];
       Object.keys(ag).forEach(function(kc){
+        var os = salasParaTipoCulto(kc.includes("20h"));
         text += "📅 *" + kc + "*\n";
+
+        if (ag[kc]['Geral']) {
+          ag[kc]['Geral'].forEach(function(v){
+            var txt = (!v.nomeAlocado || v.nomeAlocado==="VAZIO") ? "⚠️ Vaga Aberta" : "*" + v.nomeAlocado + "*";
+            text += "🎤 Líder do Culto: " + txt + "\n";
+          });
+        }
+
         os.forEach(function(s){
           if(!ag[kc][s]) return;
           var linhas = ""; var temGente = false;
@@ -2673,11 +2750,15 @@
     function atualizarContadorSalas() {
       var box = document.getElementById('contadorSalasBarra');
       if (!box) return;
-      var salas = ["0 a 2 anos","3 a 6 anos","7 a 9 anos","10 a 12 anos"];
+      var isTerLogado = (cultoLogado || "").includes('Terça');
+      var salas = salasParaTipoCulto(isTerLogado);
       var contagem = {};
       salas.forEach(function(s){ contagem[s] = 0; });
       bancoCriancas.forEach(function(c){
-        if (c.codigoAtivo && contagem.hasOwnProperty(c.sala)) contagem[c.sala]++;
+        // Na terça, 7-9 e 10-12 do cadastro contam juntas na turma combinada "7 a 12 anos" (item 23 revisado).
+        var salaContagem = c.sala;
+        if (isTerLogado && (salaContagem === "7 a 9 anos" || salaContagem === "10 a 12 anos")) salaContagem = "7 a 12 anos";
+        if (c.codigoAtivo && contagem.hasOwnProperty(salaContagem)) contagem[salaContagem]++;
       });
       box.innerHTML = salas.map(function(s){ return '<span>' + s.replace(' anos','') + ': ' + contagem[s] + '</span>'; }).join(' <span style="color:#ccc;">|</span> ');
     }
@@ -2688,13 +2769,16 @@
       var h="";
       if(f.length===0){ h='<p style="text-align:center;">Nenhuma criança.</p>';}
 
+      var isTerLogado = (cultoLogado || "").includes('Terça');
       f.forEach(c=>{
         var fU=formatarUrlFoto(c.foto);
         var n_esc = c.nome.replace(/'/g, "\\'");
         var r_esc = c.responsavel.replace(/'/g, "\\'");
         var a_esc = c.alergias.replace(/'/g, "\\'");
+        // Terça: exibe "7 a 12 anos" pra 7-9/10-12 do cadastro, só pra bater com o check-in real (item j).
+        var salaExibida = (isTerLogado && (c.sala === "7 a 9 anos" || c.sala === "10 a 12 anos")) ? "7 a 12 anos" : c.sala;
 
-        var bH=c.codigoAtivo ? '<button class="btn-checkin" disabled style="background:#28a745;">Cód: ' + c.codigoAtivo + '</button><button class="btn-imprimir" onclick="abrirEtiqueta(\'' + n_esc + '\',\'' + c.sala + '\',\'' + c.codigoAtivo + '\',\'' + r_esc + '\',\'' + c.telefone + '\',\'' + a_esc + '\')">🖨️</button>' : '<button class="btn-checkin" onclick="iniciarCheckin(\'' + c.idCrianca + '\', this)">Check-in</button>';
+        var bH=c.codigoAtivo ? '<button class="btn-checkin" disabled style="background:#28a745;">Cód: ' + c.codigoAtivo + '</button><button class="btn-imprimir" onclick="abrirEtiqueta(\'' + n_esc + '\',\'' + salaExibida + '\',\'' + c.codigoAtivo + '\',\'' + r_esc + '\',\'' + c.telefone + '\',\'' + a_esc + '\')">🖨️</button>' : '<button class="btn-checkin" onclick="iniciarCheckin(\'' + c.idCrianca + '\', this)">Check-in</button>';
         var aA=temAlergia(c.alergias)? '<div style="color:red;font-size:12px;font-weight:bold;">⚠️ ' + c.alergias + '</div>' : '';
         var classeAlergia = temAlergia(c.alergias) ? ' card-crianca-alergia' : '';
 
@@ -2702,7 +2786,7 @@
                '<img src="' + fU + '" class="foto-crianca" style="cursor:zoom-in;" onclick="event.stopPropagation(); ampliarFoto(\'' + fU + '\')">' +
                '<div class="dados-crianca">' +
                  '<h3 style="margin:0 0 5px 0;">' + c.nome + ' <span style="cursor:pointer;font-size:14px;" title="Editar ficha" onclick="abrirFichaCrianca(\'' + c.idCrianca + '\')">✏️</span></h3>' +
-                 '<p style="margin:0;font-size:13px;">🏠 ' + c.sala + '<br>👤 ' + c.responsavel + '</p>' +
+                 '<p style="margin:0;font-size:13px;">🏠 ' + salaExibida + '<br>👤 ' + c.responsavel + '</p>' +
                  aA +
                '</div>' +
                '<div class="acoes-card" style="margin-left:auto;">' + bH + '</div>' +
@@ -3029,7 +3113,10 @@
       var ct={};
       cr.forEach(c=>{ ct[c.sala]=(ct[c.sala]||0)+1; });
 
-      var sC=[{n:"0 a 2 anos",k:"Limite_0_2_anos"},{n:"3 a 6 anos",k:"Limite_3_6_anos"},{n:"7 a 9 anos",k:"Limite_7_9_anos"},{n:"10 a 12 anos",k:"Limite_10_12_anos"}];
+      var isTerCulto = cl.includes('Terça');
+      var sC = isTerCulto
+        ? [{n:"0 a 2 anos",k:"Limite_0_2_anos"},{n:"3 a 6 anos",k:"Limite_3_6_anos"},{n:"7 a 12 anos",k:"Limite_7_12_Terca"}]
+        : [{n:"0 a 2 anos",k:"Limite_0_2_anos"},{n:"3 a 6 anos",k:"Limite_3_6_anos"},{n:"7 a 9 anos",k:"Limite_7_9_anos"},{n:"10 a 12 anos",k:"Limite_10_12_anos"}];
       var ht="";
 
       sC.forEach((s,i)=>{
