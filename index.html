@@ -2249,16 +2249,28 @@
       if(!confirm("Tem certeza? O sistema enviará os e-mails do Google Agenda agora mesmo!")) return;
       var b=document.getElementById('btnPublicarOficial');
       b.innerText="Enviando E-mails... 🚀⏳"; b.disabled=true;
-      var mesAnoStr = document.getElementById('cfgMes').value + "/" + document.getElementById('cfgAno').value;
 
+      // Busca o Mês/Ano configurado direto da planilha (não confia nos campos cfgMes/cfgAno da tela,
+      // que só são preenchidos quando a aba de Configurações da Escala é visitada nessa sessão).
       google.script.run.withFailureHandler(function(err){
         alert("Erro: " + err.message);
         b.innerText="Publicar Escala Oficial 🚀"; b.disabled=false;
-      }).withSuccessHandler(function(res){
-        b.innerText="Publicado com Sucesso!";
-        document.getElementById('txtWhatsapp').value = res.msg;
-        document.getElementById('modalWhatsapp').style.display = 'flex';
-      }).publicarEscalaOficial(mesAnoStr);
+      }).withSuccessHandler(function(cfg){
+        var mesAnoStr = cfg.mes + "/" + cfg.ano;
+        google.script.run.withFailureHandler(function(err){
+          alert("Erro: " + err.message);
+          b.innerText="Publicar Escala Oficial 🚀"; b.disabled=false;
+        }).withSuccessHandler(function(res){
+          if (!res.sucesso) {
+            alert(res.msg);
+            b.innerText="Publicar Escala Oficial 🚀"; b.disabled=false;
+            return;
+          }
+          b.innerText="Publicado com Sucesso!";
+          document.getElementById('txtWhatsapp').value = res.msg;
+          document.getElementById('modalWhatsapp').style.display = 'flex';
+        }).publicarEscalaOficial(mesAnoStr);
+      }).obterConfiguracoesEscala();
     }
 
     function copiarWhatsapp() {
