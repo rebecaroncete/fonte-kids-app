@@ -783,6 +783,34 @@
     </div>
   </div>
 
+  <div class="modal-overlay" id="modalAutoVaga">
+    <div class="modal">
+      <h3 style="margin-top:0; color:#00AEEF;">Quero servir nessa vaga!</h3>
+      <p style="font-size:13px; color:#666;">Digite seu nome e escolha ele na lista (só nomes já cadastrados aparecem):</p>
+      <input type="hidden" id="avIdEscala">
+      <div style="position:relative;">
+        <input type="text" id="avNomeInput" class="input-form" placeholder="Digite seu nome..." oninput="filtrarSugestoesAutoVaga()" autocomplete="off" style="border:2px solid #00AEEF; font-weight:bold; padding:12px;">
+        <div id="avSugestoes" style="display:none; position:absolute; top:100%; left:0; right:0; background:#fff; border:1px solid #ddd; border-radius:6px; max-height:200px; overflow-y:auto; z-index:20; box-shadow:0 4px 10px rgba(0,0,0,0.15);"></div>
+      </div>
+      <button class="btn-confirmar" id="btnConfirmarAutoVaga" style="margin-top:20px;" onclick="confirmarAutoVaga()">Confirmar</button>
+      <button class="btn-cancelar" onclick="document.getElementById('modalAutoVaga').style.display='none'">Cancelar</button>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modalEditarLider">
+    <div class="modal">
+      <h3 style="margin-top:0; color:#F28C28;">🎤 Definir Líder do Culto</h3>
+      <p style="font-size:13px; color:#666;">Escolha o nome na lista (todas as voluntárias ativas aparecem, com busca):</p>
+      <input type="hidden" id="elIdEscala">
+      <div style="position:relative;">
+        <input type="text" id="elNomeInput" class="input-form" placeholder="Digite o nome..." oninput="filtrarSugestoesEditarLider()" autocomplete="off" style="border:2px solid #F28C28; font-weight:bold; padding:12px;">
+        <div id="elSugestoes" style="display:none; position:absolute; top:100%; left:0; right:0; background:#fff; border:1px solid #ddd; border-radius:6px; max-height:200px; overflow-y:auto; z-index:20; box-shadow:0 4px 10px rgba(0,0,0,0.15);"></div>
+      </div>
+      <button class="btn-confirmar" id="btnConfirmarEditarLider" style="margin-top:20px;" onclick="confirmarEditarLider()">Salvar</button>
+      <button class="btn-cancelar" onclick="document.getElementById('modalEditarLider').style.display='none'">Cancelar</button>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="modalWhatsapp">
     <div class="modal">
       <h3 style="margin-top:0; color:#28a745;">🚀 Escala Pronta!</h3>
@@ -1059,6 +1087,9 @@
                     carregarEscalaPublica();
                   }).preencherVagaManualOficial(idVaga, nomeLivre.trim());
               }
+          } else if(telaDestinoSenha.startsWith('editar_lider_')) {
+              var idLider = telaDestinoSenha.replace('editar_lider_', '');
+              abrirModalEditarLider(idLider);
           } else {
             navegar(telaDestinoSenha);
           }
@@ -2241,6 +2272,162 @@
     }
 
     // ==========================================
+    // AUTOESCOLHA DE VAGA ABERTA (ESCALA PÚBLICA) - sem senha, só vagas de sala
+    // ==========================================
+    var avNomeSelecionadoValido = false;
+
+    function abrirModalAutoVaga(idEscala) {
+      document.getElementById('avIdEscala').value = idEscala;
+      document.getElementById('avNomeInput').value = "";
+      document.getElementById('avSugestoes').style.display = 'none';
+      avNomeSelecionadoValido = false;
+      if (!globalNomesVoluntariasAtivas || globalNomesVoluntariasAtivas.length === 0) {
+        carregarListaVoluntariasAtivas();
+      }
+      document.getElementById('modalAutoVaga').style.display = 'flex';
+    }
+
+    function filtrarSugestoesAutoVaga() {
+      avNomeSelecionadoValido = false;
+      var input = document.getElementById('avNomeInput');
+      var box = document.getElementById('avSugestoes');
+      var termo = (input.value || "").trim();
+      var lista = globalNomesVoluntariasAtivas || [];
+      var filtrados = termo === "" ? lista : lista.filter(function(n){ return nomeParecido(termo, n); });
+      if (filtrados.length === 0) { box.style.display = 'none'; box.innerHTML = ""; return; }
+      box.innerHTML = "";
+      filtrados.slice(0, 30).forEach(function(n){
+        var item = document.createElement('div');
+        item.textContent = n;
+        item.style.padding = '10px 12px';
+        item.style.cursor = 'pointer';
+        item.style.borderBottom = '1px solid #f0f0f0';
+        item.onmousedown = function(e){
+          e.preventDefault();
+          input.value = n;
+          avNomeSelecionadoValido = true;
+          box.style.display = 'none';
+        };
+        item.onmouseover = function(){ item.style.background = '#f5f5f5'; };
+        item.onmouseout = function(){ item.style.background = '#fff'; };
+        box.appendChild(item);
+      });
+      box.style.display = 'block';
+    }
+
+    document.addEventListener('click', function(e){
+      var box = document.getElementById('avSugestoes');
+      var input = document.getElementById('avNomeInput');
+      if (!box || !input) return;
+      if (e.target !== input && e.target !== box && !box.contains(e.target)) {
+        box.style.display = 'none';
+      }
+    });
+
+    function confirmarAutoVaga() {
+      var nome = document.getElementById('avNomeInput').value.trim();
+      if (!avNomeSelecionadoValido || !nome) {
+        alert("Escolha seu nome clicando numa das opções da lista.");
+        return;
+      }
+      if (!confirm("Confirma que você é " + nome + " e quer se colocar nessa vaga?")) return;
+
+      var idEscala = document.getElementById('avIdEscala').value;
+      var b = document.getElementById('btnConfirmarAutoVaga');
+      b.innerText = "Salvando..."; b.disabled = true;
+
+      google.script.run.withFailureHandler(function(err){
+        alert("Erro: " + err.message);
+        b.innerText = "Confirmar"; b.disabled = false;
+      }).withSuccessHandler(function(res){
+        b.innerText = "Confirmar"; b.disabled = false;
+        if (!res.sucesso) {
+          alert(res.msg);
+          return;
+        }
+        document.getElementById('modalAutoVaga').style.display = 'none';
+        carregarEscalaPublica();
+      }).autoPreencherVagaAberta(idEscala, nome);
+    }
+
+    // ==========================================
+    // EDITAR LÍDER DO CULTO (senha da liderança + dropdown com busca)
+    // ==========================================
+    var elNomeSelecionadoValido = false;
+
+    function abrirModalEditarLider(idEscala) {
+      document.getElementById('elIdEscala').value = idEscala;
+      document.getElementById('elNomeInput').value = "";
+      document.getElementById('elSugestoes').style.display = 'none';
+      elNomeSelecionadoValido = false;
+      if (!globalNomesVoluntariasAtivas || globalNomesVoluntariasAtivas.length === 0) {
+        carregarListaVoluntariasAtivas();
+      }
+      document.getElementById('modalEditarLider').style.display = 'flex';
+    }
+
+    function filtrarSugestoesEditarLider() {
+      elNomeSelecionadoValido = false;
+      var input = document.getElementById('elNomeInput');
+      var box = document.getElementById('elSugestoes');
+      var termo = (input.value || "").trim();
+      var lista = globalNomesVoluntariasAtivas || [];
+      var filtrados = termo === "" ? lista : lista.filter(function(n){ return nomeParecido(termo, n); });
+      if (filtrados.length === 0) { box.style.display = 'none'; box.innerHTML = ""; return; }
+      box.innerHTML = "";
+      filtrados.slice(0, 30).forEach(function(n){
+        var item = document.createElement('div');
+        item.textContent = n;
+        item.style.padding = '10px 12px';
+        item.style.cursor = 'pointer';
+        item.style.borderBottom = '1px solid #f0f0f0';
+        item.onmousedown = function(e){
+          e.preventDefault();
+          input.value = n;
+          elNomeSelecionadoValido = true;
+          box.style.display = 'none';
+        };
+        item.onmouseover = function(){ item.style.background = '#f5f5f5'; };
+        item.onmouseout = function(){ item.style.background = '#fff'; };
+        box.appendChild(item);
+      });
+      box.style.display = 'block';
+    }
+
+    document.addEventListener('click', function(e){
+      var box = document.getElementById('elSugestoes');
+      var input = document.getElementById('elNomeInput');
+      if (!box || !input) return;
+      if (e.target !== input && e.target !== box && !box.contains(e.target)) {
+        box.style.display = 'none';
+      }
+    });
+
+    function confirmarEditarLider() {
+      var nome = document.getElementById('elNomeInput').value.trim();
+      if (!elNomeSelecionadoValido || !nome) {
+        alert("Escolha um nome clicando numa das opções da lista.");
+        return;
+      }
+      var idEscala = document.getElementById('elIdEscala').value;
+      var b = document.getElementById('btnConfirmarEditarLider');
+      b.innerText = "Salvando..."; b.disabled = true;
+
+      google.script.run.withFailureHandler(function(err){
+        alert("Erro: " + err.message);
+        b.innerText = "Salvar"; b.disabled = false;
+      }).withSuccessHandler(function(res){
+        b.innerText = "Salvar"; b.disabled = false;
+        if (!res.sucesso) {
+          alert(res.msg);
+          return;
+        }
+        document.getElementById('modalEditarLider').style.display = 'none';
+        carregarEscalaPublica();
+      }).definirLiderDoCulto(idEscala, nome);
+    }
+
+    // ==========================================
     // ESCALA OFICIAL (PÚBLICA)
     // ==========================================
     var globalEscalaData = [];
@@ -2314,9 +2501,9 @@
             ag[kc]['Geral'].forEach(function(v){
               var isVazioG = (!v.nomeAlocado || v.nomeAlocado==="VAZIO");
               if (isVazioG) {
-                html += '<div class="vaga-publica" onclick="pedirSenha(\'PIN_Lideranca\', \'vaga_manual_' + v.idEscala + '\')" style="cursor:pointer; background:#fff3cd; color:#856404; text-align:center; padding:10px; border:1px dashed #ffeeba; border-radius:6px; margin-bottom:8px; width:96%; margin-left:2%;"><b>🎤 Líder do Culto - ⚠️ Vaga Aberta</b></div>';
+                html += '<div class="vaga-publica" onclick="pedirSenha(\'PIN_Lideranca\', \'editar_lider_' + v.idEscala + '\')" style="cursor:pointer; background:#fff3cd; color:#856404; text-align:center; padding:10px; border:1px dashed #ffeeba; border-radius:6px; margin-bottom:8px; width:96%; margin-left:2%;"><b>🎤 Líder do Culto - ⚠️ Vaga Aberta<br><span style="font-size:11px; font-weight:normal;">Toque para escolher (senha da liderança)</span></b></div>';
               } else {
-                html += '<div class="vaga-publica" style="background:#fff8e1; border:2px solid #FFD100; padding:10px; border-radius:6px; margin-bottom:8px; width:96%; margin-left:2%; text-align:center;"><b>🎤 Líder do Culto: ' + v.nomeAlocado + '</b></div>';
+                html += '<div class="vaga-publica" onclick="pedirSenha(\'PIN_Lideranca\', \'editar_lider_' + v.idEscala + '\')" style="cursor:pointer; background:#fff8e1; border:2px solid #FFD100; padding:10px; border-radius:6px; margin-bottom:8px; width:96%; margin-left:2%; text-align:center;"><b>🎤 Líder do Culto: ' + v.nomeAlocado + '</b><br><span style="font-size:11px; color:#856404;">Toque para trocar (senha da liderança)</span></div>';
               }
             });
           }
@@ -2332,7 +2519,7 @@
               var ci = v.papel==="Líder"?"#F28C28":"#00AEEF";
 
               if(isVazio) {
-                htmlVagas += '<div class="vaga-publica" onclick="pedirSenha(\'PIN_Lideranca\', \'vaga_manual_' + v.idEscala + '\')" style="cursor:pointer; background:#fff3cd; color:#856404; text-align:center; padding:10px; border:1px dashed #ffeeba; border-radius:6px; margin-bottom:8px;"><b>⚠️ Vaga Aberta</b></div>';
+                htmlVagas += '<div class="vaga-publica" onclick="abrirModalAutoVaga(\'' + v.idEscala + '\')" style="cursor:pointer; background:#fff3cd; color:#856404; text-align:center; padding:10px; border:1px dashed #ffeeba; border-radius:6px; margin-bottom:8px;"><b>⚠️ Vaga Aberta<br><span style="font-size:11px; font-weight:normal;">Toque para se colocar</span></b></div>';
               } else {
                 if(v.isSistema) {
                   var acts = v.status === "Ciente"
