@@ -587,6 +587,7 @@
 
     <div id="botoesLiderancaPublica" style="display:none; margin-top:20px;">
       <button class="btn-submit" style="background:#28a745; margin-top:0;" onclick="gerarTextoEscalaPublica()">📝 Gerar Texto do Mês para o WhatsApp</button>
+      <p id="lblVagasAbertasCount" style="text-align:center; font-size:13px; color:#856404; margin:10px 0 5px;"></p>
       <button class="btn-acao-secundario" style="color:#F28C28; border-color:#F28C28;" onclick="pedirSenha('PIN_Lideranca', 'preencher_vagas')">🔄 Sorteio de Substitutas (Preencher Vazios)</button>
     </div>
   </div>
@@ -2651,6 +2652,12 @@
         }
         document.getElementById('containerEscalaPublica').innerHTML = html;
         document.getElementById('botoesLiderancaPublica').style.display = 'block';
+
+        var qtdeVagasAbertas = globalEscalaData.filter(function(v){
+          return v.papel !== "Líder do Culto" && (!v.nomeAlocado || v.nomeAlocado === "VAZIO");
+        }).length;
+        var lblVagas = document.getElementById('lblVagasAbertasCount');
+        lblVagas.innerText = qtdeVagasAbertas === 0 ? "✅ Nenhuma vaga de sala em aberto no momento." : "⚠️ " + qtdeVagasAbertas + " vaga(s) de sala em aberto no momento.";
       }).obterEscalaPublica(mesAno);
     }
 
@@ -2691,8 +2698,8 @@
       document.getElementById('pubLoading').style.display = 'block';
 
       google.script.run.withSuccessHandler(function(res){
-        document.getElementById('pubLoading').innerText = "Atualizando agenda do Google... ⏳";
-        alert(res.msg);
+        document.getElementById('txtWhatsapp').value = res.msg;
+        document.getElementById('modalWhatsapp').style.display = 'flex';
         carregarEscalaPublica();
       }).preencherVagasAbertasOficial(mesAno);
     }
