@@ -473,9 +473,45 @@
     <div id="indispForm" style="display:none;">
       <label>Selecione o seu nome:</label>
       <select class="input-form" id="indispNome" onchange="onChangeIndispNome()" required><option value="">-- Selecione --</option></select>
-      <label>Dias em que você NÃO pode servir em <span id="lblMesAlvo"></span>:</label>
+
+      <div id="indispJaPreencheuAviso" style="display:none; background:#fff3cd; color:#856404; border:1px dashed #ffeeba; border-radius:6px; padding:10px; margin:15px 0; font-size:13px;">
+        ⚠️ Você já enviou sua indisponibilidade desse mês. Pode revisar/alterar seus dados e as datas abaixo à vontade — ao salvar, isso substitui o que você tinha enviado antes.
+      </div>
+
+      <div id="indispDadosCadastro" style="display:none;">
+        <label style="margin-top:15px;">Confira e, se precisar, atualize seus dados de cadastro:</label>
+        <div class="grid-2col">
+          <div><label>WhatsApp:</label><input type="tel" class="input-form" id="indispTel" maxlength="15" oninput="aplicarMascaraTelefone(this)"></div>
+          <div><label>Data de Nasc.:</label><input type="text" inputmode="numeric" class="input-form" id="indispNasc" maxlength="10" oninput="mascaraData(this)" placeholder="DD/MM/AAAA"></div>
+        </div>
+        <label>E-mail:</label><input type="email" class="input-form" id="indispEmail" placeholder="exemplo@email.com">
+        <div class="grid-2col">
+          <div><label>Profissão:</label><input type="text" class="input-form" id="indispProf" placeholder="Ex: Pedagoga..."></div>
+          <div><label>Sexo:</label><select class="input-form" id="indispSexo"><option value="Feminino">Feminino</option><option value="Masculino">Masculino</option></select></div>
+        </div>
+        <label>Perfil:</label><select class="input-form" id="indispPerfil"><option value="Auxiliar">Auxiliar</option><option value="Professora">Professora</option></select>
+        <p style="font-size:12px; color:#666; margin-top:15px;">Faixas etárias de preferência, da mais desejada (Faixa 1) até a menos desejada (Faixa 4).</p>
+        <div class="grid-2col">
+          <div><label>Faixa 1 (preferida):</label><select class="input-form" id="indispF1"><option value="0 a 2 anos">0 a 2 anos</option><option value="3 a 6 anos">3 a 6 anos</option><option value="7 a 9 anos">7 a 9 anos</option><option value="10 a 12 anos">10 a 12 anos</option></select></div>
+          <div><label>Faixa 2:</label><select class="input-form" id="indispF2"><option value="Nenhuma / Apenas as opções anteriores">Nenhuma / Apenas as opções anteriores</option><option value="0 a 2 anos">0 a 2 anos</option><option value="3 a 6 anos">3 a 6 anos</option><option value="7 a 9 anos">7 a 9 anos</option><option value="10 a 12 anos">10 a 12 anos</option></select></div>
+        </div>
+        <div class="grid-2col">
+          <div><label>Faixa 3:</label><select class="input-form" id="indispF3"><option value="Nenhuma / Apenas as opções anteriores">Nenhuma / Apenas as opções anteriores</option><option value="0 a 2 anos">0 a 2 anos</option><option value="3 a 6 anos">3 a 6 anos</option><option value="7 a 9 anos">7 a 9 anos</option><option value="10 a 12 anos">10 a 12 anos</option></select></div>
+          <div><label>Faixa 4:</label><select class="input-form" id="indispF4"><option value="Nenhuma / Apenas as opções anteriores">Nenhuma / Apenas as opções anteriores</option><option value="0 a 2 anos">0 a 2 anos</option><option value="3 a 6 anos">3 a 6 anos</option><option value="7 a 9 anos">7 a 9 anos</option><option value="10 a 12 anos">10 a 12 anos</option></select></div>
+        </div>
+        <div class="grid-2col">
+          <div><label>Culto 1:</label><select class="input-form" id="indispC1"><option value="Domingo às 10h">Domingo às 10h</option><option value="Domingo às 19h">Domingo às 19h</option><option value="Terça às 20h">Terça às 20h</option></select></div>
+          <div><label>Culto 2:</label><select class="input-form" id="indispC2"><option value="Nenhuma / Apenas a 1ª opção">Nenhuma / Apenas a 1ª opção</option><option value="Domingo às 10h">Domingo às 10h</option><option value="Domingo às 19h">Domingo às 19h</option><option value="Terça às 20h">Terça às 20h</option></select></div>
+        </div>
+        <label>Culto 3 (Terceira Opção):</label>
+        <select class="input-form" id="indispC3"><option value="Nenhuma / Apenas a 1ª opção">Nenhuma / Apenas a 1ª opção</option><option value="Domingo às 10h">Domingo às 10h</option><option value="Domingo às 19h">Domingo às 19h</option><option value="Terça às 20h">Terça às 20h</option></select>
+        <label style="margin-top:15px;">Teto de cultos por mês (máximo de vezes que você pode servir no mês):</label>
+        <input type="number" class="input-form" id="indispTeto" min="1" style="max-width:100px;">
+      </div>
+
+      <label style="margin-top:20px;">Dias em que você NÃO pode servir em <span id="lblMesAlvo"></span>:</label>
       <div id="containerCultos" class="lista-cultos"><p style="color:#888; text-align:center;">Selecione seu nome acima.</p></div>
-      <button class="btn-submit" type="button" style="background-color: #00AEEF;" onclick="enviarIndisponibilidade()">Salvar Minhas Datas</button>
+      <button class="btn-submit" type="button" style="background-color: #00AEEF;" id="btnEnviarIndisp" onclick="enviarIndisponibilidade()">Salvar Minhas Datas</button>
     </div>
   </div>
 
@@ -494,7 +530,7 @@
         <button type="button" style="width:100%; padding:10px; margin-top:15px; background:#6c757d; color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer;" onclick="carregarDatasCancelamento()">Carregar Datas do Mês</button>
       </div>
       <label>2. Regras e Vagas:</label>
-      <div style="margin-bottom:10px;"><label style="display:inline;">Teto de Cultos (Por Voluntário(a)): </label><input type="number" id="cfgTeto" style="width:60px; padding:5px; text-align:center;" min="1" value="3"></div>
+      <p style="font-size:12px; color:#888; margin-top:-5px;">O teto mensal de cultos agora é individual — cada voluntária ajusta o dela na tela de Indisponibilidade.</p>
       <table class="tabela-vagas">
         <tr><th>Sala</th><th>Professora</th><th>Auxiliar</th><th>Reserva</th></tr>
         <tr><td>0 a 2</td><td><input type="number" id="v_l_0" min="0"></td><td><input type="number" id="v_a_0" min="0"></td><td><input type="number" id="v_r_0" min="0"></td></tr>
@@ -1888,6 +1924,8 @@
     // ==========================================
     var globalProfsMap = {};
     var globalCultosDisponiveis = [];
+    var indispLinhaAtual = null;
+    var indispFotoAtual = "Sem Foto";
 
     function abrirIndisponibilidade() {
       navegar('indisponibilidade');
@@ -1912,32 +1950,62 @@
     function onChangeIndispNome() {
       var n = document.getElementById('indispNome').value;
       var cC = document.getElementById('containerCultos');
+      document.getElementById('indispJaPreencheuAviso').style.display = 'none';
+      document.getElementById('indispDadosCadastro').style.display = 'none';
       if(!n) {
         cC.innerHTML = '<p style="color:#888; text-align:center;">Selecione seu nome acima.</p>';
         return;
       }
+      cC.innerHTML = '<p style="color:#888; text-align:center;">Carregando...</p>';
 
-      var allowed = globalProfsMap[n] || [];
-      var h = '';
-
-      globalCultosDisponiveis.forEach(function(c){
-        var ptD = c.split(' - ')[0].split('/');
-        var dtObj = new Date(parseInt(ptD[2],10), parseInt(ptD[1],10)-1, parseInt(ptD[0],10));
-        var isDom = (dtObj.getDay() === 0); var isTer = (dtObj.getDay() === 2);
-        var hC = c.split(' - ')[1];
-
-        var match = allowed.some(a => {
-           if(isDom && a.includes('Domingo') && a.includes(hC)) return true;
-           if(isTer && a.includes('Terça') && a.includes(hC)) return true;
-           return false;
-        });
-
-        if(match) {
-          h += '<label class="item-culto"><input type="checkbox" class="cb-indisp" value="' + c + '"> ' + c + '</label>';
+      google.script.run.withSuccessHandler(function(res){
+        var cad = res.cadastro;
+        if (cad) {
+          indispLinhaAtual = cad.linha;
+          indispFotoAtual = cad.foto || "Sem Foto";
+          document.getElementById('indispDadosCadastro').style.display = 'block';
+          document.getElementById('indispTel').value = cad.tel || "";
+          document.getElementById('indispNasc').value = cad.nasc || "";
+          document.getElementById('indispEmail').value = cad.email || "";
+          document.getElementById('indispProf').value = cad.prof || "";
+          document.getElementById('indispSexo').value = cad.sexo || "Feminino";
+          document.getElementById('indispPerfil').value = cad.perfil || "Auxiliar";
+          document.getElementById('indispF1').value = cad.f1 || "0 a 2 anos";
+          document.getElementById('indispF2').value = cad.f2 || "Nenhuma / Apenas as opções anteriores";
+          document.getElementById('indispF3').value = cad.f3 || "Nenhuma / Apenas as opções anteriores";
+          document.getElementById('indispF4').value = cad.f4 || "Nenhuma / Apenas as opções anteriores";
+          document.getElementById('indispC1').value = cad.c1 || "Domingo às 10h";
+          document.getElementById('indispC2').value = cad.c2 || "Nenhuma / Apenas a 1ª opção";
+          document.getElementById('indispC3').value = cad.c3 || "Nenhuma / Apenas a 1ª opção";
+          document.getElementById('indispTeto').value = cad.teto || 3;
         }
-      });
-      if(h==='') h='<p style="color:#28a745; text-align:center;">Você não possui cultos neste mês de acordo com suas preferências!</p>';
-      cC.innerHTML = h;
+
+        document.getElementById('indispJaPreencheuAviso').style.display = res.jaPreencheu ? 'block' : 'none';
+        document.getElementById('btnEnviarIndisp').innerText = res.jaPreencheu ? "Salvar Alterações" : "Salvar Minhas Datas";
+
+        var allowed = globalProfsMap[n] || [];
+        var h = '';
+
+        globalCultosDisponiveis.forEach(function(c){
+          var ptD = c.split(' - ')[0].split('/');
+          var dtObj = new Date(parseInt(ptD[2],10), parseInt(ptD[1],10)-1, parseInt(ptD[0],10));
+          var isDom = (dtObj.getDay() === 0); var isTer = (dtObj.getDay() === 2);
+          var hC = c.split(' - ')[1];
+
+          var match = allowed.some(a => {
+             if(isDom && a.includes('Domingo') && a.includes(hC)) return true;
+             if(isTer && a.includes('Terça') && a.includes(hC)) return true;
+             return false;
+          });
+
+          if(match) {
+            var checked = res.cultosSalvos.indexOf(c) !== -1 ? ' checked' : '';
+            h += '<label class="item-culto"><input type="checkbox" class="cb-indisp" value="' + c + '"' + checked + '> ' + c + '</label>';
+          }
+        });
+        if(h==='') h='<p style="color:#28a745; text-align:center;">Você não possui cultos neste mês de acordo com suas preferências!</p>';
+        cC.innerHTML = h;
+      }).obterDadosCompletosIndisp(n);
     }
 
     function enviarIndisponibilidade() {
@@ -1946,12 +2014,41 @@
 
       var sel=[];
       document.querySelectorAll('.cb-indisp').forEach(function(c){if(c.checked)sel.push(c.value);});
-      var btn=event.target; btn.innerText="Salvando..."; btn.disabled=true;
+      var btn=document.getElementById('btnEnviarIndisp'); var txtOriginal = btn.innerText;
+      btn.innerText="Salvando..."; btn.disabled=true;
 
-      google.script.run.withSuccessHandler(function(r){
-        if(r.sucesso)mostrarSucesso('indisp');
-        btn.innerText="Salvar Minhas Datas"; btn.disabled=false;
-      }).salvarIndisponibilidade({nome:n, mesAno:document.getElementById('lblMesAlvo').innerText, cultosIndisponiveis:sel});
+      var dadosCadastro = {
+        nome: n,
+        tel: document.getElementById('indispTel').value,
+        email: document.getElementById('indispEmail').value,
+        f1: document.getElementById('indispF1').value,
+        f2: document.getElementById('indispF2').value,
+        f3: document.getElementById('indispF3').value,
+        f4: document.getElementById('indispF4').value,
+        nasc: document.getElementById('indispNasc').value,
+        prof: document.getElementById('indispProf').value,
+        perfil: document.getElementById('indispPerfil').value,
+        c1: document.getElementById('indispC1').value,
+        c2: document.getElementById('indispC2').value,
+        c3: document.getElementById('indispC3').value,
+        status: "Ativo",
+        sexo: document.getElementById('indispSexo').value,
+        teto: document.getElementById('indispTeto').value,
+        fotoAtual: indispFotoAtual
+      };
+
+      google.script.run.withFailureHandler(function(err){
+        alert("Erro: " + err.message);
+        btn.innerText = txtOriginal; btn.disabled=false;
+      }).withSuccessHandler(function(){
+        google.script.run.withFailureHandler(function(err){
+          alert("Erro: " + err.message);
+          btn.innerText = txtOriginal; btn.disabled=false;
+        }).withSuccessHandler(function(r){
+          btn.innerText = txtOriginal; btn.disabled=false;
+          if(r.sucesso)mostrarSucesso('indisp');
+        }).salvarIndisponibilidade({nome:n, mesAno:document.getElementById('lblMesAlvo').innerText, cultosIndisponiveis:sel});
+      }).salvarEdicaoCadastro("Professora", indispLinhaAtual, dadosCadastro);
     }
 
     var preCanc = []; var preExc = [];
@@ -1963,7 +2060,6 @@
       google.script.run.withSuccessHandler(function(r){
         if(r.mes)document.getElementById('cfgMes').value=r.mes;
         if(r.ano)document.getElementById('cfgAno').value=r.ano;
-        document.getElementById('cfgTeto').value=r.teto;
         document.getElementById('v_l_0').value=r.vagas['0_2'].l;
         document.getElementById('v_a_0').value=r.vagas['0_2'].a;
         document.getElementById('v_r_0').value=r.vagas['0_2'].r;
@@ -2077,7 +2173,6 @@
 
       var d = {
         mesAno: document.getElementById('cfgMes').value+"/"+document.getElementById('cfgAno').value,
-        teto: document.getElementById('cfgTeto').value,
         vagas: {
           '0_2':{l:document.getElementById('v_l_0').value,a:document.getElementById('v_a_0').value,r:document.getElementById('v_r_0').value},
           '3_6':{l:document.getElementById('v_l_3').value,a:document.getElementById('v_a_3').value,r:document.getElementById('v_r_3').value},
