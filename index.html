@@ -2038,18 +2038,16 @@
         fotoAtual: indispFotoAtual
       };
 
+      var dadosIndisp = {nome:n, mesAno:document.getElementById('lblMesAlvo').innerText, cultosIndisponiveis:sel};
+
+      // Salva o cadastro e as datas numa única chamada ao servidor (antes eram duas em sequência).
       google.script.run.withFailureHandler(function(err){
         alert("Erro: " + err.message);
         btn.innerText = txtOriginal; btn.disabled=false;
-      }).withSuccessHandler(function(){
-        google.script.run.withFailureHandler(function(err){
-          alert("Erro: " + err.message);
-          btn.innerText = txtOriginal; btn.disabled=false;
-        }).withSuccessHandler(function(r){
-          btn.innerText = txtOriginal; btn.disabled=false;
-          if(r.sucesso)mostrarSucesso('indisp');
-        }).salvarIndisponibilidade({nome:n, mesAno:document.getElementById('lblMesAlvo').innerText, cultosIndisponiveis:sel});
-      }).salvarEdicaoCadastro("Professora", indispLinhaAtual, dadosCadastro);
+      }).withSuccessHandler(function(r){
+        btn.innerText = txtOriginal; btn.disabled=false;
+        if(r.sucesso)mostrarSucesso('indisp');
+      }).salvarIndisponibilidadeCompleta(indispLinhaAtual, dadosCadastro, dadosIndisp);
     }
 
     var preCanc = []; var preExc = [];
@@ -2533,27 +2531,22 @@
       var b=document.getElementById('btnPublicarOficial');
       b.innerText="Enviando E-mails... 🚀⏳"; b.disabled=true;
 
-      // Busca o Mês/Ano configurado direto da planilha (não confia nos campos cfgMes/cfgAno da tela,
-      // que só são preenchidos quando a aba de Configurações da Escala é visitada nessa sessão).
+      // Busca o Mês/Ano configurado direto da planilha e publica, tudo em uma única chamada ao servidor
+      // (evita depender dos campos cfgMes/cfgAno da tela, que só são preenchidos quando a aba de
+      // Configurações da Escala é visitada nessa sessão).
       google.script.run.withFailureHandler(function(err){
         alert("Erro: " + err.message);
         b.innerText="Publicar Escala Oficial 🚀"; b.disabled=false;
-      }).withSuccessHandler(function(cfg){
-        var mesAnoStr = cfg.mes + "/" + cfg.ano;
-        google.script.run.withFailureHandler(function(err){
-          alert("Erro: " + err.message);
+      }).withSuccessHandler(function(res){
+        if (!res.sucesso) {
+          alert(res.msg);
           b.innerText="Publicar Escala Oficial 🚀"; b.disabled=false;
-        }).withSuccessHandler(function(res){
-          if (!res.sucesso) {
-            alert(res.msg);
-            b.innerText="Publicar Escala Oficial 🚀"; b.disabled=false;
-            return;
-          }
-          b.innerText="Publicado com Sucesso!";
-          document.getElementById('txtWhatsapp').value = res.msg;
-          document.getElementById('modalWhatsapp').style.display = 'flex';
-        }).publicarEscalaOficial(mesAnoStr);
-      }).obterConfiguracoesEscala();
+          return;
+        }
+        b.innerText="Publicado com Sucesso!";
+        document.getElementById('txtWhatsapp').value = res.msg;
+        document.getElementById('modalWhatsapp').style.display = 'flex';
+      }).publicarEscalaOficialAuto();
     }
 
     function copiarWhatsapp() {
@@ -3296,20 +3289,13 @@
       document.getElementById('fichaSucessoInline').style.display = 'none';
       document.getElementById('fichaForm').style.display = 'block';
 
-      // Item C: carrega também os dados da família (responsáveis), que ficam em Cadastro_Familias.
-      document.getElementById('ficha_idFamilia').value = '';
-      document.getElementById('ficha_nomeResp1').value = '';
-      document.getElementById('ficha_telResp1').value = '';
-      document.getElementById('ficha_nomeResp2').value = '';
-      document.getElementById('ficha_telResp2').value = '';
-      google.script.run.withSuccessHandler(function(resFam){
-        if (!resFam.sucesso) return;
-        document.getElementById('ficha_idFamilia').value = resFam.idFamilia;
-        document.getElementById('ficha_nomeResp1').value = resFam.nomeResponsavel;
-        document.getElementById('ficha_telResp1').value = resFam.telefone;
-        document.getElementById('ficha_nomeResp2').value = resFam.nomeResp2;
-        document.getElementById('ficha_telResp2').value = resFam.telefone2;
-      }).buscarFamiliaPorIdCrianca(obj.id);
+      // Os dados da família (responsáveis) já vêm junto no resultado da busca (buscarCadastroParaEdicao),
+      // então não precisa de uma segunda chamada ao servidor só pra isso.
+      document.getElementById('ficha_idFamilia').value = obj.idFam || '';
+      document.getElementById('ficha_nomeResp1').value = obj.nomeResponsavel || '';
+      document.getElementById('ficha_telResp1').value = obj.telefone || '';
+      document.getElementById('ficha_nomeResp2').value = obj.nomeResp2 || '';
+      document.getElementById('ficha_telResp2').value = obj.telefone2 || '';
     }
 
     // Salva os dados da criança e, em seguida, os dados dos responsáveis (família) - são duas abas diferentes.
@@ -3334,27 +3320,24 @@
         fotoMimeType: fMime
       };
 
+      var idFamilia = document.getElementById('ficha_idFamilia').value;
+      var dResp = {
+        nomeResponsavel: document.getElementById('ficha_nomeResp1').value,
+        telefone: document.getElementById('ficha_telResp1').value,
+        nomeResp2: document.getElementById('ficha_nomeResp2').value,
+        telefone2: document.getElementById('ficha_telResp2').value
+      };
+
+      // Salva a criança e os responsáveis da família numa única chamada ao servidor (antes eram duas
+      // em sequência, o que dobrava o tempo de espera dessa ação).
       google.script.run.withSuccessHandler(function(){
         document.getElementById('ficha_faixaOriginal').value = faixaNova;
+        document.getElementById('fichaSucessoInline').style.display = 'block';
         // Atualiza a cópia local (bancoCriancas) para não precisar buscar tudo de novo do servidor.
         var idC = document.getElementById('ficha_idCrianca').value;
         var local = bancoCriancas.find(function(c){ return c.idCrianca === idC; });
-        if (local) { local.nome = d.nome; local.alergias = d.alergias; local.sala = faixaNova; }
-
-        // Item C: salva também os responsáveis da família (afeta os irmãos, se houver).
-        var idFamilia = document.getElementById('ficha_idFamilia').value;
-        if (!idFamilia) { document.getElementById('fichaSucessoInline').style.display = 'block'; return; }
-        var dResp = {
-          nomeResponsavel: document.getElementById('ficha_nomeResp1').value,
-          telefone: document.getElementById('ficha_telResp1').value,
-          nomeResp2: document.getElementById('ficha_nomeResp2').value,
-          telefone2: document.getElementById('ficha_telResp2').value
-        };
-        google.script.run.withSuccessHandler(function(resFam){
-          document.getElementById('fichaSucessoInline').style.display = 'block';
-          if (local) { local.responsavel = dResp.nomeResponsavel; local.telefone = dResp.telefone; }
-        }).salvarEdicaoResponsavelFamilia(idFamilia, dResp);
-      }).salvarEdicaoCadastro("Crianca", document.getElementById('ficha_linha').value, d);
+        if (local) { local.nome = d.nome; local.alergias = d.alergias; local.sala = faixaNova; if(idFamilia){ local.responsavel = dResp.nomeResponsavel; local.telefone = dResp.telefone; } }
+      }).salvarFichaCriancaCompleta(document.getElementById('ficha_linha').value, d, idFamilia, dResp);
     }
 
     function fichaBuscarOutra() {
