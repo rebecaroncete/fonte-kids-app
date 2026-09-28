@@ -1127,6 +1127,16 @@
           } else if(telaDestinoSenha.startsWith('editar_lider_')) {
               var idLider = telaDestinoSenha.replace('editar_lider_', '');
               abrirModalEditarLider(idLider);
+          } else if(telaDestinoSenha.startsWith('desfazer_vaga_')) {
+              var idDesfazer = telaDestinoSenha.replace('desfazer_vaga_', '');
+              if (confirm("Atenção! Isso vai remover o nome dessa vaga (voltando para 'Vaga Aberta') e cancelar o convite dela no Google Agenda. Deseja mesmo prosseguir?")) {
+                document.getElementById('pubLoading').style.display = 'block';
+                document.getElementById('containerEscalaPublica').innerHTML = "";
+                google.script.run.withSuccessHandler(function(r){
+                  if (!r.sucesso) alert("Erro: " + r.msg);
+                  carregarEscalaPublica();
+                }).liderRemoverVagaConfirmada(idDesfazer);
+              }
           } else {
             navegar(telaDestinoSenha);
           }
@@ -2618,22 +2628,22 @@
               } else {
                 if(v.isSistema) {
                   var acts = v.status === "Ciente"
-                    ? '<span style="background:#28a745; color:#fff; padding:4px 8px; border-radius:4px; font-size:11px;">✅ Ciente</span>'
+                    ? '<span style="background:#28a745; color:#fff; padding:4px 8px; border-radius:4px; font-size:11px;">✅ Ciente</span><br><span style="font-size:10px; color:#888;">Toque para desfazer (senha da liderança)</span>'
                     : '<div id="acoes-' + v.idEscala + '" class="acoes-vaga" style="display:none; gap:10px; margin-top:10px; padding-top:10px; border-top:1px dashed #ccc; width:100%; justify-content:center;">' +
                         '<button class="btn-ciencia" onclick="event.stopPropagation(); confirmarCiencia(\'' + v.idEscala + '\')">✅ Ciente</button> ' +
                         '<button class="btn-negar" onclick="event.stopPropagation(); negarEscala(\'' + v.idEscala + '\')">❌ Não Poderei</button>' +
                       '</div>';
 
-                  var st = v.status === "Ciente" ? "✅" : "⏳";
-                  var clickEvent = v.status === "Ciente" ? "" : 'onclick="toggleAcoes(\'' + v.idEscala + '\')"';
-                  var cur = v.status === "Ciente" ? "default" : "pointer";
+                  var st = v.status === "Ciente" ? "" : "⏳";
+                  var clickEvent = v.status === "Ciente" ? ('onclick="pedirSenha(\'PIN_Lideranca\', \'desfazer_vaga_' + v.idEscala + '\')"') : ('onclick="toggleAcoes(\'' + v.idEscala + '\')"');
+                  var cur = "pointer";
 
                   htmlVagas += '<div class="vaga-publica vaga-dinamica" id="vaga-' + v.idEscala + '" ' + clickEvent + ' style="cursor:' + cur + '; display:flex; flex-direction:column; background:#fff; padding:10px; border:1px solid #ddd; border-radius:6px; margin-bottom:8px; transition:0.2s;">' +
                                   '<div style="display:flex; justify-content:space-between; width:100%; align-items:center;">' +
                                     '<span><span style="color:' + ci + '; font-size:11px;">' + ic + '</span> <span style="font-weight:bold; color:#333;">' + v.nomeAlocado + '</span></span>' +
                                     '<span>' + st + '</span>' +
                                   '</div>' +
-                                  (v.status === "Ciente" ? "" : acts) +
+                                  acts +
                                 '</div>';
                 } else {
                   htmlVagas += '<div class="vaga-publica" style="background:#fff; padding:10px; border:1px solid #ddd; border-radius:6px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">' +
