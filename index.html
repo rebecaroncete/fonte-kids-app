@@ -2216,7 +2216,7 @@
       }).obterRascunhoAtual();
     }
 
-    function acionarGeradorEscala() {
+    function acionarGeradorEscala(confirmarSobrescrita) {
       document.getElementById('rascunhoAcoesIniciais').style.display='none';
       document.getElementById('rascunhoLoading').style.display='block';
       document.getElementById('rascunhoLoading').innerText="Analisando regras e gerando escala... 🧠⏳";
@@ -2227,11 +2227,17 @@
           listaCands=r.candidatas;
           renderizarRasc(r.escala);
           document.getElementById('botoesRascunhoFinais').style.display='block';
+        } else if (r.precisaConfirmar) {
+          if (confirm(r.erro + "\n\nTem certeza que quer continuar e apagar a escala publicada de " + r.mesAno + "?")) {
+            acionarGeradorEscala(true);
+          } else {
+            document.getElementById('rascunhoAcoesIniciais').style.display='block';
+          }
         } else {
           alert("Erro: " + r.erro);
           document.getElementById('rascunhoAcoesIniciais').style.display='block';
         }
-      }).gerarEscalaAutomatica();
+      }).gerarEscalaAutomatica(!!confirmarSobrescrita);
     }
 
     function renderizarRasc(arr) {
