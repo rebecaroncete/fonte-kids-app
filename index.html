@@ -1131,7 +1131,11 @@
       btn.innerText = "Verificando...";
       btn.disabled = true;
 
-      google.script.run.withSuccessHandler(function(ok) {
+      google.script.run.withFailureHandler(function(err){
+        alert(mensagemErroConexao(err));
+        btn.innerText = "Entrar";
+        btn.disabled = false;
+      }).withSuccessHandler(function(ok) {
         if(ok) {
           document.getElementById('modalSenha').style.display = "none";
           if(telaDestinoSenha.startsWith('abrir-secao-')) {
