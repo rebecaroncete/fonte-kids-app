@@ -765,7 +765,7 @@
       <label>Nome Segundo Responsável (opcional):</label><input type="text" class="input-form" id="ficha_nomeResp2">
       <label>WhatsApp Segundo Responsável (opcional):</label><input type="tel" class="input-form" id="ficha_telResp2" maxlength="15" oninput="aplicarMascaraTelefone(this)">
 
-      <button class="btn-submit" style="background:#28a745; margin-top:15px;" onclick="fichaSalvarAlteracoes()">Salvar Alterações</button>
+      <button class="btn-submit" id="btnFichaSalvar" style="background:#28a745; margin-top:15px;" onclick="fichaSalvarAlteracoes()">Salvar Alterações</button>
       <div id="fichaSucessoInline" style="display:none; text-align:center; color:#28a745; font-weight:bold; margin-top:10px;">✅ Cadastro Alterado!</div>
       <button class="btn-wizard-secundario" type="button" onclick="fichaBuscarOutra()">Buscar outra criança</button>
     </div>
@@ -886,6 +886,12 @@
     // ==========================================
     // Cole aqui a URL do seu Web App do Apps Script (termina em /exec), depois do deploy.
     var APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzsP1Sfq1XCT-kc6caB88oSf29NSKORX8gyUVEdCY44qIHEhSnO0-HwTb0CsytPfFAh/exec";
+
+    // Mensagem padrão pra quando uma chamada ao servidor falha (internet ruim, servidor lento/travado,
+    // etc). Usada nos pontos onde antes a tela só ficava travada sem avisar nada quando isso acontecia.
+    function mensagemErroConexao(err) {
+      return "Não foi possível conectar ao servidor" + (err && err.message ? (" (" + err.message + ")") : "") + ".\n\nVerifique sua internet e tente novamente.";
+    }
 
     // Este bloco recria o objeto "google.script.run" (que só existe dentro do Apps Script)
     // usando fetch() para chamar o Apps Script como uma API. Assim, NENHUMA das chamadas
@@ -1781,7 +1787,11 @@
 
       var listaTxt = cadCriancaDrafts.map(function(c){ return c.nome + ' (' + c.faixa + ')'; }).join(', ');
 
-      google.script.run.withSuccessHandler(function(){
+      google.script.run.withFailureHandler(function(err){
+        alert(mensagemErroConexao(err) + "\n\nSeu cadastro NÃO foi salvo ainda. Toque em \"Confirmar e Enviar\" de novo.");
+        btn.innerText = "Confirmar e Enviar";
+        btn.disabled = false;
+      }).withSuccessHandler(function(){
         document.getElementById('botoesSucessoFamilia').style.display = 'block';
         document.getElementById('botoesSucessoEquipe').style.display = 'none';
         document.getElementById('txtSucesso').innerText = "Cadastro Realizado!";
@@ -1924,7 +1934,11 @@
         fotoBase64:f64, fotoMimeType:'image/jpeg'
       };
 
-      google.script.run.withSuccessHandler(function(r){
+      google.script.run.withFailureHandler(function(err){
+        alert(mensagemErroConexao(err) + "\n\nSeu cadastro NÃO foi salvo ainda. Toque em \"Confirmar e Enviar\" de novo.");
+        btn.innerText="Confirmar e Enviar";
+        btn.disabled=false;
+      }).withSuccessHandler(function(r){
         if(r.sucesso){
           var nomeSalvo = n;
           document.getElementById('profNome').value="";
@@ -3151,9 +3165,14 @@
       document.getElementById('sessaoCulto').innerText = cultoLogado;
       navegar('recepcao-principal');
       document.getElementById('loadingMensagem').style.display = 'block';
+      document.getElementById('loadingMensagem').innerText = "Buscando lista de crianças... ⏳";
       ultimaInteracaoRecepcao = Date.now();
 
-      google.script.run.withSuccessHandler(function(lista) {
+      google.script.run.withFailureHandler(function(err){
+        document.getElementById('loadingMensagem').innerHTML =
+          '<p style="color:#dc3545;">' + mensagemErroConexao(err).replace(/\n/g, '<br>') + '</p>' +
+          '<button class="btn-submit" onclick="iniciarSessaoRecepcao()">🔄 Tentar de Novo</button>';
+      }).withSuccessHandler(function(lista) {
         bancoCriancas = lista.reverse();
         document.getElementById('loadingMensagem').style.display = 'none';
         filtrarCriancas();
@@ -3263,7 +3282,10 @@
 
     function iniciarCheckin(id, b) {
       b.innerText="⏳"; b.disabled=true;
-      google.script.run.withSuccessHandler(function(r){
+      google.script.run.withFailureHandler(function(err){
+        alert(mensagemErroConexao(err) + "\n\nO check-in NÃO foi feito ainda. Toque em \"Check-in\" de novo.");
+        b.innerText="Check-in"; b.disabled=false;
+      }).withSuccessHandler(function(r){
         if(r.sucesso){
           b.style.backgroundColor="#28a745";
           b.innerText="Cód: "+r.codigo;
@@ -3485,13 +3507,21 @@
 
       // Salva a criança e os responsáveis da família numa única chamada ao servidor (antes eram duas
       // em sequência, o que dobrava o tempo de espera dessa ação).
-      google.script.run.withSuccessHandler(function(){
+      var btnFicha = document.getElementById('btnFichaSalvar');
+      var txtOriginalFicha = btnFicha.innerText;
+      btnFicha.innerText = "Salvando..."; btnFicha.disabled = true;
+
+      google.script.run.withFailureHandler(function(err){
+        alert(mensagemErroConexao(err) + "\n\nAs alterações NÃO foram salvas ainda. Toque em \"Salvar Alterações\" de novo.");
+        btnFicha.innerText = txtOriginalFicha; btnFicha.disabled = false;
+      }).withSuccessHandler(function(){
         document.getElementById('ficha_faixaOriginal').value = faixaNova;
         document.getElementById('fichaSucessoInline').style.display = 'block';
         // Atualiza a cópia local (bancoCriancas) para não precisar buscar tudo de novo do servidor.
         var idC = document.getElementById('ficha_idCrianca').value;
         var local = bancoCriancas.find(function(c){ return c.idCrianca === idC; });
         if (local) { local.nome = d.nome; local.alergias = d.alergias; local.sala = faixaNova; if(idFamilia){ local.responsavel = dResp.nomeResponsavel; local.telefone = dResp.telefone; } }
+        btnFicha.innerText = txtOriginalFicha; btnFicha.disabled = false;
       }).salvarFichaCriancaCompleta(document.getElementById('ficha_linha').value, d, idFamilia, dResp);
     }
 
