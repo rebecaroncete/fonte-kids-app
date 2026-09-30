@@ -864,6 +864,22 @@
     </div>
   </div>
 
+  <!-- Mostra a imagem gerada da escala em tela cheia, com um botão de download e a instrução de tocar e
+       segurar pra salvar. Em vários navegadores de celular (principalmente iPhone/Safari), o download
+       automático de uma imagem gerada na hora não funciona de forma confiável, então esse modal serve
+       de garantia: mesmo quando o botão "Baixar" não funciona sozinho, dá pra salvar a imagem na mão. -->
+  <div class="modal-overlay" id="modalImagemEscala">
+    <div class="modal" style="background:#fff; max-width:95%; max-height:90vh; overflow-y:auto;">
+      <h3 style="margin-top:0; color:#00AEEF;">🖼️ Imagem da Escala Gerada</h3>
+      <p style="font-size:12px; color:#555; margin-bottom:10px;">Toque no botão abaixo pra baixar. Se não funcionar no seu celular, toque e segure a imagem e escolha "Salvar Imagem".</p>
+      <img id="imgEscalaResultado" style="width:100%; border-radius:6px; border:1px solid #ddd;">
+      <a id="linkBaixarImagemEscala" download="Escala_FonteKids.png" style="display:block; text-decoration:none;">
+        <button class="btn-confirmar" style="margin-top:15px; background:#00AEEF; width:100%;">📥 Baixar Imagem</button>
+      </a>
+      <button class="btn-cancelar" onclick="document.getElementById('modalImagemEscala').style.display='none';">Fechar</button>
+    </div>
+  </div>
+
   <script>
     // ==========================================
     // CONEXÃO COM O BACKEND (Google Apps Script como API)
@@ -2869,10 +2885,18 @@
       carregarHtml2Canvas().then(function(){
         return html2canvas(wrap, { scale: 2, backgroundColor: "#eef2f7", width: 760 });
       }).then(function(cv){
-        var l = document.createElement('a');
-        l.download = 'Escala_FonteKids_' + mesAno.replace('/', '-') + '.png';
-        l.href = cv.toDataURL('image/png');
-        l.click();
+        var dataUrl = cv.toDataURL('image/png');
+        var nomeArquivo = 'Escala_FonteKids_' + mesAno.replace('/', '-') + '.png';
+
+        // Mostra sempre a imagem num modal (com botão de baixar + instrução de tocar e segurar), em vez
+        // de confiar só no clique automático num link — em muitos navegadores de celular (principalmente
+        // iPhone/Safari) esse clique automático não funciona e não dá nenhum aviso de erro.
+        document.getElementById('imgEscalaResultado').src = dataUrl;
+        var link = document.getElementById('linkBaixarImagemEscala');
+        link.href = dataUrl;
+        link.download = nomeArquivo;
+        document.getElementById('modalImagemEscala').style.display = 'flex';
+
         wrap.innerHTML = "";
         b.innerText = "🖼️ Gerar Imagem da Escala do Mês"; b.disabled = false;
       }).catch(function(erro){
