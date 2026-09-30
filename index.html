@@ -587,10 +587,16 @@
 
     <div id="botoesLiderancaPublica" style="display:none; margin-top:20px;">
       <button class="btn-submit" style="background:#28a745; margin-top:0;" onclick="gerarTextoEscalaPublica()">📝 Gerar Texto do Mês para o WhatsApp</button>
+      <button class="btn-submit" id="btnGerarImagemEscala" style="background:#00AEEF; margin-top:10px;" onclick="baixarImagemEscala()">🖼️ Gerar Imagem da Escala do Mês</button>
       <p id="lblVagasAbertasCount" style="text-align:center; font-size:13px; color:#856404; margin:10px 0 5px;"></p>
       <button class="btn-acao-secundario" style="color:#F28C28; border-color:#F28C28;" onclick="pedirSenha('PIN_Lideranca', 'preencher_vagas')">🔄 Sorteio de Substitutas (Preencher Vazios)</button>
     </div>
   </div>
+
+  <!-- Container escondido (fora da tela) usado só pra renderizar a imagem da escala do mês antes de
+       capturar com html2canvas. Fica fora da área visível, mas precisa estar "visível" (sem display:none)
+       pra a lib conseguir desenhar o conteúdo corretamente. -->
+  <div id="imgEscalaRenderWrap" style="position:absolute; left:-9999px; top:0; width:760px;"></div>
 
   <!-- ================= TELA: LEMBRETES DA ESCALA (NOVO) ================= -->
   <div id="tela-lembretes-escala" class="tela" style="border-top: 8px solid #dc3545; max-width: 900px;">
@@ -2765,6 +2771,115 @@
       }
       document.getElementById('txtWhatsapp').value = text;
       document.getElementById('modalWhatsapp').style.display = 'flex';
+    }
+
+    // Abrevia "Ana Clara Aguiar" -> "Ana A." (primeiro nome + inicial do último sobrenome), pra caber
+    // melhor nos cards da imagem da escala. Nomes de uma palavra só voltam como estão.
+    function abreviarNomeImg(nome) {
+      if (!nome) return nome;
+      var partes = String(nome).trim().split(/\s+/);
+      if (partes.length === 1) return partes[0];
+      return partes[0] + " " + partes[partes.length - 1].charAt(0).toUpperCase() + ".";
+    }
+
+    // Gera uma imagem (PNG) com a escala do mês inteiro, em formato de cards (1 "linha" por semana,
+    // já que normalmente são 3 cultos por semana: Dom 10h, Dom 19h e Ter 20h), pensada pra facilitar
+    // a visualização das voluntárias no celular, sem precisar rolar uma lista de texto longa.
+    function baixarImagemEscala() {
+      if (!globalEscalaData || globalEscalaData.length === 0) {
+        alert("Busque a escala de um mês primeiro.");
+        return;
+      }
+      var b = document.getElementById('btnGerarImagemEscala');
+      b.innerText = "Gerando imagem... ⏳"; b.disabled = true;
+
+      var mesAno = document.getElementById('pubMes').value + "/" + document.getElementById('pubAno').value;
+      var ag = {};
+      globalEscalaData.forEach(function(v) {
+        var k = v.dataCulto + " - " + v.horario;
+        if (!ag[k]) ag[k] = {};
+        if (!ag[k][v.sala]) ag[k][v.sala] = [];
+        ag[k][v.sala].push(v);
+      });
+
+      var qtdeCultos = Object.keys(ag).length;
+      var qtdeVagasAbertas = globalEscalaData.filter(function(v){
+        return v.papel !== "Líder do Culto" && (!v.nomeAlocado || v.nomeAlocado === "VAZIO");
+      }).length;
+
+      var cardsHtml = "";
+      for (var kc in ag) {
+        var ds = kc.includes("10h") || kc.includes("19h") ? "Dom" : "Ter";
+        var os = salasParaTipoCulto(ds === "Ter");
+        var corHeader = ds === "Ter" ? "#1f6fa8" : (kc.includes("10h") ? "#00AEEF" : "#16213e");
+        var dataFmt = kc.substring(0, 5); var horaFmt = kc.substring(13);
+
+        var corpoHtml = "";
+
+        if (ag[kc]['Geral']) {
+          ag[kc]['Geral'].forEach(function(v){
+            var txt = (!v.nomeAlocado || v.nomeAlocado === "VAZIO")
+              ? '<span style="color:#dc3545; font-weight:bold;">⚠️ Vaga Aberta</span>'
+              : '<b>' + abreviarNomeImg(v.nomeAlocado) + '</b>';
+            corpoHtml += '<div style="font-size:13px; margin-bottom:8px;">🎤 Líder do Culto: ' + txt + '</div>';
+          });
+        }
+
+        os.forEach(function(s) {
+          if (!ag[kc][s]) return;
+          var linhas = "";
+          ag[kc][s].forEach(function(v) {
+            var rotulo = rotuloPapelJS(v.papel) === "Professora" ? "Prof" : rotuloPapelJS(v.papel);
+            var valor = (!v.nomeAlocado || v.nomeAlocado === "VAZIO")
+              ? '<span style="color:#dc3545; font-weight:bold;">⚠️ Vaga Aberta</span>'
+              : '<b>' + abreviarNomeImg(v.nomeAlocado) + '</b>';
+            linhas += '<div style="font-size:13px; margin-bottom:3px;">' + rotulo + ': ' + valor + '</div>';
+          });
+          if (linhas === "") return;
+          var emoji = "👶";
+          if (s.includes("3 a 6")) emoji = "👧";
+          if (s.includes("7 a 9")) emoji = "👦";
+          if (s.includes("10 a 12") || s.includes("7 a 12")) emoji = "🧑";
+          corpoHtml += '<div style="font-size:12px; font-weight:bold; color:#555; border-bottom:2px solid #F28C28; padding-bottom:2px; margin:8px 0 5px;">' + emoji + ' ' + s + '</div>' + linhas;
+        });
+
+        cardsHtml += '<div style="background:#fff; border:1px solid #ddd; border-radius:8px; overflow:hidden;">' +
+                        '<div style="background:' + corHeader + '; color:#fff; padding:8px 10px; font-weight:bold; font-size:13px;">📅 ' + ds + ', ' + dataFmt + ' 🕐 ' + horaFmt + '</div>' +
+                        '<div style="padding:10px;">' + corpoHtml + '</div>' +
+                      '</div>';
+      }
+
+      var html = '<div style="font-family:Segoe UI, Tahoma, Verdana, sans-serif; background:#eef2f7; padding:15px; box-sizing:border-box;">' +
+                    '<div style="background:#16213e; color:#fff; border-radius:8px; padding:15px; margin-bottom:15px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">' +
+                      '<div>' +
+                        '<div style="font-size:20px; font-weight:bold;">ESCALA FONTE KIDS</div>' +
+                        '<div style="font-size:12px; color:#cfd8ea;">Ministério Infantil Fonte de Vida • Identifique seu dia e horário</div>' +
+                      '</div>' +
+                      '<div style="text-align:right;">' +
+                        '<div style="background:#F28C28; color:#16213e; font-weight:bold; padding:5px 10px; border-radius:5px; font-size:13px; margin-bottom:5px;">' + mesAno.replace('/', ' / ').toUpperCase() + '</div>' +
+                        '<div style="font-size:11px; color:#cfd8ea;">' + qtdeCultos + ' Cultos | ' + qtdeVagasAbertas + ' Vagas Abertas</div>' +
+                      '</div>' +
+                    '</div>' +
+                    '<div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:12px;">' + cardsHtml + '</div>' +
+                  '</div>';
+
+      var wrap = document.getElementById('imgEscalaRenderWrap');
+      wrap.innerHTML = html;
+
+      carregarHtml2Canvas().then(function(){
+        return html2canvas(wrap, { scale: 2, backgroundColor: "#eef2f7", width: 760 });
+      }).then(function(cv){
+        var l = document.createElement('a');
+        l.download = 'Escala_FonteKids_' + mesAno.replace('/', '-') + '.png';
+        l.href = cv.toDataURL('image/png');
+        l.click();
+        wrap.innerHTML = "";
+        b.innerText = "🖼️ Gerar Imagem da Escala do Mês"; b.disabled = false;
+      }).catch(function(erro){
+        alert(erro && erro.message ? erro.message : "Erro ao gerar a imagem.");
+        wrap.innerHTML = "";
+        b.innerText = "🖼️ Gerar Imagem da Escala do Mês"; b.disabled = false;
+      });
     }
 
     // ==========================================
