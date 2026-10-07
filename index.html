@@ -1042,18 +1042,39 @@
       document.querySelectorAll('.tela').forEach(t => t.classList.remove('ativa'));
       telaAlvo.classList.add('ativa');
 
-      if(idTela === 'acompanhamento') { carregarAcompanhamento(); }
+      if(idTela === 'acompanhamento') {
+        // Sugere o culto de acordo com o dia/hora atual (só se ainda não houver um escolhido).
+        var selAcomp = document.getElementById('acompCulto');
+        if (selAcomp && !selAcomp.value) { var sugA = sugerirCultoAtual(); if (sugA) selAcomp.value = sugA; }
+        carregarAcompanhamento();
+      }
       if(idTela === 'config-escala') { carregarConfiguracoes(); }
       if(idTela === 'rascunho') { carregarRascunhoAtual(); }
       if(idTela === 'aniversariantes-equipe') { carregarAniversariantes('Equipe'); }
       if(idTela === 'aniversariantes-criancas') { carregarAniversariantes('Criancas'); }
       if(idTela === 'config-gerais') { carregarConfigGerais(); }
-      if(idTela === 'recepcao-login') { carregarListaVoluntariasAtivas(); }
+      if(idTela === 'recepcao-login') {
+        carregarListaVoluntariasAtivas();
+        var sugR = sugerirCultoAtual(); if (sugR) document.getElementById('cultoAtual').value = sugR;
+      }
       if(idTela === 'cadastro') { cadIrEtapa(1); }
       if(idTela === 'cadastro-voluntaria') { profIrEtapa(1); }
     }
 
     var globalNomesVoluntariasAtivas = [];
+
+    // Sugere o culto pelo dia e hora do aparelho: domingo antes das 15h = 10h, domingo a partir das 15h = 19h,
+    // terça = 20h. Em qualquer outro dia retorna "" (nada sugerido; a pessoa escolhe manualmente).
+    function sugerirCultoAtual() {
+      var agora = new Date(); var dia = agora.getDay(); var hora = agora.getHours();
+      if (dia === 0) return hora < 15 ? "Domingo às 10h" : "Domingo às 19h";
+      if (dia === 2) return "Terça às 20h";
+      return "";
+    }
+    function primeiroNomeSeguro(nome) {
+      var n = String(nome || "").trim().split(/\s+/)[0] || "";
+      return n.replace(/[&<>"']/g, "");
+    }
 
     function carregarListaVoluntariasAtivas() {
       google.script.run.withSuccessHandler(function(res){
@@ -3629,7 +3650,13 @@
           var bA=temAlergia(c.alergias)?'<div style="color:#dc3545;font-size:12px;font-weight:bold;margin-top:4px;">⚠️ ' + c.alergias + '</div>':'';
           var n_esc = c.nome.replace(/'/g, "\\'");
 
-          var btnPais = '<a href="https://wa.me/55' + tL + '?text=' + tCh + '" target="_blank" class="btn-acao-monitor" style="background:#25D366;">💬 Pais</a>';
+          var tL2 = String(c.telefone2 || '').replace(/\D/g,'');
+          var temResp2 = tL2.length >= 10;
+          var rotuloResp1 = temResp2 ? ('💬 ' + (primeiroNomeSeguro(c.responsavel) || 'Pais')) : '💬 Pais';
+          var btnPais = '<a href="https://wa.me/55' + tL + '?text=' + tCh + '" target="_blank" class="btn-acao-monitor" style="background:#25D366;">' + rotuloResp1 + '</a>';
+          if (temResp2) {
+            btnPais += '<a href="https://wa.me/55' + tL2 + '?text=' + tCh + '" target="_blank" class="btn-acao-monitor" style="background:#128C7E;">💬 ' + (primeiroNomeSeguro(c.nomeResp2) || 'Resp. 2') + '</a>';
+          }
           var btnTelao = tM ? '<a href="https://wa.me/55' + tM + '?text=' + tTe + '" target="_blank" class="btn-acao-monitor" style="background:#000;">📺 Telão</a>' : '<button class="btn-acao-monitor" style="background:#000;" onclick="alert(\'WhatsApp do Telão não configurado em Configurações Gerais!\')">📺 Telão</button>';
           var btnSaida = '<button class="btn-acao-monitor" style="background:#dc3545;" onclick="checkout(\'' + c.idCheckin + '\',\'' + n_esc + '\')">🚪 Saída</button>';
 
@@ -3645,6 +3672,7 @@
                   '<div class="detalhes-ocultos" id="' + idD + '">' +
                     '<b>Nasc:</b> ' + calcIdadeEData(c.nascimento) + '<br>' +
                     '<b>Resp:</b> ' + c.responsavel + ' (' + c.telefone + ')<br>' +
+                    (c.telefone2 ? '<b>Resp. 2:</b> ' + (c.nomeResp2 || '') + ' (' + c.telefone2 + ')<br>' : '') +
                     '<b>Cód:</b> ' + c.codigo +
                     '<div class="botoes-lado-a-lado">' +
                       btnPais + btnTelao + btnSaida +
