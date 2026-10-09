@@ -716,12 +716,15 @@
   <div id="tela-acompanhamento" class="tela">
     <button class="btn-voltar" onclick="navegar('hub')">⬅️ Menu</button>
     <h2>Monitor</h2>
-    <select id="acompCulto" class="input-form" style="margin-bottom:20px; font-weight:bold; border:2px solid #00AEEF;" onchange="renderizarAcompanhamento()">
-      <option value="">-- Selecione --</option>
-      <option value="Domingo às 10h">Domingo às 10h</option>
-      <option value="Domingo às 19h">Domingo às 19h</option>
-      <option value="Terça às 20h">Terça-feira às 20h</option>
-    </select>
+    <div style="display:flex; gap:8px; align-items:center; margin-bottom:20px;">
+      <select id="acompCulto" class="input-form" style="margin:0; flex:1; font-weight:bold; border:2px solid #00AEEF;" onchange="renderizarAcompanhamento()">
+        <option value="">-- Selecione --</option>
+        <option value="Domingo às 10h">Domingo às 10h</option>
+        <option value="Domingo às 19h">Domingo às 19h</option>
+        <option value="Terça às 20h">Terça-feira às 20h</option>
+      </select>
+      <button id="btnAtualizarMonitor" onclick="carregarAcompanhamento()" title="Atualizar" style="background:#00AEEF; color:white; border:none; border-radius:8px; padding:0 14px; height:44px; font-size:18px; cursor:pointer;">🔄</button>
+    </div>
     <div id="acompStatus" style="text-align:center; color:#F28C28; font-weight:bold; display:none;">Atualizando... ⏳</div>
     <div id="acompPainel"></div>
   </div>
@@ -772,6 +775,68 @@
   </div>
 
   <!-- MODAIS -->
+  <!-- Editar data de nascimento (Monitor) -->
+  <div class="modal-overlay" id="modalEditarNasc">
+    <div class="modal">
+      <h3 style="margin-top:0; color:#F28C28;">✏️ Corrigir data de nascimento</h3>
+      <p style="font-size:14px; color:#555;"><b id="enNomeCrianca"></b></p>
+      <input type="hidden" id="enIdCheckin">
+      <input type="text" inputmode="numeric" id="enNasc" maxlength="10" placeholder="DD/MM/AAAA" oninput="mascaraData(this); atualizarIdadeExibida('enNasc','enIdadeDisplay')" style="width:100%; padding:15px; font-size:16px; text-align:center; border:2px solid #ddd; border-radius:8px; margin-bottom:5px; box-sizing:border-box;">
+      <div id="enIdadeDisplay" class="idade-display" style="margin-bottom:10px;"></div>
+      <div id="enAviso" class="alerta-erro"></div>
+      <button class="btn-confirmar" id="btnSalvarNasc" style="margin-top:10px;" onclick="salvarNascMonitor()">Salvar</button>
+      <button class="btn-cancelar" onclick="document.getElementById('modalEditarNasc').style.display='none'">Cancelar</button>
+    </div>
+  </div>
+
+  <!-- Aviso de data de nascimento errada, antes do check-in -->
+  <div class="modal-overlay" id="modalDataErrada">
+    <div class="modal">
+      <div id="deEtapa1">
+        <h3 style="margin-top:0; color:#dc3545;">⚠️ Data de nascimento errada</h3>
+        <p style="font-size:14px; color:#444;">A data de nascimento de <b id="deNomeCrianca"></b> está errada ou em branco, e por isso a sala dela não pôde ser definida.</p>
+        <p style="font-size:14px; color:#444;"><b>Quer editar a data agora?</b></p>
+        <button class="btn-confirmar" style="background:#28a745;" onclick="dataErradaEditarAgora()">✏️ Sim, editar agora</button>
+        <button class="btn-cancelar" onclick="dataErradaEditarDepois()">Não, editar depois</button>
+      </div>
+      <div id="deEtapa2" style="display:none;">
+        <h3 style="margin-top:0; color:#00AEEF;">Tudo bem!</h3>
+        <p style="font-size:14px; color:#444;">Você pode corrigir a data depois, na tela de <b>Monitor do Culto</b>, na seção de crianças que precisam revisar a data de nascimento.</p>
+        <button class="btn-confirmar" onclick="dataErradaSairEContinuar()">Sair</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Como instalar o app (só aparece para quem não instalou) -->
+  <div class="modal-overlay" id="modalInstalarApp" style="z-index:1100;">
+    <div class="modal" style="text-align:left; max-height:90vh; overflow-y:auto;">
+      <h3 style="margin-top:0; color:#00AEEF; text-align:center;">📲 Instale o app Fonte Kids</h3>
+      <p style="font-size:13px; color:#555; text-align:center;">Instalando, o Fonte Kids abre mais rápido, direto da tela inicial do seu celular, como qualquer aplicativo.</p>
+      <div id="instAvisoNavegador" style="display:none; background:#fff3cd; color:#856404; border:1px solid #ffeeba; padding:10px; border-radius:6px; font-size:13px; margin-bottom:10px;"></div>
+      <div id="instPassosAndroid" style="display:none; font-size:14px; line-height:1.6; color:#333;">
+        <b>No Android (Chrome):</b>
+        <ol style="padding-left:20px; margin:6px 0;">
+          <li>Toque nos <b>três pontinhos ⋮</b> no canto superior direito.</li>
+          <li>Toque em <b>"Instalar app"</b> ou <b>"Adicionar à tela inicial"</b>.</li>
+          <li>Confirme em <b>"Instalar"</b>.</li>
+          <li>Pronto! Abra sempre pelo ícone <b>Fonte Kids</b> na tela inicial.</li>
+        </ol>
+        <button class="btn-confirmar" id="btnInstalarAgora" style="display:none; background:#28a745;" onclick="instalarAppAgora()">📲 Instalar agora</button>
+      </div>
+      <div id="instPassosIphone" style="display:none; font-size:14px; line-height:1.6; color:#333;">
+        <b>No iPhone (Safari):</b>
+        <ol style="padding-left:20px; margin:6px 0;">
+          <li>Abra este link no <b>Safari</b>.</li>
+          <li>Toque no botão <b>Compartilhar</b> (quadrado com uma seta para cima, na barra de baixo).</li>
+          <li>Role a lista e toque em <b>"Adicionar à Tela de Início"</b>.</li>
+          <li>Toque em <b>"Adicionar"</b>.</li>
+          <li>Pronto! Abra sempre pelo ícone <b>Fonte Kids</b> na tela inicial.</li>
+        </ol>
+      </div>
+      <button class="btn-cancelar" style="margin-top:12px;" onclick="document.getElementById('modalInstalarApp').style.display='none'">Agora não</button>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="modalSenha">
     <div class="modal">
       <h3 id="modTitulo">Senha</h3>
@@ -3305,7 +3370,88 @@
       }
     }, 60 * 1000);
 
+
+    // ==========================================
+    // INSTALAÇÃO DO APP (PWA) - pop-up só para quem não instalou
+    // ==========================================
+    var eventoInstalarApp = null;
+    window.addEventListener('beforeinstallprompt', function(e){
+      e.preventDefault(); eventoInstalarApp = e;
+      var b = document.getElementById('btnInstalarAgora'); if (b) b.style.display = 'block';
+    });
+    window.addEventListener('appinstalled', function(){
+      eventoInstalarApp = null;
+      var m = document.getElementById('modalInstalarApp'); if (m) m.style.display = 'none';
+    });
+    function appJaInstalado() {
+      try { if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) return true; } catch(e) {}
+      return window.navigator.standalone === true;
+    }
+    function mostrarPopupInstalarApp() {
+      if (appJaInstalado()) return;
+      var ua = navigator.userAgent || '';
+      var ehIphone = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      var ehAndroid = /Android/i.test(ua);
+      if (!ehIphone && !ehAndroid) return; // computador: não mostra
+      var aviso = document.getElementById('instAvisoNavegador');
+      if (ehIphone) {
+        document.getElementById('instPassosIphone').style.display = 'block';
+        if (!/Safari\//.test(ua)) { aviso.innerText = 'Parece que você abriu o link dentro de outro aplicativo (como o WhatsApp). No iPhone, a instalação só funciona pelo Safari: toque nos três pontinhos ou no ícone de compartilhar e escolha "Abrir no Safari".'; aviso.style.display = 'block'; }
+      } else {
+        document.getElementById('instPassosAndroid').style.display = 'block';
+        if (/; wv\)|FBAN|FBAV|Instagram|WhatsApp/i.test(ua)) { aviso.innerText = 'Parece que você abriu o link dentro de outro aplicativo (como o WhatsApp). Para instalar, abra o link no Chrome: toque nos três pontinhos e escolha "Abrir no Chrome".'; aviso.style.display = 'block'; }
+        if (eventoInstalarApp) document.getElementById('btnInstalarAgora').style.display = 'block';
+      }
+      document.getElementById('modalInstalarApp').style.display = 'flex';
+    }
+    function instalarAppAgora() {
+      if (!eventoInstalarApp) return;
+      eventoInstalarApp.prompt();
+      eventoInstalarApp.userChoice.then(function(){ eventoInstalarApp = null; document.getElementById('modalInstalarApp').style.display = 'none'; });
+    }
+    setTimeout(mostrarPopupInstalarApp, 1500);
+
+    // ==========================================
+    // CHECK-IN: aviso quando a sala da criança não pôde ser definida (data de nascimento errada/vazia)
+    // ==========================================
+    function salaInvalida(sala) {
+      var t = String(sala || '').trim();
+      return t === '' || t.indexOf('Adolescentes') !== -1;
+    }
+    var checkinPendenteDataErrada = null;
+    var fichaVoltarAutomaticoAoSalvar = false;
+
+    function dataErradaEditarAgora() {
+      var pend = checkinPendenteDataErrada;
+      document.getElementById('modalDataErrada').style.display = 'none';
+      if (!pend) return;
+      fichaVoltarAutomaticoAoSalvar = true;
+      abrirFichaCrianca(pend.id);
+    }
+    function dataErradaEditarDepois() {
+      document.getElementById('deEtapa1').style.display = 'none';
+      document.getElementById('deEtapa2').style.display = 'block';
+    }
+    function dataErradaSairEContinuar() {
+      var pend = checkinPendenteDataErrada; checkinPendenteDataErrada = null;
+      document.getElementById('modalDataErrada').style.display = 'none';
+      if (pend) executarCheckin(pend.id, pend.btn);
+    }
+
     function iniciarCheckin(id, b) {
+      var crChk = bancoCriancas.find(function(c){ return c.idCrianca === id; });
+      if (crChk && salaInvalida(crChk.sala)) {
+        checkinPendenteDataErrada = { id: id, btn: b };
+        document.getElementById('deNomeCrianca').innerText = crChk.nome;
+        document.getElementById('deEtapa1').style.display = 'block';
+        document.getElementById('deEtapa2').style.display = 'none';
+        document.getElementById('modalDataErrada').style.display = 'flex';
+        return;
+      }
+      executarCheckin(id, b);
+    }
+
+    function executarCheckin(id, b) {
       b.innerText="⏳"; b.disabled=true;
       google.script.run.withFailureHandler(function(err){
         alert(mensagemErroConexao(err) + "\n\nO check-in NÃO foi feito ainda. Toque em \"Check-in\" de novo.");
@@ -3504,7 +3650,7 @@
     async function fichaSalvarAlteracoes() {
       var faixaNova = document.getElementById('ficha_faixa').value;
       var faixaOriginal = document.getElementById('ficha_faixaOriginal').value;
-      if (faixaOriginal && faixaNova !== faixaOriginal) {
+      if (faixaOriginal && !salaInvalida(faixaOriginal) && faixaNova !== faixaOriginal) {
         if (!confirm("Você está alterando a sala/faixa etária dessa criança, o que pode afetar a contagem de vagas do culto. Confirma a alteração?")) return;
       }
 
@@ -3547,6 +3693,10 @@
         var local = bancoCriancas.find(function(c){ return c.idCrianca === idC; });
         if (local) { local.nome = d.nome; local.alergias = d.alergias; local.sala = faixaNova; if(idFamilia){ local.responsavel = dResp.nomeResponsavel; local.telefone = dResp.telefone; } }
         btnFicha.innerText = txtOriginalFicha; btnFicha.disabled = false;
+        if (fichaVoltarAutomaticoAoSalvar) {
+          fichaVoltarAutomaticoAoSalvar = false;
+          setTimeout(voltarParaCheckinDaFicha, 1200);
+        }
       }).salvarFichaCriancaCompleta(document.getElementById('ficha_linha').value, d, idFamilia, dResp);
     }
 
@@ -3555,15 +3705,24 @@
     }
 
     function voltarParaCheckinDaFicha() {
+      fichaVoltarAutomaticoAoSalvar = false;
       navegar('recepcao-principal');
       filtrarCriancas();
     }
 
     function carregarAcompanhamento() {
+      var btnM = document.getElementById('btnAtualizarMonitor');
       document.getElementById('acompStatus').style.display='block';
-      google.script.run.withSuccessHandler(function(r){
-        dadosAcompanhamento=r;
+      if (btnM) { btnM.innerText = '⏳'; btnM.disabled = true; }
+      google.script.run.withFailureHandler(function(err){
         document.getElementById('acompStatus').style.display='none';
+        if (btnM) { btnM.innerText = '🔄'; btnM.disabled = false; }
+        alert(mensagemErroConexao(err) + "\n\nOs dados na tela podem estar desatualizados. Toque em 🔄 para tentar de novo.");
+      }).withSuccessHandler(function(r){
+        if (btnM) { btnM.innerText = '🔄'; btnM.disabled = false; }
+        document.getElementById('acompStatus').style.display='none';
+        if (!r || r.sucesso === false) { alert('Não foi possível carregar os dados do Monitor. Toque em 🔄 para tentar de novo.'); return; }
+        dadosAcompanhamento=r;
         renderizarAcompanhamento();
       }).obterDadosAcompanhamento();
     }
@@ -3599,9 +3758,77 @@
       }).realizarCheckout(id);
     }
 
+    // Monta o card de uma criança no Monitor (usado nas salas normais e na seção de revisão de data de nascimento).
+    function montarCardMonitor(c, ehRevisao) {
+      var idD='det-'+c.idCheckin;
+      var tL=c.telefone.replace(/\D/g,'');
+      var tM=(dadosAcompanhamento.configs['Telefone_Midia']||'').replace(/\D/g,'');
+
+      var salaTxt = (c.sala && String(c.sala).indexOf('Adolescentes') === -1) ? c.sala : 'sala';
+      var msgChoro = (dadosAcompanhamento.configs['Mensagem_Choro']||'Olá! O(a) {nome_crianca} precisa de você na {sala}.').replace('{nome_crianca}',c.nome).replace('{sala}',salaTxt);
+      var msgTelaoPadrao = '📢 Aviso Telão: {nome_crianca} ({faixa_etaria}) - Responsável: {nome_responsavel}, favor comparecer à sala.';
+      var templateTelao = dadosAcompanhamento.configs['Mensagem_Telao'] || msgTelaoPadrao;
+      var msgTelao = templateTelao
+        .replace(/\{nome_crianca\}/g, c.nome)
+        .replace(/\{sala\}/g, salaTxt)
+        .replace(/\{faixa_etaria\}/g, salaTxt)
+        .replace(/\{codigo\}/g, c.codigo)
+        .replace(/\{nome_responsavel\}/g, c.responsavel)
+        .replace(/\{responsavel\}/g, c.responsavel);
+      // Garante que o nome do responsável apareça mesmo se o modelo salvo em Configurações Gerais
+      // ainda não tiver sido atualizado com o placeholder {nome_responsavel} (causa do bug 3).
+      if (templateTelao.indexOf('{nome_responsavel}') === -1 && templateTelao.indexOf('{responsavel}') === -1) {
+        msgTelao += ' (Responsável: ' + c.responsavel + ')';
+      }
+
+      var tCh=encodeURIComponent(msgChoro);
+      var tTe=encodeURIComponent(msgTelao);
+      var iN=niverMes(c.nascimento)?' 🎂':'';
+      var eB=c.perfil==='Membro'?'badge-membro':'badge-visitante';
+      var bA=temAlergia(c.alergias)?'<div style="color:#dc3545;font-size:12px;font-weight:bold;margin-top:4px;">⚠️ ' + c.alergias + '</div>':'';
+      var n_esc = c.nome.replace(/'/g, "\\'");
+
+      var tL2 = String(c.telefone2 || '').replace(/\D/g,'');
+      var temResp2 = tL2.length >= 10;
+      var rotuloResp1 = temResp2 ? ('💬 ' + (primeiroNomeSeguro(c.responsavel) || 'Pais')) : '💬 Pais';
+      var btnPais = '<a href="https://wa.me/55' + tL + '?text=' + tCh + '" target="_blank" class="btn-acao-monitor" style="background:#25D366;">' + rotuloResp1 + '</a>';
+      if (temResp2) {
+        btnPais += '<a href="https://wa.me/55' + tL2 + '?text=' + tCh + '" target="_blank" class="btn-acao-monitor" style="background:#128C7E;">💬 ' + (primeiroNomeSeguro(c.nomeResp2) || 'Resp. 2') + '</a>';
+      }
+      var btnTelao = tM ? '<a href="https://wa.me/55' + tM + '?text=' + tTe + '" target="_blank" class="btn-acao-monitor" style="background:#000;">📺 Telão</a>' : '<button class="btn-acao-monitor" style="background:#000;" onclick="alert(\'WhatsApp do Telão não configurado em Configurações Gerais!\')">📺 Telão</button>';
+      var btnEditarNasc = ehRevisao ? '<button class="btn-acao-monitor" style="background:#F28C28;" onclick="abrirModalEditarNasc(\'' + c.idCheckin + '\',\'' + n_esc + '\')">✏️ Data</button>' : '';
+      var btnSaida = '<button class="btn-acao-monitor" style="background:#dc3545;" onclick="checkout(\'' + c.idCheckin + '\',\'' + n_esc + '\')">🚪 Saída</button>';
+
+      return '<div class="card-monitor">' +
+              '<div class="card-monitor-cabecalho" onclick="document.getElementById(\'' + idD + '\').style.display=document.getElementById(\'' + idD + '\').style.display===\'block\'?\'none\':\'block\'" style="cursor:pointer;display:flex;align-items:center;gap:10px;">' +
+                '<img src="' + formatarUrlFoto(c.foto) + '" class="foto-crianca" style="width:40px;height:40px; cursor:zoom-in;" onclick="event.stopPropagation(); ampliarFoto(\'' + formatarUrlFoto(c.foto) + '\')">' +
+                '<div style="flex-grow:1;">' +
+                  '<div style="font-weight:bold;font-size:15px;">' + c.nome + iN + ' <span class="badge-perfil ' + eB + '">' + c.perfil + '</span></div>' +
+                  bA +
+                '</div>' +
+                '<div style="color:#00AEEF;font-size:12px;">▼</div>' +
+              '</div>' +
+              '<div class="detalhes-ocultos" id="' + idD + '">' +
+                '<b>Nasc:</b> ' + calcIdadeEData(c.nascimento) + '<br>' +
+                '<b>Resp:</b> ' + c.responsavel + ' (' + c.telefone + ')<br>' +
+                (c.telefone2 ? '<b>Resp. 2:</b> ' + (c.nomeResp2 || '') + ' (' + c.telefone2 + ')<br>' : '') +
+                '<b>Cód:</b> ' + c.codigo +
+                '<div class="botoes-lado-a-lado">' +
+                  btnPais + btnTelao + btnSaida + btnEditarNasc +
+                '</div>' +
+              '</div>' +
+            '</div>';
+    }
+
     function renderizarAcompanhamento() {
       var cl=document.getElementById('acompCulto').value;
       if(!cl||!dadosAcompanhamento){ document.getElementById('acompPainel').innerHTML=""; return; }
+
+      // Guarda quais salas estavam abertas, pra não fechar tudo quando a tela é redesenhada (🔄, editar data...).
+      var salasAbertasAntes = [];
+      document.querySelectorAll('#acompPainel .painel-criancas').forEach(function(el){ if (el.style.display === 'block') salasAbertasAntes.push(el.id); });
+      var elRevAntes = document.getElementById('sanfona-rev');
+      var revFechada = elRevAntes ? (elRevAntes.style.display !== 'block') : false;
 
       var cr=dadosAcompanhamento.checkins.filter(c=>c.culto===cl);
       var ct={};
@@ -3622,66 +3849,9 @@
         var cS=cr.filter(c=>c.sala===s.n);
         var hC=cS.length===0?'<p style="text-align:center;font-size:12px;">Vazia</p>':'';
 
-        cS.forEach(c=>{
-          var idD='det-'+c.idCheckin;
-          var tL=c.telefone.replace(/\D/g,'');
-          var tM=(dadosAcompanhamento.configs['Telefone_Midia']||'').replace(/\D/g,'');
+        cS.forEach(function(c){ hC += montarCardMonitor(c, false); });
 
-          var msgChoro = (dadosAcompanhamento.configs['Mensagem_Choro']||'Olá! O(a) {nome_crianca} precisa de você na {sala}.').replace('{nome_crianca}',c.nome).replace('{sala}',c.sala);
-          var msgTelaoPadrao = '📢 Aviso Telão: {nome_crianca} ({faixa_etaria}) - Responsável: {nome_responsavel}, favor comparecer à sala.';
-          var templateTelao = dadosAcompanhamento.configs['Mensagem_Telao'] || msgTelaoPadrao;
-          var msgTelao = templateTelao
-            .replace(/\{nome_crianca\}/g, c.nome)
-            .replace(/\{sala\}/g, c.sala)
-            .replace(/\{faixa_etaria\}/g, c.sala)
-            .replace(/\{codigo\}/g, c.codigo)
-            .replace(/\{nome_responsavel\}/g, c.responsavel)
-            .replace(/\{responsavel\}/g, c.responsavel);
-          // Garante que o nome do responsável apareça mesmo se o modelo salvo em Configurações Gerais
-          // ainda não tiver sido atualizado com o placeholder {nome_responsavel} (causa do bug 3).
-          if (templateTelao.indexOf('{nome_responsavel}') === -1 && templateTelao.indexOf('{responsavel}') === -1) {
-            msgTelao += ' (Responsável: ' + c.responsavel + ')';
-          }
-
-          var tCh=encodeURIComponent(msgChoro);
-          var tTe=encodeURIComponent(msgTelao);
-          var iN=niverMes(c.nascimento)?' 🎂':'';
-          var eB=c.perfil==='Membro'?'badge-membro':'badge-visitante';
-          var bA=temAlergia(c.alergias)?'<div style="color:#dc3545;font-size:12px;font-weight:bold;margin-top:4px;">⚠️ ' + c.alergias + '</div>':'';
-          var n_esc = c.nome.replace(/'/g, "\\'");
-
-          var tL2 = String(c.telefone2 || '').replace(/\D/g,'');
-          var temResp2 = tL2.length >= 10;
-          var rotuloResp1 = temResp2 ? ('💬 ' + (primeiroNomeSeguro(c.responsavel) || 'Pais')) : '💬 Pais';
-          var btnPais = '<a href="https://wa.me/55' + tL + '?text=' + tCh + '" target="_blank" class="btn-acao-monitor" style="background:#25D366;">' + rotuloResp1 + '</a>';
-          if (temResp2) {
-            btnPais += '<a href="https://wa.me/55' + tL2 + '?text=' + tCh + '" target="_blank" class="btn-acao-monitor" style="background:#128C7E;">💬 ' + (primeiroNomeSeguro(c.nomeResp2) || 'Resp. 2') + '</a>';
-          }
-          var btnTelao = tM ? '<a href="https://wa.me/55' + tM + '?text=' + tTe + '" target="_blank" class="btn-acao-monitor" style="background:#000;">📺 Telão</a>' : '<button class="btn-acao-monitor" style="background:#000;" onclick="alert(\'WhatsApp do Telão não configurado em Configurações Gerais!\')">📺 Telão</button>';
-          var btnSaida = '<button class="btn-acao-monitor" style="background:#dc3545;" onclick="checkout(\'' + c.idCheckin + '\',\'' + n_esc + '\')">🚪 Saída</button>';
-
-          hC += '<div class="card-monitor">' +
-                  '<div class="card-monitor-cabecalho" onclick="document.getElementById(\'' + idD + '\').style.display=document.getElementById(\'' + idD + '\').style.display===\'block\'?\'none\':\'block\'" style="cursor:pointer;display:flex;align-items:center;gap:10px;">' +
-                    '<img src="' + formatarUrlFoto(c.foto) + '" class="foto-crianca" style="width:40px;height:40px; cursor:zoom-in;" onclick="event.stopPropagation(); ampliarFoto(\'' + formatarUrlFoto(c.foto) + '\')">' +
-                    '<div style="flex-grow:1;">' +
-                      '<div style="font-weight:bold;font-size:15px;">' + c.nome + iN + ' <span class="badge-perfil ' + eB + '">' + c.perfil + '</span></div>' +
-                      bA +
-                    '</div>' +
-                    '<div style="color:#00AEEF;font-size:12px;">▼</div>' +
-                  '</div>' +
-                  '<div class="detalhes-ocultos" id="' + idD + '">' +
-                    '<b>Nasc:</b> ' + calcIdadeEData(c.nascimento) + '<br>' +
-                    '<b>Resp:</b> ' + c.responsavel + ' (' + c.telefone + ')<br>' +
-                    (c.telefone2 ? '<b>Resp. 2:</b> ' + (c.nomeResp2 || '') + ' (' + c.telefone2 + ')<br>' : '') +
-                    '<b>Cód:</b> ' + c.codigo +
-                    '<div class="botoes-lado-a-lado">' +
-                      btnPais + btnTelao + btnSaida +
-                    '</div>' +
-                  '</div>' +
-                '</div>';
-        });
-
-        var ds=(salaAbertaAtual===idS)?'block':'none';
+        var ds=(salaAbertaAtual===idS || salasAbertasAntes.indexOf(idS) !== -1)?'block':'none';
         ht += '<div class="sala-box ' + (ds==='block'?'ativa':'') + '" onclick="document.getElementById(\'' + idS + '\').style.display=document.getElementById(\'' + idS + '\').style.display===\'block\'?\'none\':\'block\'">' +
                 '<div class="sala-header">' +
                   '<span>' + s.n + '</span>' +
@@ -3695,7 +3865,58 @@
                 '</div>' +
               '</div>';
       });
+
+      // Seção de revisão: check-ins deste culto cuja sala não é nenhuma das salas acima
+      // (sala em branco, "Adolescentes / Adultos" etc. — normalmente data de nascimento vazia ou errada).
+      var crRev = cr.filter(function(c){ return !sC.some(function(s2){ return s2.n === c.sala; }); });
+      if (crRev.length > 0) {
+        var hRev = '';
+        crRev.forEach(function(c){ hRev += montarCardMonitor(c, true); });
+        var dsRev = revFechada ? 'none' : 'block';
+        ht += '<div class="sala-box ativa" style="border-color:#F28C28; background:#fff8ee;" onclick="document.getElementById(\'sanfona-rev\').style.display=document.getElementById(\'sanfona-rev\').style.display===\'block\'?\'none\':\'block\'">' +
+                '<div class="sala-header" style="color:#b35f00;">' +
+                  '<span>⚠️ Crianças com check-in ativo que precisam revisar a data de nascimento para entrar na sala correta</span>' +
+                  '<span>' + crRev.length + '</span>' +
+                '</div>' +
+                '<div class="painel-criancas" id="sanfona-rev" style="display:' + dsRev + ';" onclick="event.stopPropagation();">' + hRev + '</div>' +
+              '</div>';
+      }
       document.getElementById('acompPainel').innerHTML=ht;
+    }
+
+    // ---- Editar data de nascimento direto do Monitor ----
+    function abrirModalEditarNasc(idCheckin, nome) {
+      document.getElementById('enIdCheckin').value = idCheckin;
+      document.getElementById('enNomeCrianca').innerText = nome;
+      document.getElementById('enNasc').value = '';
+      document.getElementById('enIdadeDisplay').innerText = '';
+      document.getElementById('enAviso').style.display = 'none';
+      document.getElementById('modalEditarNasc').style.display = 'flex';
+    }
+
+    function salvarNascMonitor() {
+      var id = document.getElementById('enIdCheckin').value;
+      var nasc = document.getElementById('enNasc').value;
+      var aviso = document.getElementById('enAviso');
+      var idade = calcIdadeAnosBR(nasc);
+      if (nasc.length < 10 || idade === null || idade < 0) { aviso.innerText = 'Digite a data completa no formato DD/MM/AAAA.'; aviso.style.display = 'block'; return; }
+      var b = document.getElementById('btnSalvarNasc');
+      b.innerText = 'Salvando...'; b.disabled = true;
+      google.script.run.withFailureHandler(function(err){
+        aviso.innerText = mensagemErroConexao(err).replace(/\n+/g, ' '); aviso.style.display = 'block';
+        b.innerText = 'Salvar'; b.disabled = false;
+      }).withSuccessHandler(function(r){
+        b.innerText = 'Salvar'; b.disabled = false;
+        if (!r || !r.sucesso) { aviso.innerText = (r && r.msg) ? r.msg : 'Não foi possível salvar.'; aviso.style.display = 'block'; return; }
+        document.getElementById('modalEditarNasc').style.display = 'none';
+        if (dadosAcompanhamento) {
+          dadosAcompanhamento.checkins.forEach(function(c){ if (c.idCheckin === id) { c.sala = r.sala; c.nascimento = nasc; } });
+        }
+        // Mantém a lista local do check-in em dia também.
+        bancoCriancas.forEach(function(c){ if (c.nome === r.nome) { c.sala = r.salaCadastro || c.sala; c.nascimento = nasc; } });
+        renderizarAcompanhamento();
+        if (r.salaCadastro && /Adolescentes|^$/.test(r.salaCadastro)) alert('Data salva, mas ela ainda corresponde a mais de 12 anos. Confira se a data está certa.');
+      }).corrigirNascimentoCheckinAtivo(id, nasc);
     }
   </script>
 </body>
