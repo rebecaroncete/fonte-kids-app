@@ -813,6 +813,11 @@
       <h3 style="margin-top:0; color:#00AEEF; text-align:center;">📲 Instale o app Fonte Kids</h3>
       <p style="font-size:13px; color:#555; text-align:center;">Instalando, o Fonte Kids abre mais rápido, direto da tela inicial do seu celular, como qualquer aplicativo.</p>
       <div id="instAvisoNavegador" style="display:none; background:#fff3cd; color:#856404; border:1px solid #ffeeba; padding:10px; border-radius:6px; font-size:13px; margin-bottom:10px;"></div>
+      <div id="instBotoesChrome" style="display:none; margin-bottom:12px;">
+        <button class="btn-confirmar" style="background:#28a745;" onclick="abrirNoChrome()">🌐 Abrir no Chrome</button>
+        <button class="btn-confirmar" style="background:#6c757d;" onclick="copiarLinkApp()">📋 Copiar link</button>
+        <div id="instCopiado" style="display:none; text-align:center; font-size:12px; color:#28a745; font-weight:bold;">Link copiado! Cole no Chrome.</div>
+      </div>
       <div id="instPassosAndroid" style="display:none; font-size:14px; line-height:1.6; color:#333;">
         <b>No Android (Chrome):</b>
         <ol style="padding-left:20px; margin:6px 0;">
@@ -3387,22 +3392,56 @@
       try { if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) return true; } catch(e) {}
       return window.navigator.standalone === true;
     }
+    // Detecta navegadores "embutidos" em outros apps (WhatsApp, Instagram, Facebook...), onde não dá pra instalar o app.
+    function navegadorEmbutido(ua) {
+      return /; wv\)|FBAN|FBAV|Instagram|WhatsApp|Line\/|Snapchat|Telegram|GSA\//i.test(ua);
+    }
     function mostrarPopupInstalarApp() {
-      if (appJaInstalado()) return;
-      var ua = navigator.userAgent || '';
-      var ehIphone = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-      var ehAndroid = /Android/i.test(ua);
-      if (!ehIphone && !ehAndroid) return; // computador: não mostra
-      var aviso = document.getElementById('instAvisoNavegador');
-      if (ehIphone) {
-        document.getElementById('instPassosIphone').style.display = 'block';
-        if (!/Safari\//.test(ua)) { aviso.innerText = 'Parece que você abriu o link dentro de outro aplicativo (como o WhatsApp). No iPhone, a instalação só funciona pelo Safari: toque nos três pontinhos ou no ícone de compartilhar e escolha "Abrir no Safari".'; aviso.style.display = 'block'; }
-      } else {
-        document.getElementById('instPassosAndroid').style.display = 'block';
-        if (/; wv\)|FBAN|FBAV|Instagram|WhatsApp/i.test(ua)) { aviso.innerText = 'Parece que você abriu o link dentro de outro aplicativo (como o WhatsApp). Para instalar, abra o link no Chrome: toque nos três pontinhos e escolha "Abrir no Chrome".'; aviso.style.display = 'block'; }
-        if (eventoInstalarApp) document.getElementById('btnInstalarAgora').style.display = 'block';
-      }
-      document.getElementById('modalInstalarApp').style.display = 'flex';
+      try {
+        var ua = navigator.userAgent || '';
+        var embutido = navegadorEmbutido(ua);
+        var instalado = appJaInstalado();
+        if (/[?&]diag=1/.test(location.search)) alert('DIAGNÓSTICO\nembutido=' + embutido + '\ninstalado=' + instalado + '\nUA=' + ua);
+        // Em navegador embutido sempre mostra (mesmo que ele diga "standalone"); no resto, só se ainda não instalou.
+        if (instalado && !embutido) return;
+        var ehIphone = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        var ehAndroid = /Android/i.test(ua);
+        if (!ehIphone && !ehAndroid) return; // computador: não mostra
+        var aviso = document.getElementById('instAvisoNavegador');
+        if (ehIphone) {
+          document.getElementById('instPassosIphone').style.display = 'block';
+          if (!/Safari\//.test(ua) || embutido) { aviso.innerText = 'Parece que você abriu o link dentro de outro aplicativo (como o WhatsApp). No iPhone, a instalação só funciona pelo Safari: toque nos três pontinhos ou no ícone de compartilhar e escolha "Abrir no Safari".'; aviso.style.display = 'block'; }
+        } else {
+          document.getElementById('instPassosAndroid').style.display = 'block';
+          if (embutido) {
+            aviso.innerText = 'Você abriu o link dentro de outro aplicativo (como o WhatsApp), e por aqui não dá para instalar. Toque em "Abrir no Chrome" abaixo. Se não funcionar, toque nos três pontinhos ⋮ e escolha "Abrir no Chrome" (ou "Abrir no navegador").';
+            aviso.style.display = 'block';
+            document.getElementById('instBotoesChrome').style.display = 'block';
+            document.getElementById('btnInstalarAgora').style.display = 'none';
+          } else if (eventoInstalarApp) document.getElementById('btnInstalarAgora').style.display = 'block';
+        }
+        document.getElementById('modalInstalarApp').style.display = 'flex';
+      } catch (e) { console.error(e); }
+    }
+    // Android: tenta abrir o mesmo endereço direto no Chrome (se o Chrome não abrir, volta para este mesmo endereço).
+    function abrirNoChrome() {
+      var destino = location.host + location.pathname + location.search + location.hash;
+      var fallback = encodeURIComponent(location.href);
+      location.href = 'intent://' + destino + '#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=' + fallback + ';end';
+    }
+    function copiarLinkApp() {
+      var link = location.href.split('#')[0].replace(/([?&])diag=1&?/, '$1').replace(/[?&]$/, '');
+      function ok() { var el = document.getElementById('instCopiado'); if (el) el.style.display = 'block'; }
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(link).then(ok, function(){ copiaAlternativa(link, ok); }); return; }
+      } catch (e) {}
+      copiaAlternativa(link, ok);
+    }
+    function copiaAlternativa(texto, ok) {
+      var t = document.createElement('textarea'); t.value = texto; t.style.position = 'fixed'; t.style.opacity = '0';
+      document.body.appendChild(t); t.focus(); t.select();
+      try { document.execCommand('copy'); ok(); } catch (e) { alert('Copie este link e abra no Chrome:\n' + texto); }
+      document.body.removeChild(t);
     }
     function instalarAppAgora() {
       if (!eventoInstalarApp) return;
@@ -3410,6 +3449,7 @@
       eventoInstalarApp.userChoice.then(function(){ eventoInstalarApp = null; document.getElementById('modalInstalarApp').style.display = 'none'; });
     }
     setTimeout(mostrarPopupInstalarApp, 1500);
+    window.addEventListener('load', function(){ setTimeout(function(){ var m = document.getElementById('modalInstalarApp'); if (m && m.style.display !== 'flex' && !window.__popupInstalarJaTentou) { window.__popupInstalarJaTentou = true; mostrarPopupInstalarApp(); } }, 2500); });
 
     // ==========================================
     // CHECK-IN: aviso quando a sala da criança não pôde ser definida (data de nascimento errada/vazia)
