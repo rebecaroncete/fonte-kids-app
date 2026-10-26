@@ -53,4 +53,7 @@ const { data } = await supabase.functions.invoke('foto-assinada', {
 // data.fotos = { "<id>": "<link que vale 5 minutos>" }; ids sem permissão não aparecem
 ```
 
+- A coluna temporária `foto_legado_url` (links do Drive) foi apagada depois de conferir as 259 fotos.
+- A chave de API do Cloudinary usada pela função precisa ter permissão de **download** (papel Master Admin); sem isso o Cloudinary responde 403.
+
 **Segredos** (Supabase → Edge Functions → Secrets): `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`. Opcionais: `CLOUDINARY_CLOUD_NAME`, `FOTO_LINK_SEGUNDOS` (padrão 300). Nunca colocar esses valores no código.
