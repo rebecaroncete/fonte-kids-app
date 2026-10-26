@@ -15,7 +15,7 @@ declare
   v_kids uuid; v_igreja uuid; s_36 uuid; s_79 uuid;
   f1 uuid; f2 uuid; c1 uuid; c2 uuid; c3 uuid; vol1 uuid; vol2 uuid;
   culto_hoje uuid; esc_pub uuid; esc_ras uuid; item_v1 uuid; k_novo uuid;
-  n bigint; txt text; ok_erro boolean;
+  n bigint; m bigint; vol3 uuid; vol4 uuid; txt text; ok_erro boolean;
   r text := '';
   falhas int := 0;
 begin
@@ -217,6 +217,74 @@ begin
   -- Admin
   perform set_config('request.jwt.claims', json_build_object('sub', u_admin, 'role', 'authenticated')::text, true);
   select count(*) into n from public.log_erros;     r := r || format(E'\n%s admin lê log de erros: %s (esperado 1)', case when n=1 then '✅' else '❌' end, n); falhas := falhas + (n<>1)::int;
+
+  -- ================= FOTOS (Fase 3) =================
+  -- Montagem como administrador do banco: fotos FICTÍCIAS (identificadores
+  -- inventados, não existem no Cloudinary) e duas voluntárias ativas novas,
+  -- uma maior e uma MENOR de idade.
+  perform set_config('role', 'postgres', true);
+  perform set_config('request.jwt.claims', '{}', true);
+  update public.criancas set foto_public_id = 'teste/crianca-' || id where id in (c1, c2, c3);
+  update public.voluntarias set foto_public_id = 'teste/vol1', data_nascimento = '1990-01-01' where id = vol1;
+  insert into public.voluntarias (departamento_id, nome, status, data_nascimento, foto_public_id)
+    values (v_kids, 'Voluntária Menor Teste', 'ativa', private.hoje() - interval '15 years', 'teste/vol3')
+    returning id into vol3;
+  insert into public.voluntarias (departamento_id, nome, status, data_nascimento, foto_public_id)
+    values (v_kids, 'Voluntária Maior Teste', 'ativa', '1985-05-05', 'teste/vol4')
+    returning id into vol4;
+  perform set_config('role', 'authenticated', true);
+
+  -- Sem login: não pode nem chamar
+  perform set_config('role', 'anon', true);
+  perform set_config('request.jwt.claims', '{"role":"anon"}', true);
+  begin
+    select count(*) into n from public.fotos_criancas(array[c1, c2, c3]);
+    r := r || E'\n❌ anon pediu fotos de crianças'; falhas := falhas + 1;
+  exception when insufficient_privilege then r := r || E'\n✅ FOTOS: anon NÃO pede fotos';
+  end;
+  perform set_config('role', 'authenticated', true);
+
+  -- Logado sem papel
+  perform set_config('request.jwt.claims', json_build_object('sub', u_estranho, 'role', 'authenticated')::text, true);
+  select count(*) into n from public.fotos_criancas(array[c1, c2, c3]);
+  r := r || format(E'\n%s FOTOS: sem papel recebe %s fotos de crianças (esperado 0)', case when n=0 then '✅' else '❌' end, n); falhas := falhas + (n<>0)::int;
+  select count(*) into n from public.fotos_voluntarias(array[vol1, vol3, vol4]);
+  r := r || format(E'\n%s FOTOS: sem papel recebe %s fotos de voluntárias (esperado 0)', case when n=0 then '✅' else '❌' end, n); falhas := falhas + (n<>0)::int;
+
+  -- Pai/mãe: só a foto do próprio filho
+  perform set_config('request.jwt.claims', json_build_object('sub', u_pai1, 'role', 'authenticated')::text, true);
+  select count(*) into n from public.fotos_criancas(array[c1, c2, c3]);
+  r := r || format(E'\n%s FOTOS: pai1 recebe %s foto(s) de crianças (esperado 1, a do filho)', case when n=1 then '✅' else '❌' end, n); falhas := falhas + (n<>1)::int;
+  select count(*) into n from public.fotos_voluntarias(array[vol1, vol3, vol4]);
+  r := r || format(E'\n%s FOTOS: pai1 recebe %s fotos de voluntárias (esperado 0)', case when n=0 then '✅' else '❌' end, n); falhas := falhas + (n<>0)::int;
+
+  -- Voluntária 1: fotos das crianças = exatamente as crianças que ela já pode ver
+  perform set_config('request.jwt.claims', json_build_object('sub', u_vol1, 'role', 'authenticated')::text, true);
+  select count(*) into n from public.fotos_criancas(array[c1, c2, c3]);
+  select count(*) into m from public.criancas where id in (c1, c2, c3);
+  r := r || format(E'\n%s FOTOS: vol1 recebe %s fotos de crianças = %s crianças que ela vê', case when n=m and n>0 then '✅' else '❌' end, n, m); falhas := falhas + (n<>m or n=0)::int;
+  select count(*) into n from public.fotos_criancas(array[c2]);
+  r := r || format(E'\n%s FOTOS: vol1 recebe foto de criança de outra sala: %s (esperado 0)', case when n=0 then '✅' else '❌' end, n); falhas := falhas + (n<>0)::int;
+  select count(*) into n from public.fotos_voluntarias(array[vol1, vol3, vol4]);
+  r := r || format(E'\n%s FOTOS: vol1 recebe %s fotos de voluntárias (esperado 2: a própria e a maior de idade)', case when n=2 then '✅' else '❌' end, n); falhas := falhas + (n<>2)::int;
+  select count(*) into n from public.fotos_voluntarias(array[vol3]);
+  r := r || format(E'\n%s FOTOS: vol1 recebe foto da voluntária MENOR: %s (esperado 0)', case when n=0 then '✅' else '❌' end, n); falhas := falhas + (n<>0)::int;
+  select count(*) into n from public.equipe_departamento(v_kids) e where e.id = vol3 and e.foto_public_id is not null;
+  r := r || format(E'\n%s FOTOS: lista da equipe esconde a foto da MENOR para a equipe: %s (esperado 0)', case when n=0 then '✅' else '❌' end, n); falhas := falhas + (n<>0)::int;
+
+  -- Recepção: crianças do departamento; voluntárias só maiores
+  perform set_config('request.jwt.claims', json_build_object('sub', u_recep, 'role', 'authenticated')::text, true);
+  select count(*) into n from public.fotos_criancas(array[c1, c2, c3]);
+  r := r || format(E'\n%s FOTOS: recepção recebe %s fotos de crianças (esperado 3)', case when n=3 then '✅' else '❌' end, n); falhas := falhas + (n<>3)::int;
+  select count(*) into n from public.fotos_voluntarias(array[vol1, vol3, vol4]);
+  r := r || format(E'\n%s FOTOS: recepção recebe %s fotos de voluntárias (esperado 2, sem a menor)', case when n=2 then '✅' else '❌' end, n); falhas := falhas + (n<>2)::int;
+
+  -- Líder: todas, inclusive a da menor
+  perform set_config('request.jwt.claims', json_build_object('sub', u_lider, 'role', 'authenticated')::text, true);
+  select count(*) into n from public.fotos_voluntarias(array[vol1, vol3, vol4]);
+  r := r || format(E'\n%s FOTOS: líder recebe %s fotos de voluntárias (esperado 3, inclui a menor)', case when n=3 then '✅' else '❌' end, n); falhas := falhas + (n<>3)::int;
+  select count(*) into n from public.equipe_departamento(v_kids) e where e.id = vol3 and e.foto_public_id is not null;
+  r := r || format(E'\n%s FOTOS: líder vê a foto da MENOR na lista da equipe: %s (esperado 1)', case when n=1 then '✅' else '❌' end, n); falhas := falhas + (n<>1)::int;
 
   raise exception E'RESULTADO DOS TESTES — falhas: %\n%', falhas, r;
 end
