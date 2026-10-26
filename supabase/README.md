@@ -8,9 +8,10 @@ O branch `main` continua com o app atual (Apps Script + planilha) funcionando no
 | Pasta | Conteúdo |
 |---|---|
 | `migrations/` | Criação do banco, em ordem. Já aplicadas no projeto em 26/10/2026. Os nomes batem com o histórico do Supabase. |
-| `tests/teste_seguranca_rls.sql` | Teste das regras de acesso com dados **fictícios**, num departamento fictício próprio (funciona com o banco já preenchido). Tudo é desfeito ao final; o resultado aparece como mensagem "RESULTADO DOS TESTES" (62 verificações, incluindo fotos). |
+| `tests/teste_seguranca_rls.sql` | Teste das regras de acesso com dados **fictícios**, num departamento fictício próprio (funciona com o banco já preenchido). Tudo é desfeito ao final; o resultado aparece como mensagem "RESULTADO DOS TESTES" (121 verificações: regras de acesso, fotos, cadastro único de pessoas e logins). |
 | `migracao/` | Fase 2: scripts de limpeza e importação da planilha (sem dados). |
 | `functions/foto-assinada/` | Fase 3: Edge Function que devolve links **temporários** (5 min) das fotos privadas no Cloudinary, só para quem tem permissão. |
+| `functions/gerenciar-login/` | Fase 4 · Etapa 3: cria e redefine logins (telefone → e-mail técnico), sem senha no código nem na resposta. |
 
 ## Quem vê o quê
 
@@ -57,3 +58,24 @@ const { data } = await supabase.functions.invoke('foto-assinada', {
 - A chave de API do Cloudinary usada pela função precisa ter permissão de **download** (papel Master Admin); sem isso o Cloudinary responde 403.
 
 **Segredos** (Supabase → Edge Functions → Secrets): `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`. Opcionais: `CLOUDINARY_CLOUD_NAME`, `FOTO_LINK_SEGUNDOS` (padrão 300). Nunca colocar esses valores no código.
+
+## Logins (Fase 4 · Etapa 3)
+
+- **Login = telefone** (55 + DDD + número). O app converte para um e-mail técnico `<telefone>@login.fonteitaparica.invalid` (domínio reservado, nunca recebe e-mail). Sem SMS.
+- **Senha inicial** (decisão de 26/10/2026): voluntária = data de nascimento (DDMMAAAA); demais = o telefone de login. **Troca obrigatória no 1º acesso.**
+- Enquanto não troca a senha, o usuário **não vê dado nenhum** (só o próprio perfil). Usuário **sem papel** também não vê nada.
+- `concluir_troca_senha()` só funciona se a senha realmente mudou (o banco guarda só um carimbo do hash, nunca a senha).
+- Uma pessoa = um login (as que são voluntária e responsável recebem os dois papéis).
+- Telefone usado por mais de uma pessoa: o login fica com a voluntária; entre responsáveis, com o principal. Os demais ficam sem login até informar um número próprio.
+- Os logins são criados **só pelo servidor**: a Edge Function `gerenciar-login` usa a chave de serviço que o próprio Supabase fornece nas variáveis de ambiente. Nenhuma senha ou chave fica no código, nas respostas ou nos logs (a resposta diz só qual regra de senha foi usada).
+
+**Ações da função** (painel: Edge Functions → gerenciar-login → Test, papel *service role*; ou usuário logado com permissão):
+
+| Ação | O que faz | Quem |
+|---|---|---|
+| `autoteste` | cria e apaga um login fictício para conferir o domínio técnico | admin / painel |
+| `criar` | cria o login de uma pessoa (`pessoa_id`, `telefone_login` opcional, papéis extras); voluntária/responsável entram sozinhos | quem pode dar todos os papéis |
+| `redefinir` | volta para a senha inicial e exige nova troca | quem pode gerir todos os papéis da pessoa |
+| `lote` | sem `confirmar` só mostra contagens; com `confirmar: true` cria até `limite` por chamada | admin / painel |
+
+**Configuração no painel** (Authentication): desligar o cadastro público (*Allow new users to sign up*), senha mínima de 8 caracteres e sem exigência de letras/símbolos (as senhas iniciais são só números).

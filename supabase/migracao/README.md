@@ -79,3 +79,10 @@ Conferência só por contagem:
 | Responsáveis sem telefone | 10 (sem login até informar telefone) |
 
 Teste de segurança: 103/103 (41 verificações novas de pessoas, relações, nascimentos, fotos por pessoa, duplicidades e exclusão).
+
+## Fase 4 · Etapa 3 – Logins (26/10/2026, só contagens)
+
+- Pessoas que podem ter login no Fonte Kids: 294 (voluntárias ativas + responsáveis).
+- Logins a criar: **280** (49 voluntárias, das quais 8 menores; 246 responsáveis; 15 com os dois papéis). Mais 2 pastores (cadastrados em `pessoas` só com o nome).
+- Sem login por enquanto: **14** (10 responsáveis sem telefone; 4 responsáveis cujo telefone já é usado por outra pessoa).
+- Nenhum login real criado nesta etapa pelo assistente; os 4 perfis iniciais são criados pela Rebeca no painel.

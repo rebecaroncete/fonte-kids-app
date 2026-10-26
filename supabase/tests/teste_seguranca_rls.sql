@@ -5,6 +5,8 @@
 -- Como rodar: cole no SQL Editor do Supabase e execute.
 -- Fase 4: cadastro único de pessoas (pessoas, relacoes_pessoas,
 -- possiveis_duplicidades, nascimentos(), fotos_pessoas()).
+-- Fase 4 · Etapa 3: logins (troca obrigatória de senha, perfil ligado à
+-- pessoa certa, usuário sem papel não vê nada, funções só do servidor).
 -- =====================================================================
 do $teste$
 declare
@@ -14,6 +16,9 @@ declare
   u_vol1  uuid := gen_random_uuid();  u_vol2   uuid := gen_random_uuid();
   u_pai1  uuid := gen_random_uuid();  u_pai2   uuid := gen_random_uuid();
   u_estranho uuid := gen_random_uuid();
+  u_novo uuid := gen_random_uuid();   u_sempapel uuid := gen_random_uuid();
+  u_falso uuid := gen_random_uuid();  u_dobro uuid := gen_random_uuid();
+  p_novo uuid; p_semp uuid; lg_pessoa uuid; lg_ok boolean;
   -- pessoas fictícias
   p_admin uuid; p_pastor uuid; p_lider uuid; p_recep uuid; p_vol1 uuid; p_vol2 uuid;
   p_pai1 uuid; p_pai2 uuid; pc1 uuid; pc2 uuid; pc3 uuid; p_nova uuid; pvol3 uuid; pvol4 uuid; pdup uuid; p_c3 uuid;
@@ -62,6 +67,10 @@ begin
     (u_pai1,'teste.pai1@exemplo.invalid',    jsonb_build_object('pessoa_id', p_pai1)),
     (u_pai2,'teste.pai2@exemplo.invalid',    jsonb_build_object('pessoa_id', p_pai2)),
     (u_estranho,'teste.x@exemplo.invalid',   '{}'::jsonb);
+
+  -- usuários dos testes antigos já trocaram a senha inicial
+  update public.perfis set troca_senha_obrigatoria = false
+  where id in (u_admin, u_pastor, u_lider, u_recep, u_vol1, u_vol2, u_pai1, u_pai2, u_estranho);
 
   insert into public.papeis_usuario (perfil_id, departamento_id, papel) values
     (u_admin, null, 'admin'), (u_pastor, null, 'pastor'),
@@ -436,6 +445,104 @@ begin
   r := r || format(E'\n%s EXCLUSÃO: apagar o cadastro da criança apaga a pessoa sem outro vínculo: %s (esperado 0)', case when n=0 then '✅' else '❌' end, n); falhas := falhas + (n<>0)::int;
   select count(*) into n from public.relacoes_pessoas where relacionada_id = p_c3;
   r := r || format(E'\n%s EXCLUSÃO: e as relações dela: %s (esperado 0)', case when n=0 then '✅' else '❌' end, n); falhas := falhas + (n<>0)::int;
+
+  -- ================= LOGINS (Fase 4 · Etapa 3) =================
+  perform set_config('role', 'postgres', true);
+  perform set_config('request.jwt.claims', '{}', true);
+  -- perfil ligado à pessoa certa
+  select pessoa_id into lg_pessoa from public.perfis where id = u_pai1;
+  r := r || format(E'\n%s LOGIN: perfil ligado à pessoa certa: %s', case when lg_pessoa = p_pai1 then '✅' else '❌' end, (lg_pessoa = p_pai1)); falhas := falhas + (lg_pessoa is distinct from p_pai1)::int;
+  insert into auth.users (id, email, raw_app_meta_data)
+    values (u_falso, 'teste.falso@exemplo.invalid', jsonb_build_object('pessoa_id', gen_random_uuid()));
+  select pessoa_id into lg_pessoa from public.perfis where id = u_falso;
+  r := r || format(E'\n%s LOGIN: pessoa inexistente não é ligada ao perfil: %s', case when lg_pessoa is null then '✅' else '❌' end, (lg_pessoa is null)); falhas := falhas + (lg_pessoa is not null)::int;
+  begin
+    insert into auth.users (id, email, raw_app_meta_data)
+      values (u_dobro, 'teste.dobro@exemplo.invalid', jsonb_build_object('pessoa_id', p_pai1));
+    r := r || E'\n❌ LOGIN: criou um 2º login para a mesma pessoa'; falhas := falhas + 1;
+  exception when unique_violation then r := r || E'\n✅ LOGIN: 2º login para a mesma pessoa é recusado';
+  end;
+  select troca_senha_obrigatoria into lg_ok from public.perfis where id = u_falso;
+  r := r || format(E'\n%s LOGIN: login novo nasce com troca de senha obrigatória: %s', case when lg_ok then '✅' else '❌' end, lg_ok); falhas := falhas + (not coalesce(lg_ok, false))::int;
+
+  -- login novo (responsável da família 1) ainda com a senha inicial
+  insert into public.pessoas (igreja_id, nome) values (v_igreja, 'Responsável Novo') returning id into p_novo;
+  insert into public.responsaveis (familia_id, pessoa_id) values (f1, p_novo);
+  insert into auth.users (id, email, encrypted_password, raw_app_meta_data)
+    values (u_novo, 'teste.novo@exemplo.invalid', 'hash-ficticio-1', jsonb_build_object('pessoa_id', p_novo));
+  insert into public.papeis_usuario (perfil_id, departamento_id, papel) values (u_novo, null, 'responsavel');
+  -- login sem papel (responsável da família 2), senha já trocada
+  insert into public.pessoas (igreja_id, nome) values (v_igreja, 'Responsável Sem Papel') returning id into p_semp;
+  insert into public.responsaveis (familia_id, pessoa_id) values (f2, p_semp);
+  insert into auth.users (id, email, raw_app_meta_data)
+    values (u_sempapel, 'teste.sempapel@exemplo.invalid', jsonb_build_object('pessoa_id', p_semp));
+  update public.perfis set troca_senha_obrigatoria = false where id = u_sempapel;
+  perform set_config('role', 'authenticated', true);
+
+  perform set_config('request.jwt.claims', json_build_object('sub', u_novo, 'role', 'authenticated')::text, true);
+  select (select count(*) from public.criancas) + (select count(*) from public.familias) + (select count(*) from public.pessoas)
+       + (select count(*) from public.relacoes_pessoas) + (select count(*) from public.responsaveis)
+       + (select count(*) from public.nascimentos(array[pc1, p_novo])) + (select count(*) from public.fotos_pessoas(array[pc1])) into n;
+  r := r || format(E'\n%s LOGIN: com a senha inicial não vê dado nenhum (crianças, famílias, pessoas, relações, nascimentos, fotos): %s (esperado 0)', case when n=0 then '✅' else '❌' end, n); falhas := falhas + (n<>0)::int;
+  select count(*) into n from public.perfis;
+  r := r || format(E'\n%s LOGIN: com a senha inicial vê só o próprio perfil: %s (esperado 1)', case when n=1 then '✅' else '❌' end, n); falhas := falhas + (n<>1)::int;
+  select public.posso_dar_papeis('[{"papel":"responsavel"}]'::jsonb) into lg_ok;
+  r := r || format(E'\n%s LOGIN: com a senha inicial não dá papéis: %s', case when not lg_ok then '✅' else '❌' end, lg_ok); falhas := falhas + lg_ok::int;
+  begin
+    update public.perfis set troca_senha_obrigatoria = false where id = u_novo;
+    select troca_senha_obrigatoria into lg_ok from public.perfis where id = u_novo;
+    if lg_ok then r := r || E'\n✅ LOGIN: não desliga a troca obrigatória sozinho';
+    else r := r || E'\n❌ LOGIN: desligou a troca obrigatória sozinho'; falhas := falhas + 1; end if;
+  exception when raise_exception then r := r || E'\n✅ LOGIN: não desliga a troca obrigatória sozinho';
+  end;
+  begin
+    perform public.concluir_troca_senha();
+    r := r || E'\n❌ LOGIN: concluiu a troca sem trocar a senha'; falhas := falhas + 1;
+  exception when raise_exception then r := r || E'\n✅ LOGIN: não conclui a troca sem trocar a senha de verdade';
+  end;
+  begin
+    perform public.candidatos_login(v_kids);
+    r := r || E'\n❌ LOGIN: usuário comum chamou função do servidor'; falhas := falhas + 1;
+  exception when insufficient_privilege then r := r || E'\n✅ LOGIN: funções de criar login são só do servidor';
+  end;
+
+  -- troca a senha (simulado) e conclui
+  perform set_config('role', 'postgres', true);
+  update auth.users set encrypted_password = 'hash-ficticio-2' where id = u_novo;
+  perform set_config('role', 'authenticated', true);
+  begin
+    perform public.concluir_troca_senha();
+    select count(*) into n from public.criancas;
+    r := r || format(E'\n%s LOGIN: depois de trocar a senha vê a criança da própria família: %s (esperado 1)', case when n=1 then '✅' else '❌' end, n); falhas := falhas + (n<>1)::int;
+  exception when others then r := r || E'\n❌ LOGIN: não concluiu a troca: ' || sqlerrm; falhas := falhas + 1;
+  end;
+
+  -- liderança redefine a senha → volta a exigir a troca
+  perform set_config('role', 'postgres', true);
+  perform public.marcar_senha_inicial(u_novo);
+  perform set_config('role', 'authenticated', true);
+  select count(*) into n from public.criancas;
+  r := r || format(E'\n%s LOGIN: senha redefinida volta a bloquear os dados: %s (esperado 0)', case when n=0 then '✅' else '❌' end, n); falhas := falhas + (n<>0)::int;
+
+  -- usuário sem papel
+  perform set_config('request.jwt.claims', json_build_object('sub', u_sempapel, 'role', 'authenticated')::text, true);
+  select (select count(*) from public.criancas) + (select count(*) from public.familias) + (select count(*) from public.pessoas)
+       + (select count(*) from public.relacoes_pessoas) + (select count(*) from public.checkins) into n;
+  r := r || format(E'\n%s LOGIN: usuário sem papel não vê nada (nem a própria família): %s (esperado 0)', case when n=0 then '✅' else '❌' end, n); falhas := falhas + (n<>0)::int;
+
+  -- quem pode dar papéis
+  perform set_config('request.jwt.claims', json_build_object('sub', u_pai1, 'role', 'authenticated')::text, true);
+  select public.posso_dar_papeis(jsonb_build_array(jsonb_build_object('papel','voluntaria','departamento_id',v_kids))) into lg_ok;
+  r := r || format(E'\n%s LOGIN: responsável não cria login de voluntária: %s', case when not lg_ok then '✅' else '❌' end, lg_ok); falhas := falhas + lg_ok::int;
+  perform set_config('request.jwt.claims', json_build_object('sub', u_lider, 'role', 'authenticated')::text, true);
+  select public.posso_dar_papeis(jsonb_build_array(jsonb_build_object('papel','voluntaria','departamento_id',v_kids), jsonb_build_object('papel','responsavel'))) into lg_ok;
+  r := r || format(E'\n%s LOGIN: líder cria login de voluntária/responsável: %s', case when lg_ok then '✅' else '❌' end, lg_ok); falhas := falhas + (not lg_ok)::int;
+  select public.posso_dar_papeis('[{"papel":"pastor"}]'::jsonb) into lg_ok;
+  r := r || format(E'\n%s LOGIN: líder não cria login de pastor: %s', case when not lg_ok then '✅' else '❌' end, lg_ok); falhas := falhas + lg_ok::int;
+  select public.posso_redefinir_senha(u_pastor) into lg_ok;
+  r := r || format(E'\n%s LOGIN: líder não redefine a senha do pastor: %s', case when not lg_ok then '✅' else '❌' end, lg_ok); falhas := falhas + lg_ok::int;
+  select public.posso_redefinir_senha(u_vol1) into lg_ok;
+  r := r || format(E'\n%s LOGIN: líder redefine a senha da voluntária: %s', case when lg_ok then '✅' else '❌' end, lg_ok); falhas := falhas + (not lg_ok)::int;
 
   total := array_length(regexp_split_to_array(btrim(r, E'\n'), E'\n'), 1);
   raise exception E'RESULTADO DOS TESTES — falhas: % de %\n%', falhas, total, r;
