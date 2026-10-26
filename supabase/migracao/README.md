@@ -19,15 +19,15 @@
 |---|---|
 | familias / termos_lgpd | 158 / 158 |
 | responsaveis | 260 |
-| responsaveis_criancas (parentesco **a confirmar**) | 351 |
-| criancas (todas sem sala fixa; foto = link antigo) | 211 |
+| responsaveis_criancas (parentesco **a confirmar**) | 350 |
+| criancas (todas sem sala fixa; foto = link antigo) | 210 (1 mescla confirmada depois) |
 | voluntarias (8 menores de 18; nenhuma com login) | 49 |
 | indisponibilidades | 197 |
 | cultos / culto_salas | 32 / 11 |
 | escalas / escala_config_salas / escala_itens | 2 / 4 / 208 |
-| checkins (histórico 20/09–25/10, todos encerrados) | 524 |
+| checkins (histórico 20/09–25/10, todos encerrados) | 523 |
 | mensagens_whatsapp_modelos / configuracoes | 3 / 4 (nenhum PIN) |
-| pendencias_cadastro | 3 |
+| pendencias_cadastro | 4 |
 
 ## Mapeamento aba → tabela
 
