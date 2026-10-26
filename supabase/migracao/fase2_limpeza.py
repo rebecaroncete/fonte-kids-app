@@ -214,6 +214,15 @@ for k in entre_familias:
     for x in fs[1:]:
         uf.u(x, fs[0])
 
+# uniões confirmadas manualmente: --unir-criancas CRI-a:CRI-b,CRI-c:CRI-d
+if "--unir-criancas" in sys.argv:
+    fam_da_crianca = {c["codigo"]: c["fam"] for c in cris}
+    for par in sys.argv[sys.argv.index("--unir-criancas") + 1].split(","):
+        a, b = par.split(":")
+        if a in fam_da_crianca and b in fam_da_crianca:
+            uf.u(fam_da_crianca[a], fam_da_crianca[b])
+            R["Duplicidades"]["uniões confirmadas pela Rebeca (famílias unidas)"] += 1
+
 grupos = collections.defaultdict(list)
 for fid in fams:
     grupos[uf.f(fid)].append(fid)
@@ -222,21 +231,31 @@ R["Duplicidades"]["cadastros de família repetidos (mesclados)"] = sum(len(g) - 
 familias = []
 for g in grupos.values():
     g.sort(key=lambda x: fams[x]["cadastro"] or dt.datetime.max)
-    resp = {}
-    contagem_principal = collections.Counter()
+    # responsáveis: 1 por pessoa. Chave = (telefone, 1º nome); depois, mesmo 1º nome = mesma pessoa
+    cand = collections.OrderedDict()
     for fid in g:
         for nome, tel, princ in fams[fid]["resp"]:
-            chave = tel or norm(nome)
-            if princ and tel:
-                contagem_principal[chave] += 1
-            atual = resp.get(chave)
-            if not atual or (len(nome) > len(atual["nome"]) and nome != "Responsável 2"):
-                resp[chave] = dict(nome=nome, telefone=tel)
-    # remove "sem telefone" que é a mesma pessoa de outro com telefone
-    com_tel = {norm(r["nome"]) for r in resp.values() if r["telefone"]}
-    resp = {k: r for k, r in resp.items() if r["telefone"] or norm(r["nome"]) not in com_tel}
-    principal = contagem_principal.most_common(1)[0][0] if contagem_principal else next(iter(resp))
-    lista = [dict(r, principal=(k == principal)) for k, r in resp.items()]
+            pn = (norm(nome).split() or [""])[0] if nome != "Responsável 2" else "#r2" + (tel or "")
+            k = (tel, pn)
+            c = cand.setdefault(k, dict(nome=nome, telefone=tel, pn=pn, princ=0))
+            c["princ"] += princ
+            if len(nome) > len(c["nome"]) and nome != "Responsável 2":
+                c["nome"] = nome
+    uso_tel = collections.Counter(c["telefone"] for c in cand.values() if c["telefone"])
+    pessoas = collections.OrderedDict()
+    for c in cand.values():
+        atual = pessoas.get(c["pn"])
+        if atual is None:
+            pessoas[c["pn"]] = c
+            continue
+        R["Cadastro_Familias"]["mesma pessoa com telefones diferentes (ficou 1)"] += bool(c["telefone"] and atual["telefone"] and c["telefone"] != atual["telefone"])
+        melhor = max([atual, c], key=lambda r: (r["princ"], bool(r["telefone"]), uso_tel[r["telefone"]] == 1))
+        melhor["nome"] = max(atual["nome"], c["nome"], key=len)
+        melhor["princ"] = atual["princ"] + c["princ"]
+        pessoas[c["pn"]] = melhor
+    lista = list(pessoas.values())
+    ip = max(range(len(lista)), key=lambda i: (lista[i]["princ"], bool(lista[i]["telefone"]), -i))
+    lista = [dict(nome=r["nome"], telefone=r["telefone"], principal=(i == ip)) for i, r in enumerate(lista)]
     familias.append(dict(codigo_legado=g[0], mesclados=g[1:], criado_em=fams[g[0]]["cadastro"], responsaveis=lista))
 fam_de = {fid: f["codigo_legado"] for f in familias for fid in [f["codigo_legado"]] + f["mesclados"]}
 
@@ -250,7 +269,8 @@ for fam, lst in por_fam.items():
     lst.sort(key=lambda c: c["codigo"])
     usados = []
     for c in lst:
-        alvo = next((u for u in usados if u["nasc"] == c["nasc"] and c["nasc"] and primeiro_nome_compat(u["nome"], c["nome"])), None)
+        alvo = next((u for u in usados if u["nasc"] == c["nasc"] and c["nasc"] and (primeiro_nome_compat(u["nome"], c["nome"]) or
+                     (norm(u["nome"]).split()[:1] == norm(c["nome"]).split()[:1] and norm(u["nome"]).split()[-1:] == norm(c["nome"]).split()[-1:]))), None)
         if not alvo:
             c["codigos_mesclados"] = []
             usados.append(c)
@@ -284,6 +304,23 @@ for n in sorted(tam):
     if n > 1:
         R["Duplicidades"][f"famílias formadas a partir de {n} cadastros"] = tam[n]
 R["Duplicidades"]["…das quais com dados diferentes entre as cópias (alergia/perfil)"] = divergentes
+
+# vínculo de cada responsável com cada criança da família (parentesco a confirmar no 1º login)
+filhos = collections.Counter(c["fam"] for c in criancas)
+R["Totais a importar"]["vínculos responsável–criança (parentesco a confirmar)"] = sum(
+    len(f["responsaveis"]) * filhos[f["codigo_legado"]] for f in familias)
+pendencias = []
+for c in criancas:
+    if c["nasc"] and idade(c["nasc"]) > 12:
+        pendencias.append(dict(fam=c["fam"], crianca=c["codigo"], tipo="conferir_nascimento",
+                               mensagem="A data de nascimento desta criança parece estar errada. Por favor, confira e corrija no cadastro."))
+for f in familias:
+    for r in f["responsaveis"]:
+        if r["nome"] == "Responsável 2":
+            pendencias.append(dict(fam=f["codigo_legado"], crianca=None, tipo="nome_responsavel",
+                                   mensagem="Falta o nome de um dos responsáveis da família. Por favor, complete o cadastro."))
+for p in pendencias:
+    R["Pendências para os responsáveis"][p["tipo"]] += 1
 
 # ================================================================= VOLUNTÁRIAS
 vol_raw = aba("Cadastro_Professoras")
@@ -535,7 +572,7 @@ limpo = dict(
     culto_salas=[dict(x, culto=list(x["culto"])) for x in culto_salas],
     escalas=list(escalas.values()), escala_itens=[dict(x, culto=list(x["culto"]) if x["culto"] else None) for x in itens],
     checkins=[dict(x, culto=list(x["culto"])) for x in checkins],
-    mensagens=mensagens, configuracoes=configuracoes)
+    mensagens=mensagens, configuracoes=configuracoes, pendencias=pendencias)
 json.dump(limpo, open(f"{OUT}/limpo.json", "w"), ensure_ascii=False, default=dstr)
 json.dump(dict(revisar_criancas=revisar,
                uniao_por_crianca=[sorted(por_crianca[k]) for k in entre_familias]),

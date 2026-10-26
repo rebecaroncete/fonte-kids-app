@@ -8,7 +8,8 @@ O branch `main` continua com o app atual (Apps Script + planilha) funcionando no
 | Pasta | Conteúdo |
 |---|---|
 | `migrations/` | Criação do banco, em ordem. Já aplicadas no projeto em 26/10/2026. Os nomes batem com o histórico do Supabase. |
-| `tests/teste_seguranca_rls.sql` | Teste das regras de acesso com dados **fictícios**. Tudo é desfeito ao final; o resultado aparece como mensagem "RESULTADO DOS TESTES". |
+| `tests/teste_seguranca_rls.sql` | Teste das regras de acesso com dados **fictícios**, num departamento fictício próprio (funciona com o banco já preenchido). Tudo é desfeito ao final; o resultado aparece como mensagem "RESULTADO DOS TESTES" (48 verificações). |
+| `migracao/` | Fase 2: scripts de limpeza e importação da planilha (sem dados). |
 
 ## Quem vê o quê
 

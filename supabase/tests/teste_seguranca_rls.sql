@@ -19,10 +19,15 @@ declare
   r text := '';
   falhas int := 0;
 begin
-  select id into v_kids from public.departamentos where slug = 'kids';
-  select igreja_id into v_igreja from public.departamentos where id = v_kids;
-  select id into s_36 from public.salas where departamento_id = v_kids and nome = '3 a 6 anos';
-  select id into s_79 from public.salas where departamento_id = v_kids and nome = '7 a 9 anos';
+  -- Departamento e salas FICTÍCIOS, separados dos dados reais (desde a Fase 2 o banco tem dados)
+  select igreja_id into v_igreja from public.departamentos where slug = 'kids';
+  insert into public.departamentos (igreja_id, nome, slug)
+    values (v_igreja, 'Departamento Teste RLS', 'teste-rls-' || substr(gen_random_uuid()::text, 1, 8))
+    returning id into v_kids;
+  insert into public.salas (departamento_id, nome, idade_min, idade_max, capacidade, ordem)
+    values (v_kids, '3 a 6 anos', 3, 6, 20, 1) returning id into s_36;
+  insert into public.salas (departamento_id, nome, idade_min, idade_max, capacidade, ordem)
+    values (v_kids, '7 a 9 anos', 7, 9, 25, 2) returning id into s_79;
 
   -- ---------- Montagem (como administrador do banco) ----------
   insert into auth.users (id, email, raw_user_meta_data) values
@@ -50,6 +55,10 @@ begin
   insert into public.criancas (familia_id, nome) values (f1, 'Criança Teste A') returning id into c1;
   insert into public.criancas (familia_id, nome) values (f2, 'Criança Teste B') returning id into c2;
   insert into public.criancas (familia_id, nome) values (f2, 'Criança Teste C') returning id into c3; -- sem check-in
+  insert into public.responsaveis_criancas (responsavel_id, crianca_id)
+    select r.id, c.id from public.responsaveis r join public.criancas c using (familia_id) where c.id in (c1, c2, c3);
+  insert into public.pendencias_cadastro (familia_id, tipo, mensagem)
+    values (f1, 'teste', 'Pendência de teste 1'), (f2, 'teste', 'Pendência de teste 2');
 
   insert into public.voluntarias (departamento_id, perfil_id, nome, status, funcao)
     values (v_kids, u_vol1, 'Voluntária Um', 'ativa', 'professora') returning id into vol1;
@@ -57,7 +66,7 @@ begin
     values (v_kids, u_vol2, 'Voluntária Dois', 'pendente') returning id into vol2;
 
   insert into public.cultos (igreja_id, data, horario, nome)
-    values (v_igreja, private.hoje(), '10:00', 'Culto teste') returning id into culto_hoje;
+    values (v_igreja, private.hoje(), '03:33', 'Culto teste') returning id into culto_hoje;
   insert into public.checkins (culto_id, crianca_id, sala_id) values (culto_hoje, c1, s_36);
   insert into public.checkins (culto_id, crianca_id, sala_id) values (culto_hoje, c2, s_79);
 
@@ -93,6 +102,8 @@ begin
   select count(*) into n from public.criancas;      r := r || format(E'\n%s sem papel vê %s crianças (esperado 0)', case when n=0 then '✅' else '❌' end, n); falhas := falhas + (n<>0)::int;
   select count(*) into n from public.checkins;      r := r || format(E'\n%s sem papel vê %s check-ins (esperado 0)', case when n=0 then '✅' else '❌' end, n); falhas := falhas + (n<>0)::int;
   select count(*) into n from public.responsaveis;  r := r || format(E'\n%s sem papel vê %s responsáveis (esperado 0)', case when n=0 then '✅' else '❌' end, n); falhas := falhas + (n<>0)::int;
+  select count(*) into n from public.responsaveis_criancas; r := r || format(E'\n%s sem papel vê %s vínculos de parentesco (esperado 0)', case when n=0 then '✅' else '❌' end, n); falhas := falhas + (n<>0)::int;
+  select count(*) into n from public.pendencias_cadastro;   r := r || format(E'\n%s sem papel vê %s pendências (esperado 0)', case when n=0 then '✅' else '❌' end, n); falhas := falhas + (n<>0)::int;
   select count(*) into n from public.perfis;        r := r || format(E'\n%s sem papel vê %s perfis (esperado 1 = ele mesmo)', case when n=1 then '✅' else '❌' end, n); falhas := falhas + (n<>1)::int;
 
   -- Pai/mãe da família 1
@@ -101,6 +112,12 @@ begin
   select count(*) into n from public.criancas where id = c2; r := r || format(E'\n%s pai1 vê criança de OUTRA família: %s (esperado 0)', case when n=0 then '✅' else '❌' end, n); falhas := falhas + (n<>0)::int;
   select count(*) into n from public.responsaveis;  r := r || format(E'\n%s pai1 vê %s responsáveis (esperado 1)', case when n=1 then '✅' else '❌' end, n); falhas := falhas + (n<>1)::int;
   select count(*) into n from public.checkins;      r := r || format(E'\n%s pai1 vê %s check-ins (esperado 1, do filho)', case when n=1 then '✅' else '❌' end, n); falhas := falhas + (n<>1)::int;
+  select count(*) into n from public.responsaveis_criancas; r := r || format(E'\n%s pai1 vê %s vínculos de parentesco (esperado 1, o dele)', case when n=1 then '✅' else '❌' end, n); falhas := falhas + (n<>1)::int;
+  update public.responsaveis_criancas set parentesco = 'pai', confirmado_em = now() where crianca_id = c1; get diagnostics n = row_count;
+  r := r || format(E'\n%s pai1 confirma o próprio parentesco (esperado 1): %s', case when n=1 then '✅' else '❌' end, n); falhas := falhas + (n<>1)::int;
+  update public.responsaveis_criancas set parentesco = 'pai' where crianca_id = c2; get diagnostics n = row_count;
+  r := r || format(E'\n%s pai1 alterou parentesco de outra família: %s (esperado 0)', case when n=0 then '✅' else '❌' end, n); falhas := falhas + (n<>0)::int;
+  select count(*) into n from public.pendencias_cadastro;   r := r || format(E'\n%s pai1 vê %s pendências (esperado 1, a da família)', case when n=1 then '✅' else '❌' end, n); falhas := falhas + (n<>1)::int;
   update public.criancas set alergias_observacoes = 'x' where id = c2; get diagnostics n = row_count;
   r := r || format(E'\n%s pai1 alterou criança de outra família: %s linhas (esperado 0)', case when n=0 then '✅' else '❌' end, n); falhas := falhas + (n<>0)::int;
   begin
@@ -192,7 +209,7 @@ begin
 
   -- Pastor
   perform set_config('request.jwt.claims', json_build_object('sub', u_pastor, 'role', 'authenticated')::text, true);
-  select count(*) into n from public.criancas;      r := r || format(E'\n%s pastor vê %s crianças (esperado 3)', case when n=3 then '✅' else '❌' end, n); falhas := falhas + (n<>3)::int;
+  select count(*) into n from public.criancas where id in (c1, c2, c3); r := r || format(E'\n%s pastor vê %s das 3 crianças de teste (esperado 3; vê também as reais)', case when n=3 then '✅' else '❌' end, n); falhas := falhas + (n<>3)::int;
   select count(*) into n from public.auditoria;     r := r || format(E'\n%s pastor vê auditoria: %s registros (esperado > 0)', case when n>0 then '✅' else '❌' end, n); falhas := falhas + (n=0)::int;
   select count(*) into n from public.auditoria where campos_alterados @> array['saida_em'];
   r := r || format(E'\n%s auditoria registrou o check-out (só nomes de campos, sem dados): %s', case when n>=1 then '✅' else '❌' end, n); falhas := falhas + (n=0)::int;
