@@ -57,3 +57,25 @@
 2. No SQL Editor: rodar `fase2_importar.sql`, depois os blocos de carga, depois `select migracao_fase2.importar(true);` (teste) e `select migracao_fase2.importar(false);`.
 3. **Rodar o teste e a carga em execuções separadas** (o teste desfaz tudo o que estiver na mesma execução).
 4. `drop schema migracao_fase2 cascade;` e apagar a pasta privada.
+
+## Fase 4 · Etapa 2 – Cadastro único de pessoas (26/10/2026)
+
+Decisão: opção B (`pessoas` no nível da igreja + `relacoes_pessoas`; papéis apontam para a pessoa).
+Migrações: `20261026200000` (estrutura), `20261026200100` (dados), `20261026200200` (regras/colunas), `20261026200300` (ajuste de leitura).
+
+Conferência só por contagem:
+
+| Item | Contagem |
+|---|---|
+| Pessoas criadas | 504 (= 210 crianças + 49 voluntárias + 260 responsáveis − 15 responsáveis que também são voluntárias) |
+| Juntados automaticamente (critério forte) | 15 responsável ↔ voluntária |
+| Responsáveis em mais de uma família | 0 |
+| Fotos ligadas à pessoa | 259 de 259 (0 divergências; nada reenviado ao Cloudinary) |
+| Cadastros sem pessoa | 0 |
+| Vínculos responsável–criança | 350 (mantidos; parentesco agora em `relacoes_pessoas`) |
+| Relações familiares | 0 (todos os parentescos da planilha estavam "a confirmar"; serão informados no 1º acesso) |
+| Possíveis duplicidades para conferência manual | 16 (mesmo nome: 8 · nome parecido: 3 · nome parecido + mesmo nascimento: 1 · telefone compartilhado: 4) |
+| Telefones usados por mais de uma pessoa | 4 (8 pessoas) – regra: login fica com uma; a outra informa número próprio |
+| Responsáveis sem telefone | 10 (sem login até informar telefone) |
+
+Teste de segurança: 103/103 (41 verificações novas de pessoas, relações, nascimentos, fotos por pessoa, duplicidades e exclusão).
