@@ -7,6 +7,8 @@
 -- possiveis_duplicidades, nascimentos(), fotos_pessoas()).
 -- Fase 4 · Etapa 3: logins (troca obrigatória de senha, perfil ligado à
 -- pessoa certa, usuário sem papel não vê nada, funções só do servidor).
+-- Fase 4 · Etapa 4: 1º acesso do responsável (termo LGPD v1 por login,
+-- relação com cada criança, pendências que abrem e somem sozinhas).
 -- =====================================================================
 do $teste$
 declare
@@ -26,6 +28,7 @@ declare
   f1 uuid; f2 uuid; c1 uuid; c2 uuid; c3 uuid; vol1 uuid; vol2 uuid;
   culto_hoje uuid; esc_pub uuid; esc_ras uuid; item_v1 uuid; dup_id uuid;
   n bigint; m bigint; vol3 uuid; vol4 uuid; txt text;
+  u_r4 uuid := gen_random_uuid(); p_r4 uuid; r4 uuid; pc4 uuid; c4 uuid; pend_id uuid; est jsonb;
   r text := '';
   falhas int := 0;
   total int := 0;
@@ -85,12 +88,16 @@ begin
   insert into public.criancas (familia_id, pessoa_id) values (f1, pc1) returning id into c1;
   insert into public.criancas (familia_id, pessoa_id) values (f2, pc2) returning id into c2;
   insert into public.criancas (familia_id, pessoa_id) values (f2, pc3) returning id into c3; -- sem check-in
+  -- relações antes dos vínculos (assim a montagem não abre e fecha avisos automáticos)
+  insert into public.relacoes_pessoas (pessoa_id, relacionada_id, tipo, origem) values
+    (p_pai1, pc1, 'pai', 'legado'), (p_pai2, pc2, 'mae', 'legado');
   insert into public.responsaveis_criancas (responsavel_id, crianca_id)
     select r.id, c.id from public.responsaveis r join public.criancas c using (familia_id) where c.id in (c1, c2, c3);
   insert into public.pendencias_cadastro (familia_id, tipo, mensagem)
     values (f1, 'teste', 'Pendência de teste 1'), (f2, 'teste', 'Pendência de teste 2');
-  insert into public.relacoes_pessoas (pessoa_id, relacionada_id, tipo, origem) values
-    (p_pai1, pc1, 'pai', 'legado'), (p_pai2, pc2, 'mae', 'legado');
+  -- responsáveis dos testes antigos já aceitaram o termo vigente (Etapa 4)
+  insert into public.termos_lgpd (familia_id, versao, aceito_por_nome, aceito_por_perfil) values
+    (f1, 'v1', 'Responsável Um', u_pai1), (f2, 'v1', 'Responsável Dois', u_pai2);
 
   insert into public.voluntarias (departamento_id, pessoa_id, status, funcao)
     values (v_kids, p_vol1, 'ativa', 'professora') returning id into vol1;
@@ -518,8 +525,11 @@ begin
   begin
     perform public.concluir_troca_senha();
     select count(*) into n from public.criancas;
-    r := r || format(E'\n%s LOGIN: depois de trocar a senha vê a criança da própria família: %s (esperado 1)', case when n=1 then '✅' else '❌' end, n); falhas := falhas + (n<>1)::int;
-  exception when others then r := r || E'\n❌ LOGIN: não concluiu a troca: ' || sqlerrm; falhas := falhas + 1;
+    r := r || format(E'\n%s TERMO: senha trocada mas termo v1 não aceito: não vê crianças: %s (esperado 0)', case when n=0 then '✅' else '❌' end, n); falhas := falhas + (n<>0)::int;
+    perform public.aceitar_termo_lgpd('v1');
+    select count(*) into n from public.criancas;
+    r := r || format(E'\n%s LOGIN: depois de trocar a senha e aceitar o termo vê a criança da própria família: %s (esperado 1)', case when n=1 then '✅' else '❌' end, n); falhas := falhas + (n<>1)::int;
+  exception when others then r := r || E'\n❌ LOGIN: não concluiu a troca/termo: ' || sqlerrm; falhas := falhas + 1;
   end;
 
   -- liderança redefine a senha → volta a exigir a troca
@@ -548,6 +558,150 @@ begin
   r := r || format(E'\n%s LOGIN: líder não redefine a senha do pastor: %s', case when not lg_ok then '✅' else '❌' end, lg_ok); falhas := falhas + lg_ok::int;
   select public.posso_redefinir_senha(u_vol1) into lg_ok;
   r := r || format(E'\n%s LOGIN: líder redefine a senha da voluntária: %s', case when lg_ok then '✅' else '❌' end, lg_ok); falhas := falhas + (not lg_ok)::int;
+
+  -- ================= FASE 4 · ETAPA 4: 1º ACESSO DO RESPONSÁVEL =================
+  -- família 2: criança B (já tem relação com a mãe) + criança D nova, sem nascimento
+  perform set_config('role', 'postgres', true);
+  perform set_config('request.jwt.claims', '{}', true);
+  insert into public.pessoas (igreja_id, nome) values (v_igreja, 'Criança Teste D') returning id into pc4;
+  insert into public.criancas (familia_id, pessoa_id) values (f2, pc4) returning id into c4;
+  insert into public.pessoas (igreja_id, nome) values (v_igreja, 'Responsável Etapa Quatro') returning id into p_r4;
+  insert into public.responsaveis (familia_id, pessoa_id) values (f2, p_r4) returning id into r4;
+  insert into public.responsaveis_criancas (responsavel_id, crianca_id) values (r4, c2), (r4, c4);
+  insert into auth.users (id, email, raw_app_meta_data)
+    values (u_r4, 'teste.r4@exemplo.invalid', jsonb_build_object('pessoa_id', p_r4));
+  update public.perfis set troca_senha_obrigatoria = false where id = u_r4;
+  insert into public.papeis_usuario (perfil_id, departamento_id, papel) values (u_r4, null, 'responsavel');
+  select count(*) into n from public.pendencias_cadastro
+   where familia_id = f2 and tipo = 'relacao_nao_informada' and resolvida_em is null;
+  r := r || format(E'\n%s PENDÊNCIA: responsável novo ligado a 2 crianças abre 2 avisos de relação: %s (esperado 2)', case when n=2 then '✅' else '❌' end, n); falhas := falhas + (n<>2)::int;
+
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', u_r4, 'role', 'authenticated')::text, true);
+  est := public.estado_primeiro_acesso();
+  r := r || format(E'\n%s TERMO: estado do 1º acesso pede o aceite da v1: %s', case when est->>'etapa' = 'aceitar_termo' and est->>'termo_versao' = 'v1' then '✅' else '❌' end, est->>'etapa');
+  falhas := falhas + (est->>'etapa' is distinct from 'aceitar_termo' or est->>'termo_versao' is distinct from 'v1')::int;
+  select (select count(*) from public.criancas) + (select count(*) from public.pessoas) + (select count(*) from public.relacoes_pessoas)
+       + (select count(*) from public.pendencias_cadastro) + (select count(*) from public.termos_lgpd) into n;
+  r := r || format(E'\n%s TERMO: antes de aceitar não vê dado nenhum: %s (esperado 0)', case when n=0 then '✅' else '❌' end, n); falhas := falhas + (n<>0)::int;
+  select count(*) into n from public.termos_lgpd_versoes where vigente;
+  r := r || format(E'\n%s TERMO: antes de aceitar consegue ler o texto vigente: %s (esperado 1)', case when n=1 then '✅' else '❌' end, n); falhas := falhas + (n<>1)::int;
+  begin
+    perform public.informar_relacao(c2, 'avo');
+    r := r || E'\n❌ RELAÇÃO: informou relação antes de aceitar o termo'; falhas := falhas + 1;
+  exception when raise_exception then r := r || E'\n✅ RELAÇÃO: não informa relação antes de aceitar o termo';
+  end;
+  begin
+    perform public.aceitar_termo_lgpd('v0');
+    r := r || E'\n❌ TERMO: aceitou versão que não é a vigente'; falhas := falhas + 1;
+  exception when raise_exception then r := r || E'\n✅ TERMO: versão que não é a vigente é recusada';
+  end;
+  begin
+    update public.termos_lgpd_versoes set texto = texto || ' alterado' where versao = 'v1';
+    get diagnostics n = row_count;
+    r := r || format(E'\n%s TERMO: responsável não altera o texto do termo: %s linha(s) (esperado 0)', case when n=0 then '✅' else '❌' end, n); falhas := falhas + (n<>0)::int;
+  exception when insufficient_privilege then r := r || E'\n✅ TERMO: responsável não altera o texto do termo';
+  end;
+
+  perform public.aceitar_termo_lgpd('v1');
+  select count(*) into n from public.criancas;
+  r := r || format(E'\n%s TERMO: depois de aceitar vê as crianças da família: %s (esperado 2)', case when n=2 then '✅' else '❌' end, n); falhas := falhas + (n<>2)::int;
+  select count(*) into n from public.termos_lgpd where aceito_por_perfil = u_r4 and versao = 'v1';
+  r := r || format(E'\n%s TERMO: aceite gravado no login dele: %s (esperado 1)', case when n=1 then '✅' else '❌' end, n); falhas := falhas + (n<>1)::int;
+  insert into public.termos_lgpd (familia_id, versao, aceito_por_nome, aceito_por_perfil)
+    values (f2, 'v1', 'Outra Pessoa', u_pai2) returning aceito_por_perfil into lg_pessoa;
+  r := r || format(E'\n%s TERMO: não registra aceite em nome de outro login: %s', case when lg_pessoa = u_r4 then '✅' else '❌' end, (lg_pessoa = u_r4)); falhas := falhas + (lg_pessoa is distinct from u_r4)::int;
+  est := public.estado_primeiro_acesso();
+  r := r || format(E'\n%s RELAÇÃO: estado pede a relação com as 2 crianças: %s / %s', case when est->>'etapa' = 'informar_relacoes' and jsonb_array_length(est->'criancas_sem_relacao') = 2 then '✅' else '❌' end, est->>'etapa', jsonb_array_length(est->'criancas_sem_relacao'));
+  falhas := falhas + (est->>'etapa' is distinct from 'informar_relacoes' or jsonb_array_length(est->'criancas_sem_relacao') <> 2)::int;
+
+  begin
+    perform public.informar_relacao(c1, 'tio');
+    r := r || E'\n❌ RELAÇÃO: informou relação com criança de outra família'; falhas := falhas + 1;
+  exception when raise_exception then r := r || E'\n✅ RELAÇÃO: não informa relação com criança de outra família';
+  end;
+  begin
+    perform public.informar_relacao(c2, 'conjuge');
+    r := r || E'\n❌ RELAÇÃO: aceitou "cônjuge" com criança'; falhas := falhas + 1;
+  exception when raise_exception then r := r || E'\n✅ RELAÇÃO: "cônjuge" com criança é recusado';
+  end;
+  begin
+    perform public.informar_relacao(c2, 'outro', '  ');
+    r := r || E'\n❌ RELAÇÃO: aceitou "outro" sem descrição'; falhas := falhas + 1;
+  exception when raise_exception then r := r || E'\n✅ RELAÇÃO: "outro" exige descrição';
+  end;
+  begin
+    insert into public.relacoes_pessoas (pessoa_id, relacionada_id, tipo) values (p_r4, pc2, 'avo');
+    r := r || E'\n❌ RELAÇÃO: responsável gravou relação direto na tabela'; falhas := falhas + 1;
+  exception when insufficient_privilege then r := r || E'\n✅ RELAÇÃO: responsável não grava direto na tabela (só pela função)';
+  end;
+
+  perform public.informar_relacao(c2, 'avo');
+  perform public.informar_relacao(c4, 'outro', 'madrinha');
+  perform public.informar_relacao(c2, 'tio');   -- corrige: continua uma relação só
+  select count(*) into n from public.relacoes_pessoas where informado_por = u_r4 and origem = 'responsavel';
+  select count(*) into m from public.relacoes_pessoas where pessoa_id = p_r4 and relacionada_id = pc2 and tipo = 'tio';
+  r := r || format(E'\n%s RELAÇÃO: 2 relações gravadas e a corrigida substituiu a anterior: %s / %s (esperado 2 e 1)', case when n=2 and m=1 then '✅' else '❌' end, n, m); falhas := falhas + (n<>2 or m<>1)::int;
+  select count(*) into n from public.pendencias_cadastro where tipo = 'relacao_nao_informada' and resolvida_em is null;
+  r := r || format(E'\n%s PENDÊNCIA: avisos de relação somem quando ela é informada: %s abertos (esperado 0)', case when n=0 then '✅' else '❌' end, n); falhas := falhas + (n<>0)::int;
+  est := public.estado_primeiro_acesso();
+  r := r || format(E'\n%s RELAÇÃO: estado do 1º acesso fica "pronto": %s', case when est->>'etapa' = 'pronto' then '✅' else '❌' end, est->>'etapa'); falhas := falhas + (est->>'etapa' is distinct from 'pronto')::int;
+
+  -- pendências: aviso de dado vazio e pendências manuais
+  select id into pend_id from public.pendencias_cadastro where crianca_id = c4 and tipo = 'nascimento_vazio' and resolvida_em is null;
+  r := r || format(E'\n%s PENDÊNCIA: criança sem nascimento tem aviso aberto: %s', case when pend_id is not null then '✅' else '❌' end, (pend_id is not null)); falhas := falhas + (pend_id is null)::int;
+  update public.pendencias_cadastro set resolvida_em = now() where id = pend_id;
+  get diagnostics n = row_count;
+  r := r || format(E'\n%s PENDÊNCIA: responsável não fecha aviso direto na tabela: %s linha(s) (esperado 0)', case when n=0 then '✅' else '❌' end, n); falhas := falhas + (n<>0)::int;
+  begin
+    perform public.confirmar_pendencia(pend_id);
+    r := r || E'\n❌ PENDÊNCIA: fechou aviso automático sem corrigir o dado'; falhas := falhas + 1;
+  exception when raise_exception then r := r || E'\n✅ PENDÊNCIA: aviso automático só some corrigindo o dado';
+  end;
+  update public.pessoas set data_nascimento = private.hoje() - interval '6 years' where id = pc4;
+  select count(*) into n from public.pendencias_cadastro where id = pend_id and resolvida_em is not null;
+  r := r || format(E'\n%s PENDÊNCIA: aviso de nascimento some ao preencher a data: %s (esperado 1)', case when n=1 then '✅' else '❌' end, n); falhas := falhas + (n<>1)::int;
+
+  perform set_config('role', 'postgres', true);
+  insert into public.pendencias_cadastro (familia_id, crianca_id, tipo, mensagem)
+    values (f2, c2, 'conferir_nascimento', 'Conferir a data de nascimento (teste).');
+  insert into public.pendencias_cadastro (familia_id, tipo, mensagem)
+    values (f2, 'nome_responsavel', 'Conferir o nome do responsável (teste).') returning id into pend_id;
+  perform set_config('role', 'authenticated', true);
+  update public.pessoas set data_nascimento = private.hoje() - interval '8 years' - interval '1 day' where id = pc2;
+  select count(*) into n from public.pendencias_cadastro where crianca_id = c2 and tipo = 'conferir_nascimento' and resolvida_em is null;
+  r := r || format(E'\n%s PENDÊNCIA: "conferir nascimento" some quando a data é corrigida: %s abertas (esperado 0)', case when n=0 then '✅' else '❌' end, n); falhas := falhas + (n<>0)::int;
+  perform public.confirmar_pendencia(pend_id);
+  select count(*) into n from public.pendencias_cadastro where id = pend_id and resolvida_em is not null;
+  r := r || format(E'\n%s PENDÊNCIA: família confirma que o dado apontado está certo: %s (esperado 1)', case when n=1 then '✅' else '❌' end, n); falhas := falhas + (n<>1)::int;
+
+  -- outra família não mexe nas pendências desta
+  perform set_config('request.jwt.claims', json_build_object('sub', u_pai1, 'role', 'authenticated')::text, true);
+  begin
+    perform public.confirmar_pendencia(pend_id);
+    r := r || E'\n❌ PENDÊNCIA: responsável de outra família confirmou pendência'; falhas := falhas + 1;
+  exception when raise_exception then r := r || E'\n✅ PENDÊNCIA: responsável de outra família não confirma pendência';
+  end;
+
+  -- liderança consulta as relações informadas
+  perform set_config('request.jwt.claims', json_build_object('sub', u_lider, 'role', 'authenticated')::text, true);
+  select count(*) into n from public.relacoes_pessoas where informado_por = u_r4;
+  r := r || format(E'\n%s RELAÇÃO: líder consulta as relações informadas pelo responsável: %s (esperado 2)', case when n=2 then '✅' else '❌' end, n); falhas := falhas + (n<>2)::int;
+
+  -- versão nova do termo: responsáveis aceitam de novo; quem não é responsável não é afetado
+  perform set_config('role', 'postgres', true);
+  update public.termos_lgpd_versoes set vigente = false where versao = 'v1';
+  insert into public.termos_lgpd_versoes (versao, vigente, texto)
+    values ('v-teste', true, repeat('Texto fictício de termo para teste. ', 3));
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', u_r4, 'role', 'authenticated')::text, true);
+  select count(*) into n from public.criancas;
+  est := public.estado_primeiro_acesso();
+  r := r || format(E'\n%s TERMO: versão nova bloqueia de novo até aceitar: %s crianças, etapa %s', case when n=0 and est->>'etapa' = 'aceitar_termo' then '✅' else '❌' end, n, est->>'etapa');
+  falhas := falhas + (n<>0 or est->>'etapa' is distinct from 'aceitar_termo')::int;
+  perform set_config('request.jwt.claims', json_build_object('sub', u_lider, 'role', 'authenticated')::text, true);
+  select count(*) into n from public.criancas where familia_id in (f1, f2);
+  r := r || format(E'\n%s TERMO: líder que não é responsável não é bloqueado: %s crianças de teste (esperado 3)', case when n=3 then '✅' else '❌' end, n); falhas := falhas + (n<>3)::int;
 
   total := array_length(regexp_split_to_array(btrim(r, E'\n'), E'\n'), 1);
   raise exception E'RESULTADO DOS TESTES — falhas: % de %\n%', falhas, total, r;

@@ -86,3 +86,12 @@ Teste de segurança: 103/103 (41 verificações novas de pessoas, relações, na
 - Logins a criar: **280** (49 voluntárias, das quais 8 menores; 246 responsáveis; 15 com os dois papéis). Mais 2 pastores (cadastrados em `pessoas` só com o nome).
 - Sem login por enquanto: **14** (10 responsáveis sem telefone; 4 responsáveis cujo telefone já é usado por outra pessoa).
 - Nenhum login real criado nesta etapa pelo assistente; os 4 perfis iniciais são criados pela Rebeca no painel.
+
+## Fase 4 · Etapa 4 – 1º acesso do responsável (27/10/2026, só contagens)
+
+Ensaio no banco real, desfeito em seguida (nada gravado):
+- Avisos de relação abertos ao aplicar: **210** (todas as crianças: nenhuma relação responsável ↔ criança gravada ainda).
+- Avisos de nascimento vazio: **0**.
+- Pendências manuais da importação continuam: 4 (2 de conferir nascimento, 2 de nome do responsável).
+- Perfis já criados que vão precisar aceitar o termo v1 no 1º login: **2** (dos 4 iniciais).
+

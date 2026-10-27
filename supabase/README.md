@@ -8,7 +8,7 @@ O branch `main` continua com o app atual (Apps Script + planilha) funcionando no
 | Pasta | Conteúdo |
 |---|---|
 | `migrations/` | Criação do banco, em ordem. Já aplicadas no projeto em 26/10/2026. Os nomes batem com o histórico do Supabase. |
-| `tests/teste_seguranca_rls.sql` | Teste das regras de acesso com dados **fictícios**, num departamento fictício próprio (funciona com o banco já preenchido). Tudo é desfeito ao final; o resultado aparece como mensagem "RESULTADO DOS TESTES" (122 verificações: regras de acesso, fotos, cadastro único de pessoas e logins). |
+| `tests/teste_seguranca_rls.sql` | Teste das regras de acesso com dados **fictícios**, num departamento fictício próprio (funciona com o banco já preenchido). Tudo é desfeito ao final; o resultado aparece como mensagem "RESULTADO DOS TESTES" (151 verificações: regras de acesso, fotos, cadastro único de pessoas, logins e 1º acesso do responsável). |
 | `migracao/` | Fase 2: scripts de limpeza e importação da planilha (sem dados). |
 | `functions/foto-assinada/` | Fase 3: Edge Function que devolve links **temporários** (5 min) das fotos privadas no Cloudinary, só para quem tem permissão. |
 | `functions/gerenciar-login/` | Fase 4 · Etapa 3: cria e redefine logins (telefone → e-mail técnico), sem senha no código nem na resposta. |
@@ -22,7 +22,7 @@ O branch `main` continua com o app atual (Apps Script + planilha) funcionando no
 | **lider** (por departamento) | tudo do departamento; aprova voluntárias; promove voluntária ↔ líder |
 | **recepcao** (por departamento) | cadastro de famílias/crianças e check-in/out do departamento |
 | **voluntaria** | a própria ficha; crianças e check-ins das salas em que foi escalada; contato dos pais **só no dia e só da sala dela**; escala publicada; lista da equipe com dados mínimos |
-| **responsavel** (pai/mãe) | só a própria família |
+| **responsavel** (pai/mãe) | só a própria família, **depois de aceitar o termo LGPD vigente** no próprio login |
 | sem login | nada (só registrar erro técnico) |
 
 Proteções extras: voluntária não se auto-aprova; ninguém altera o código de segurança do check-in; quem faz a saída fica registrado; auditoria guarda **quem alterou quais campos e quando**, sem copiar dados pessoais.
@@ -79,3 +79,17 @@ const { data } = await supabase.functions.invoke('foto-assinada', {
 | `lote` | sem `confirmar` só mostra contagens; com `confirmar: true` cria até `limite` por chamada | admin / painel |
 
 **Configuração no painel** (Authentication): desligar o cadastro público (*Allow new users to sign up*), senha mínima de 8 caracteres e sem exigência de letras/símbolos (as senhas iniciais são só números).
+
+## 1º acesso do responsável (Fase 4 · Etapa 4)
+
+Ordem: **trocar a senha → aceitar o termo LGPD → informar a relação com cada criança**. O app pergunta em que passo a pessoa está com `estado_primeiro_acesso()` (devolve `etapa`: `trocar_senha`, `aceitar_termo`, `informar_relacoes` ou `pronto`, os ids das crianças sem relação e o número de pendências abertas; nenhum dado pessoal).
+
+- **Termo LGPD por responsável** (decisão de 27/10/2026): o texto fica em `termos_lgpd_versoes` (uma versão vigente; v1 inclui a consulta das relações familiares por líderes e pastores). Cada responsável aceita no próprio login com `aceitar_termo_lgpd('v1')`. Os aceites vindos da planilha ficam guardados como histórico (`legado-planilha`).
+- **Até aceitar, não vê dado nenhum** (igual à troca de senha). Quem não aceitar fica sem acesso ao app; o check-in pela recepção continua normal. Não há "recusar": quem não concorda fala com a liderança.
+- Publicar uma versão nova do termo (marcar como vigente) faz **todos os responsáveis** aceitarem de novo. Voluntárias, líderes e pastores que não são responsáveis não são afetados.
+- Ninguém registra aceite em nome de outro login.
+- **Relação com a criança:** `informar_relacao(crianca_id, tipo, detalhe)`. Só para criança ligada ao responsável; "cônjuge" não vale; "outro" exige descrição (ex.: madrinha). Grava em `relacoes_pessoas` com origem `responsavel`; informar de novo corrige (fica uma relação só entre os dois). O responsável não grava direto na tabela.
+- **Pendências (só aviso, não bloqueiam check-in):**
+  - automáticas, abrem e somem sozinhas: `relacao_nao_informada` (algum responsável da criança sem relação) e `nascimento_vazio`;
+  - manuais (importação/recepção): `conferir_nascimento` some quando a data é alterada; `nome_responsavel` some quando o nome é alterado; qualquer manual pode ser fechada pela família ou recepção com `confirmar_pendencia(id)` ("está certo").
+  - A família não edita a tabela de pendências direto; recepção e liderança sim.
