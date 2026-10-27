@@ -141,3 +141,7 @@
 .bg-azul { background: var(--azul); }
 .bg-fundo { background: var(--fundo); }
 .bg-contorno { background: var(--contorno); color: #fff; }
+
+/* Verificação anti-robô (Turnstile) – reserva o espaço do quadro */
+.captcha { min-height: 65px; display: flex; justify-content: center; margin: 0.25rem 0 0.75rem; }
+.captcha .aviso { width: 100%; }

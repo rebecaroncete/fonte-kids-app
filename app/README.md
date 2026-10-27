@@ -33,3 +33,8 @@ app/
 ## Teste
 GitHub Pages servindo o branch `supabase-migracao` (pasta raiz):
 `https://rebecaroncete.github.io/fonte-kids-app/app/`
+
+## Etapa 2 – login (27/10/2026)
+- `js/supabase.js`: login (telefone → e-mail técnico), "Manter conectado" (marcado = sessão no aparelho; desmarcado = só nesta aba), sair, pedido de nova senha. Erros sempre genéricos.
+- `js/captcha.js`: Cloudflare Turnstile (só a chave pública, em `config.js`).
+- Telas: `entrar` (login real), `esqueci-senha`, `inicio` (provisória, mostra a etapa do 1º acesso). Rotas privadas exigem login.

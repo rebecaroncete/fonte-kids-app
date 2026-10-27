@@ -93,3 +93,11 @@ Ordem: **trocar a senha → aceitar o termo LGPD → informar a relação com ca
   - automáticas, abrem e somem sozinhas: `relacao_nao_informada` (algum responsável da criança sem relação) e `nascimento_vazio`;
   - manuais (importação/recepção): `conferir_nascimento` some quando a data é alterada; `nome_responsavel` some quando o nome é alterado; qualquer manual pode ser fechada pela família ou recepção com `confirmar_pendencia(id)` ("está certo").
   - A família não edita a tabela de pendências direto; recepção e liderança sim.
+
+## Pedido de nova senha (Fase 10 · Etapa 2)
+- Tabela `pedidos_redefinicao_senha` (migração `20261027160000_fase10_pedidos_redefinicao_senha.sql`): perfil, pessoa, data, status `pendente`/`atendido`, quem atendeu. Não guarda telefone digitado nem IP. Leitura só para pastores/admin e líderes do Fonte Kids; ninguém grava pelo app.
+- `registrar_pedido_redefinicao(perfil)`: só o servidor (service_role) chama. Limite de 1 pedido por login a cada 24 h; avisa no sino (`notificacoes`, tipo `pedido_senha`) líderes do Fonte Kids, admin e pastores.
+- Edge Function `pedir-redefinicao` (pública, `verify_jwt = false`): confere o captcha (Turnstile) no servidor e responde sempre "Pedido enviado. A liderança vai falar com você.". Nunca redefine a senha.
+- Segredos no painel: `TURNSTILE_SECRET_KEY` (obrigatório); `ORIGENS_PERMITIDAS` (opcional; na virada, acrescentar o endereço do Netlify).
+- Captcha também ligado no Supabase Auth (Attack Protection → Turnstile): o login exige o token.
+- Marcar como atendido ao redefinir: Etapa 5 (gestão de logins).
