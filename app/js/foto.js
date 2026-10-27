@@ -71,17 +71,50 @@ export async function linkFoto(tipo, id) {
 /** Esquece os links (ao sair). */
 export function limparFotos() { guardadas.clear(); }
 
-/** Coloca a foto dentro de um avatar (só depois que ela carregar). */
+/**
+ * Coloca a foto dentro de um avatar (só depois que ela carregar) e deixa
+ * a foto ampliar ao clicar/tocar. Obs.: sem loading="lazy" — imagem fora
+ * da página com lazy nunca carrega.
+ */
 export function colocarFoto(caixa, url, tipo, id) {
   if (!url || !caixa.isConnected) return;
-  const img = el("img", { src: url, alt: "", referrerpolicy: "no-referrer", decoding: "async", loading: "lazy" });
-  img.addEventListener("load", () => caixa.replaceChildren(img), { once: true });
+  const nome = caixa.getAttribute("data-nome") || "";
+  const img = el("img", { src: url, alt: "", referrerpolicy: "no-referrer", decoding: "async" });
+  img.addEventListener("load", () => {
+    caixa.replaceChildren(img);
+    caixa.classList.add("avatar--ampliavel");
+    caixa.setAttribute("title", "Toque para ampliar");
+    // dentro de um link (lista): o clique na foto amplia em vez de abrir a ficha
+    caixa.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); ampliarFoto(url, nome); });
+    if (caixa.getAttribute("role") === "button") {
+      caixa.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); ampliarFoto(url, nome); }
+      });
+    }
+  }, { once: true });
   img.addEventListener("error", () => guardadas.delete(`${tipo}:${id}`), { once: true });
+}
+
+/** Foto ampliada numa janela por cima da tela (fecha com X, Esc ou toque fora). */
+export function ampliarFoto(url, nome) {
+  document.querySelector("dialog.foto-ampliada")?.remove();
+  const fechar = el("button", { class: "botao botao--pequeno foto-ampliada__fechar", type: "button", text: "Fechar" });
+  const caixa = el("dialog", { class: "foto-ampliada", "aria-label": nome ? `Foto de ${nome}` : "Foto" },
+    el("img", { src: url, alt: nome ? `Foto de ${nome}` : "Foto", referrerpolicy: "no-referrer" }),
+    nome ? el("p", { class: "foto-ampliada__nome", text: nome }) : null,
+    fechar);
+  const sair = () => { caixa.close(); caixa.remove(); };
+  fechar.addEventListener("click", sair);
+  caixa.addEventListener("click", (e) => { if (e.target === caixa) sair(); }); // toque fora da foto
+  caixa.addEventListener("close", () => caixa.remove());
+  document.body.append(caixa);
+  caixa.showModal();
+  fechar.focus();
 }
 
 /** Avatar pequeno (lista) com iniciais; a foto entra depois, por preencherFotos(). */
 export function avatarLista(tipo, id, nome) {
-  return el("div", { class: "avatar", "aria-hidden": "true", "data-foto-tipo": tipo, "data-foto-id": id }, iniciais(nome));
+  return el("div", { class: "avatar", "data-foto-tipo": tipo, "data-foto-id": id, "data-nome": nome || "" }, iniciais(nome));
 }
 
 /** Busca, em lote, as fotos dos avatares de lista dentro de "area" que ainda estão sem foto. */
@@ -107,7 +140,7 @@ export async function preencherFotos(area) {
  * Avatar grande (ficha) com as iniciais; troca pela foto quando ela chegar.
  */
 export function avatarComFoto(tipo, id, nome) {
-  const caixa = el("div", { class: "avatar avatar--foto", role: "img", "aria-label": `Foto de ${nome || "pessoa"}` },
+  const caixa = el("div", { class: "avatar avatar--foto", role: "button", tabindex: "0", "data-nome": nome || "", "aria-label": `Foto de ${nome || "pessoa"} (ampliar)` },
     el("span", { "aria-hidden": "true", text: iniciais(nome) }));
   linkFoto(tipo, id).then((url) => colocarFoto(caixa, url, tipo, id));
   return caixa;

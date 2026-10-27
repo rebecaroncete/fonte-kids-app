@@ -242,3 +242,12 @@ select.entrada { cursor: pointer; }
 .perfil-cabecalho h1.perfil-cabecalho__nome { margin: 0; }
 .botao--whatsapp { background: #1f8a4c; color: #fff; }
 .botao--whatsapp:hover { background: #18703d; }
+
+/* Foto ampliada (toque na foto) */
+.avatar--ampliavel { cursor: zoom-in; }
+.avatar--foto:focus-visible { outline: 3px solid var(--azul-texto); outline-offset: 2px; }
+.foto-ampliada { border: var(--traco); border-radius: var(--raio); box-shadow: var(--sombra); padding: var(--e4);
+  background: var(--superficie); max-width: min(92vw, 440px); text-align: center; }
+.foto-ampliada::backdrop { background: rgba(31, 27, 24, .75); }
+.foto-ampliada img { display: block; width: 100%; height: auto; max-height: 70vh; object-fit: contain; border-radius: var(--raio-p); }
+.foto-ampliada__nome { font-weight: 800; margin: var(--e3) 0; }
