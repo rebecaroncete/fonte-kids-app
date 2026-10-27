@@ -145,10 +145,26 @@ Deno.serve(async (req: Request) => {
   const admin = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
 
   // ----- Quem está chamando -----
+  // Painel/servidor: chave secreta (sb_secret_…) ou service_role, no
+  // cabeçalho Authorization ou apikey. A chave é CONFERIDA no próprio Auth
+  // (endpoint de administração), não só lida.
   const auth = req.headers.get("Authorization") ?? "";
-  if (!auth.startsWith("Bearer ")) return resposta({ erro: "Faça login." }, 401);
-  const token = auth.slice(7);
-  const doPainel = token === serviceKey || papelDoToken(token) === "service_role";
+  const token = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
+  const apikey = (req.headers.get("apikey") ?? "").trim();
+  const chaveDeServico = async (k: string) => {
+    if (!k) return false;
+    if (k === serviceKey) return true;
+    if (!k.startsWith("sb_secret_") && papelDoToken(k) !== "service_role") return false;
+    const r = await fetch(`${url}/auth/v1/admin/users?page=1&per_page=1`, {
+      headers: { apikey: k, Authorization: `Bearer ${k}` },
+    });
+    await r.body?.cancel();
+    return r.ok;
+  };
+  const doPainel = (await chaveDeServico(token)) || (await chaveDeServico(apikey));
+  if (!doPainel && (!token || token.startsWith("sb_") || token === anonKey)) {
+    return resposta({ erro: "Faça login (ou, no painel, use a chave secreta / service role)." }, 401);
+  }
   let usuario: SupabaseClient | null = null;
   let quem: string | null = null;
   if (!doPainel) {
