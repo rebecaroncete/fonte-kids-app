@@ -34,7 +34,8 @@ const FILTROS = [
   { valor: "sem_login", texto: "Sem login", teste: (s) => s === "sem_login" },
   { valor: "primeiro_acesso", texto: "Aguardando 1º acesso", teste: (s) => s === "primeiro_acesso" },
   { valor: "ativo", texto: "Login ativo", teste: (s) => s === "ativo" },
-  { valor: "problema", texto: "Com problema no cadastro", teste: (s) => ["sem_telefone", "telefone_invalido", "telefone_em_uso", "telefone_compartilhado", "inativo"].includes(s) },
+  { valor: "compartilhado", texto: "Telefone compartilhado", teste: (s) => s === "telefone_compartilhado" },
+  { valor: "problema", texto: "Com problema no cadastro", teste: (s) => ["sem_telefone", "telefone_invalido", "telefone_em_uso", "inativo"].includes(s) },
 ];
 
 // Quem já falhou no lote nesta aba (para não tentar de novo a cada rodada)

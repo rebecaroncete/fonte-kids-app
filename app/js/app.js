@@ -15,6 +15,7 @@ import { el, montar, carregando, aviso, toast } from "./ui.js";
 import { sb, sessaoAtual, sair, estadoPrimeiroAcesso, limparPerfilGuardado } from "./supabase.js";
 import { montarTopo } from "./casca.js";
 import { iniciarNotificacoes, pararNotificacoes } from "./notificacoes.js";
+import { limparFotos } from "./foto.js";
 
 const ROTAS = {
   "/entrar":        { publica: true, soDeslogado: true, carregar: () => import("./telas/login.js") },
@@ -26,6 +27,8 @@ const ROTAS = {
   "/perfil":        { publica: false, carregar: () => import("./telas/perfil.js") },
   "/trocar-senha":  { publica: false, carregar: () => import("./telas/trocar-senha.js") },
   "/logins":        { publica: false, carregar: () => import("./telas/logins.js") },
+  "/cadastros":     { publica: false, carregar: () => import("./telas/cadastros.js") },
+  "/ficha":         { publica: false, carregar: () => import("./telas/ficha.js") },
 };
 
 /** Endereço interno conhecido? (usado para abrir links de notificações) */
@@ -122,7 +125,7 @@ async function mostrar() {
 // Sessão encerrada (sair em outra aba, sessão expirada): volta para "Entrar".
 sb.auth.onAuthStateChange((evento) => {
   if (evento === "SIGNED_IN") etapaGuardada = null;
-  if (evento === "SIGNED_OUT") { etapaGuardada = null; relacoesAdiadas = false; limparPerfilGuardado(); pararNotificacoes(); }
+  if (evento === "SIGNED_OUT") { etapaGuardada = null; relacoesAdiadas = false; limparPerfilGuardado(); limparFotos(); pararNotificacoes(); }
   if (evento === "SIGNED_OUT") {
     const def = ROTAS[rotaAtual()];
     if (!def || !def.publica) setTimeout(() => irPara("/entrar"), 0);

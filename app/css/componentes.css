@@ -230,3 +230,15 @@ select.entrada { cursor: pointer; }
 .confirmacao p { margin: 0 0 var(--e2); }
 .notif .etiqueta { margin-top: var(--e1); }
 .progresso { width: 100%; height: 18px; accent-color: var(--laranja); }
+
+/* ---------- Cadastros e ficha (Fase 10 · Etapa 5B) ---------- */
+.lista__item--link { color: inherit; text-decoration: none; box-shadow: var(--sombra-p); }
+.lista__item--link:hover { background: var(--amarelo-claro); }
+.lista__item--link:focus-visible { outline: 3px solid var(--azul-texto); outline-offset: 2px; }
+.lista__texto { min-width: 0; flex: 1; }
+.lista__texto .linha { margin-top: var(--e1); }
+.avatar--foto { width: 96px; height: 96px; font-size: 1.6rem; }
+.avatar--foto img { display: block; }
+.perfil-cabecalho h1.perfil-cabecalho__nome { margin: 0; }
+.botao--whatsapp { background: #1f8a4c; color: #fff; }
+.botao--whatsapp:hover { background: #18703d; }

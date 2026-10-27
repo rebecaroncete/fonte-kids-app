@@ -14,6 +14,7 @@ import { aoMudarContagem } from "./notificacoes.js";
 // (sem "papeis" = todos os logins)
 const ITENS_MENU = [
   { rota: "/inicio", texto: "Início" },
+  { rota: "/cadastros", texto: "Cadastros", papeis: ["admin", "pastor", "lider", "recepcao", "voluntaria"] },
   { rota: "/notificacoes", texto: "Notificações" },
   { rota: "/perfil", texto: "Meu perfil" },
   { rota: "/trocar-senha", texto: "Trocar senha" },
@@ -79,7 +80,7 @@ export function montarTopo({ logado, rota, aoSair }) {
     const itens = ITENS_MENU.filter((i) => !i.papeis || i.papeis.some((p) => meusPapeis.includes(p)));
     lista.replaceChildren(
       ...itens.map((i) => el("li", {},
-        el("a", { class: "menu__item", href: `#${i.rota}`, "aria-current": i.rota === rota ? "page" : null, text: i.texto }))),
+        el("a", { class: "menu__item", href: `#${i.rota}`, "aria-current": i.rota === rota || (rota === "/ficha" && i.rota === "/cadastros") ? "page" : null, text: i.texto }))),
       el("li", {}, el("button", { class: "menu__item menu__item--sair", type: "button", text: "Sair", onclick: () => { fechar(); aoSair(); } })));
   }
 

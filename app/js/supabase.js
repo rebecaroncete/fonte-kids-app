@@ -463,3 +463,136 @@ export async function gerenciarLogin(corpo) {
     return { ok: false, erro: SEM_CONEXAO };
   }
 }
+
+// =====================================================================
+// Cadastros: lista, busca e ficha (Fase 10 · Etapa 5B) – só leitura.
+// Quem decide o que cada papel vê é o RLS do banco: aqui só pedimos;
+// o que não for permitido simplesmente não volta (ou volta vazio).
+// =====================================================================
+
+const ERRO_LISTA = "Não foi possível carregar a lista agora.";
+const ERRO_FICHA = "Não foi possível carregar a ficha agora.";
+
+/** Salas do Fonte Kids (para filtro e nomes). */
+export async function listarSalas() {
+  try {
+    const { data, error } = await sb.from("salas").select("id, nome, ordem, ativa").order("ordem");
+    if (error) return { ok: false, erro: ERRO_LISTA };
+    return { ok: true, lista: data || [] };
+  } catch {
+    return { ok: false, erro: SEM_CONEXAO };
+  }
+}
+
+/** Crianças visíveis para o login (nome, idade, sala, família). */
+export async function listarCriancas() {
+  try {
+    const { data, error } = await sb.from("criancas")
+      .select("id, familia_id, ativo, perfil, sala_fixa_id, pessoa:pessoas(nome, nome_busca, data_nascimento)")
+      .limit(2000);
+    if (error) return { ok: false, erro: ERRO_LISTA };
+    return { ok: true, lista: data || [] };
+  } catch {
+    return { ok: false, erro: SEM_CONEXAO };
+  }
+}
+
+/** Famílias visíveis (responsáveis e crianças com nome). */
+export async function listarFamilias() {
+  try {
+    const { data, error } = await sb.from("familias")
+      .select("id, responsaveis(principal, pessoa:pessoas(nome, nome_busca)), criancas(id, ativo, pessoa:pessoas(nome, nome_busca))")
+      .limit(2000);
+    if (error) return { ok: false, erro: ERRO_LISTA };
+    return { ok: true, lista: data || [] };
+  } catch {
+    return { ok: false, erro: SEM_CONEXAO };
+  }
+}
+
+/** Voluntárias (o banco só mostra para a liderança; cada uma vê só a própria). */
+export async function listarVoluntarias() {
+  try {
+    const { data, error } = await sb.from("voluntarias")
+      .select("id, status, funcao, pessoa:pessoas(nome, nome_busca, data_nascimento)")
+      .limit(2000);
+    if (error) return { ok: false, erro: ERRO_LISTA };
+    return { ok: true, lista: data || [] };
+  } catch {
+    return { ok: false, erro: SEM_CONEXAO };
+  }
+}
+
+/** Pessoas da família: responsáveis (com quais crianças) e autorizadas. */
+async function pessoasDaFamilia(familiaId) {
+  const [rResp, rAut] = await Promise.all([
+    sb.from("responsaveis").select("id, principal, pessoa:pessoas(id, nome, telefone), responsaveis_criancas(crianca_id)").eq("familia_id", familiaId),
+    sb.from("pessoas_autorizadas").select("id, observacao, pessoa:pessoas(id, nome, telefone)").eq("familia_id", familiaId),
+  ]);
+  if (rResp.error || rAut.error) throw new Error("leitura");
+  return { responsaveis: rResp.data || [], autorizadas: rAut.data || [] };
+}
+
+/** Ficha da criança. */
+export async function fichaCrianca(id) {
+  try {
+    const { data: c, error } = await sb.from("criancas")
+      .select("id, familia_id, ativo, perfil, alergias_observacoes, sala:salas(nome), pessoa:pessoas(id, nome, data_nascimento, sexo)")
+      .eq("id", id).maybeSingle();
+    if (error) return { ok: false, erro: ERRO_FICHA };
+    if (!c) return { ok: false, naoEncontrada: true, erro: "Ficha não encontrada ou sem permissão para ver." };
+
+    const [fam, rIrmaos, rRel, rCheck] = await Promise.all([
+      pessoasDaFamilia(c.familia_id),
+      sb.from("criancas").select("id, ativo, pessoa:pessoas(nome)").eq("familia_id", c.familia_id).neq("id", id),
+      c.pessoa?.id
+        ? sb.from("relacoes_pessoas").select("pessoa_id, tipo, detalhe").eq("relacionada_id", c.pessoa.id)
+        : Promise.resolve({ data: [] }),
+      sb.from("checkins").select("entrada_em, saida_em, sala:salas(nome)").eq("crianca_id", id)
+        .order("entrada_em", { ascending: false }).limit(1),
+    ]);
+    const relacoes = new Map((rRel.data || []).map((r) => [r.pessoa_id, r]));
+    return {
+      ok: true, crianca: c, ...fam, relacoes,
+      irmaos: rIrmaos.data || [],
+      ultimoCheckin: (rCheck.data || [])[0] || null,
+    };
+  } catch {
+    return { ok: false, erro: SEM_CONEXAO };
+  }
+}
+
+/** Ficha da família. */
+export async function fichaFamilia(id) {
+  try {
+    const { data: f, error } = await sb.from("familias").select("id, observacoes").eq("id", id).maybeSingle();
+    if (error) return { ok: false, erro: ERRO_FICHA };
+    if (!f) return { ok: false, naoEncontrada: true, erro: "Ficha não encontrada ou sem permissão para ver." };
+    const [fam, rCri] = await Promise.all([
+      pessoasDaFamilia(id),
+      sb.from("criancas").select("id, ativo, sala:salas(nome), pessoa:pessoas(nome, data_nascimento)").eq("familia_id", id),
+    ]);
+    return { ok: true, familia: f, ...fam, criancas: rCri.data || [] };
+  } catch {
+    return { ok: false, erro: SEM_CONEXAO };
+  }
+}
+
+/** Ficha da voluntária (o banco só libera para a liderança e para ela mesma). */
+export async function fichaVoluntaria(id) {
+  try {
+    const { data: v, error } = await sb.from("voluntarias")
+      .select("id, status, funcao, email, profissao, salas_preferidas, cultos_preferidos, teto_mensal, aprovada_em, pessoa:pessoas(id, nome, telefone, data_nascimento)")
+      .eq("id", id).maybeSingle();
+    if (error) return { ok: false, erro: ERRO_FICHA };
+    if (!v) return { ok: false, naoEncontrada: true, erro: "Ficha não encontrada ou sem permissão para ver." };
+    let cultos = [];
+    if (v.cultos_preferidos?.length) {
+      const { data } = await sb.from("cultos_recorrentes").select("id, nome").in("id", v.cultos_preferidos);
+      cultos = (data || []).map((x) => x.nome);
+    }
+    return { ok: true, voluntaria: v, cultos };
+  } catch {
+    return { ok: false, erro: SEM_CONEXAO };
+  }
+}

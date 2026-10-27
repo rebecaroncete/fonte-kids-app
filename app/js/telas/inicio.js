@@ -4,6 +4,7 @@
 // "#/primeiro-acesso" (js/app.js). Aqui: saudação, papéis, aviso das
 // relações (se adiadas), notificações novas e um bloco por papel.
 // Os resumos de verdade (crianças, escalas, check-ins) chegam na Fase 5.
+// Recepção e liderança têm atalho para "Cadastros" (Etapa 5B).
 // =====================================================================
 import { el, montar, aviso, carregando } from "../ui.js";
 import { estadoPrimeiroAcesso, meuPerfil, contarNaoLidas } from "../supabase.js";
@@ -15,8 +16,8 @@ export const titulo = "Início";
 const BLOCOS = {
   admin:       { cor: "azul",    titulo: "Administração", texto: "Você acompanha e ajusta tudo no app: cadastros, logins e configurações." },
   pastor:      { cor: "azul",    titulo: "Pastoral",      texto: "Você acompanha todos os departamentos da igreja." },
-  lider:       { cor: "laranja", titulo: "Liderança",     texto: "Você cuida do departamento: voluntárias, famílias, escalas e pedidos de nova senha." },
-  recepcao:    { cor: "amarelo", titulo: "Recepção",      texto: "Você faz o cadastro e o check-in das crianças nos cultos." },
+  lider:       { cor: "laranja", titulo: "Liderança",     texto: "Você cuida do departamento: voluntárias, famílias, escalas e pedidos de nova senha.", link: { href: "#/cadastros", texto: "Ver cadastros" } },
+  recepcao:    { cor: "amarelo", titulo: "Recepção",      texto: "Você consulta crianças e famílias e, em breve, faz o check-in nos cultos.", link: { href: "#/cadastros", texto: "Ver cadastros" } },
   voluntaria:  { cor: "amarelo", titulo: "Voluntária",    texto: "Aqui você vai acompanhar as suas escalas e as salas em que serve." },
   responsavel: { cor: "laranja", titulo: "Minha família", texto: "Aqui você vai acompanhar as suas crianças, os check-ins e os avisos do Fonte Kids." },
 };
@@ -64,7 +65,8 @@ export async function render(alvo) {
     const dep = p.departamento && !["admin", "pastor"].includes(p.papel) ? ` · ${p.departamento}` : "";
     partes.push(el("section", { class: `cartao cartao--${b.cor}` },
       el("h2", { text: b.titulo + dep }),
-      el("p", { class: "atalho__texto", text: b.texto })));
+      el("p", { class: "atalho__texto", text: b.texto }),
+      b.link ? el("p", {}, el("a", { class: "botao botao--pequeno", href: b.link.href, text: b.link.texto })) : null));
   }
 
   partes.push(
