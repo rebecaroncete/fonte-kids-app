@@ -25,6 +25,7 @@ const ROTAS = {
   "/notificacoes":  { publica: false, carregar: () => import("./telas/notificacoes.js") },
   "/perfil":        { publica: false, carregar: () => import("./telas/perfil.js") },
   "/trocar-senha":  { publica: false, carregar: () => import("./telas/trocar-senha.js") },
+  "/logins":        { publica: false, carregar: () => import("./telas/logins.js") },
 };
 
 /** Endereço interno conhecido? (usado para abrir links de notificações) */

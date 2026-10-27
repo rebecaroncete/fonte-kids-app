@@ -402,3 +402,64 @@ export async function marcarLida(id) {
     return { ok: false, erro: SEM_CONEXAO };
   }
 }
+
+// =====================================================================
+// Gestão de logins (Fase 10 · Etapa 5A) – liderança do Fonte Kids,
+// pastores e admin. O banco confere a permissão em cada chamada; o
+// telefone já vem mascarado do banco. Nenhuma senha passa por aqui.
+// =====================================================================
+
+/** Pedidos de nova senha pendentes. */
+export async function listarPedidosRedefinicao() {
+  try {
+    const { data, error } = await sb.rpc("listar_pedidos_redefinicao");
+    if (error) return { ok: false, erro: error.code === "42501" ? "Você não tem acesso à gestão de logins." : "Não foi possível carregar os pedidos agora." };
+    return { ok: true, lista: data || [] };
+  } catch {
+    return { ok: false, erro: SEM_CONEXAO };
+  }
+}
+
+/** Situação de login de cada pessoa (com e sem login). */
+export async function situacaoLogins() {
+  try {
+    const { data, error } = await sb.rpc("situacao_logins");
+    if (error) return { ok: false, erro: error.code === "42501" ? "Você não tem acesso à gestão de logins." : "Não foi possível carregar a lista agora." };
+    return { ok: true, lista: data || [] };
+  } catch {
+    return { ok: false, erro: SEM_CONEXAO };
+  }
+}
+
+/** Encerra um pedido de nova senha sem redefinir. */
+export async function encerrarPedido(id) {
+  try {
+    const { data, error } = await sb.rpc("encerrar_pedido_redefinicao", { p_pedido: id });
+    if (error) return { ok: false, erro: "Não foi possível encerrar o pedido agora." };
+    return { ok: true, encerrado: data === true };
+  } catch {
+    return { ok: false, erro: SEM_CONEXAO };
+  }
+}
+
+/** Chama a Edge Function gerenciar-login com a sessão atual. */
+export async function gerenciarLogin(corpo) {
+  const s = await sessaoAtual();
+  if (!s) return { ok: false, erro: "Você não está conectado. Entre de novo." };
+  try {
+    const r = await fetch(`${CONFIG.supabaseUrl}/functions/v1/gerenciar-login`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: CONFIG.supabaseChavePublica,
+        Authorization: `Bearer ${s.access_token}`,
+      },
+      body: JSON.stringify(corpo),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || j.erro) return { ok: false, erro: j.erro || "Não foi possível concluir agora. Tente de novo." };
+    return { ok: true, ...j };
+  } catch {
+    return { ok: false, erro: SEM_CONEXAO };
+  }
+}

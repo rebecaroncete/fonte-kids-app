@@ -17,7 +17,7 @@ const ITENS_MENU = [
   { rota: "/notificacoes", texto: "Notificações" },
   { rota: "/perfil", texto: "Meu perfil" },
   { rota: "/trocar-senha", texto: "Trocar senha" },
-  // Etapa 5: { rota: "/logins", texto: "Gestão de logins", papeis: ["admin", "pastor", "lider"] },
+  { rota: "/logins", texto: "Gestão de logins", papeis: ["admin", "pastor", "lider"] },
 ];
 
 const SVG = "http://www.w3.org/2000/svg";

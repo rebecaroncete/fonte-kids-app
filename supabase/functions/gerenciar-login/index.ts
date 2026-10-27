@@ -1,5 +1,5 @@
 // =====================================================================
-// Edge Function "gerenciar-login" – Fase 4 · Etapa 3
+// Edge Function "gerenciar-login" – Fase 4 · Etapa 3 (+ Fase 10 · Etapa 5A)
 // Cria e redefine logins (Supabase Auth, sem SMS).
 //
 // Login = telefone. O app converte o telefone num e-mail técnico
@@ -26,10 +26,14 @@
 //       papéis de voluntária/responsável são acrescentados sozinhos
 //       conforme o cadastro da pessoa.
 //   { "acao": "redefinir", "pessoa_id": "<uuid>" }
-//       volta para a senha inicial e exige nova troca.
-//   { "acao": "lote", "departamento": "kids", "confirmar": false, "limite": 50 }
+//       volta para a senha inicial e exige nova troca. Os pedidos de nova
+//       senha pendentes desse login ficam "atendidos" (quem redefiniu).
+//   { "acao": "lote", "departamento": "kids", "confirmar": false, "limite": 25,
+//     "ignorar": ["<uuid>", ...] }
 //       sem "confirmar": true só mostra as contagens. Com true, cria até
-//       "limite" logins por chamada (repita até "restantes" = 0).
+//       "limite" logins por chamada (repita até "restantes" = 0). O app
+//       manda em "ignorar" quem já falhou, para não tentar de novo.
+//       A resposta traz só contagens e os ids que falharam (sem dados).
 //
 // Variáveis de ambiente (já fornecidas pelo Supabase):
 //   SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY
@@ -261,7 +265,8 @@ Deno.serve(async (req: Request) => {
     const { error } = await admin.auth.admin.updateUserById(perfil.id, { password: senha });
     if (error) return resposta({ erro: traduzErro(error.message) }, 409);
     await admin.rpc("marcar_senha_inicial", { p_perfil: perfil.id });
-    return resposta({ ok: true, senha_inicial: regra, troca_obrigatoria: true });
+    const { data: atendidos } = await admin.rpc("marcar_pedidos_atendidos", { p_perfil: perfil.id, p_por: quem });
+    return resposta({ ok: true, senha_inicial: regra, troca_obrigatoria: true, pedidos_atendidos: atendidos ?? 0 });
   }
 
   // ----- lote -----
@@ -276,7 +281,10 @@ Deno.serve(async (req: Request) => {
     const lista = cands as C[];
     const contagem: Record<string, number> = {};
     for (const c of lista) contagem[c.situacao] = (contagem[c.situacao] ?? 0) + 1;
-    const aCriar = lista.filter((c) => c.situacao === "criar");
+    const ignorar = new Set(
+      (Array.isArray(corpo.ignorar) ? corpo.ignorar : []).map(String).filter((x) => UUID.test(x)).slice(0, 1000),
+    );
+    const aCriar = lista.filter((c) => c.situacao === "criar" && !ignorar.has(c.pessoa_id));
     const resumo = {
       por_situacao: contagem,
       a_criar_voluntarias: aCriar.filter((c) => c.e_voluntaria).length,
@@ -285,17 +293,27 @@ Deno.serve(async (req: Request) => {
     };
     if (corpo.confirmar !== true) return resposta({ simulacao: true, ...resumo });
 
-    const limite = Math.min(Math.max(Number(corpo.limite) || 50, 1), 100);
-    let criados = 0, falhas = 0;
+    const limite = Math.min(Math.max(Number(corpo.limite) || 25, 1), 100);
+    let criados = 0;
+    const falhas_ids: string[] = [];
+    const motivos: Record<string, number> = {};
     for (const c of aCriar.slice(0, limite)) {
       const { data: linhas } = await admin.rpc("dados_login", { p_pessoa: c.pessoa_id });
       const d = (linhas as Dados[] | null)?.[0];
-      if (!d || d.ja_tem_login) { falhas++; continue; }
-      const papeis = papeisDaPessoa({ ...d, depts_voluntaria: d.depts_voluntaria.filter((x) => x === dep.id) }, []);
-      const r = await criarLogin(admin, dominio, c.pessoa_id, c.telefone_login, d, papeis, quem);
-      if (r.ok) criados++; else falhas++;
+      let erro = "";
+      if (!d) erro = "Pessoa não encontrada.";
+      else if (d.ja_tem_login) erro = "Esta pessoa já tem login.";
+      else {
+        const papeis = papeisDaPessoa({ ...d, depts_voluntaria: d.depts_voluntaria.filter((x) => x === dep.id) }, []);
+        const r = await criarLogin(admin, dominio, c.pessoa_id, c.telefone_login, d, papeis, quem);
+        if (r.ok) criados++; else erro = r.erro;
+      }
+      if (erro) { falhas_ids.push(c.pessoa_id); motivos[erro] = (motivos[erro] ?? 0) + 1; }
     }
-    return resposta({ simulacao: false, criados, falhas, restantes: Math.max(aCriar.length - criados - falhas, 0) });
+    return resposta({
+      simulacao: false, criados, falhas: falhas_ids.length, falhas_ids, motivos,
+      restantes: Math.max(aCriar.length - criados - falhas_ids.length, 0),
+    });
   }
 
   return resposta({ erro: 'acao deve ser "autoteste", "criar", "redefinir" ou "lote".' }, 400);
