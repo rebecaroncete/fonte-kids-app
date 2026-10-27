@@ -16,6 +16,7 @@ const ITENS_MENU = [
   { rota: "/inicio", texto: "Início" },
   { rota: "/minha-familia", texto: "Minha família", papeis: ["responsavel"] },
   { rota: "/cadastros", texto: "Cadastros", papeis: ["admin", "pastor", "lider", "recepcao", "voluntaria"] },
+  { rota: "/pendencias", texto: "Pendências", papeis: ["admin", "pastor", "lider", "recepcao"] },
   { rota: "/notificacoes", texto: "Notificações" },
   { rota: "/perfil", texto: "Meu perfil" },
   { rota: "/trocar-senha", texto: "Trocar senha" },

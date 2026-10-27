@@ -721,3 +721,57 @@ export function incluirAutorizado(familiaId, nome, telefone, observacao) {
 export function removerAutorizado(autorizadoId) {
   return chamarEdicao("remover_autorizado", { p_autorizado: autorizadoId });
 }
+
+// =====================================================================
+// Pendências de cadastro (Etapa 5D). O banco decide o que cada login vê:
+// recepção/liderança/pastores/admin → o departamento; responsável → só a
+// própria família. Resolver é sempre pela confirmar_pendencia() (só as
+// manuais; as automáticas somem sozinhas quando o dado é preenchido).
+// =====================================================================
+
+/** Nomes legíveis dos tipos de pendência. */
+export const NOMES_PENDENCIA = {
+  relacao_nao_informada: "Relação não informada",
+  nascimento_vazio: "Sem data de nascimento",
+  conferir_nascimento: "Conferir data de nascimento",
+  nome_responsavel: "Conferir nome do responsável",
+};
+export const nomePendencia = (tipo) =>
+  NOMES_PENDENCIA[tipo] || String(tipo || "Pendência").replace(/_/g, " ").replace(/^./, (x) => x.toUpperCase());
+
+/** situacao: "abertas" | "resolvidas" (resolvidas: as 300 mais recentes). */
+export async function listarPendencias(situacao = "abertas") {
+  try {
+    const { data, error } = await sb.rpc("listar_pendencias", { p_situacao: situacao });
+    if (error) return { ok: false, erro: ERRO_LISTA };
+    return { ok: true, lista: data || [] };
+  } catch {
+    return { ok: false, erro: SEM_CONEXAO };
+  }
+}
+
+/** Quantas pendências abertas o login enxerga (para o início). */
+export async function contarPendencias() {
+  try {
+    const { count, error } = await sb.from("pendencias_cadastro")
+      .select("id", { count: "exact", head: true }).is("resolvida_em", null);
+    if (error) return { ok: false };
+    return { ok: true, total: count || 0 };
+  } catch {
+    return { ok: false };
+  }
+}
+
+/** Marca uma pendência manual como resolvida. */
+export async function confirmarPendencia(id) {
+  try {
+    const { error } = await sb.rpc("confirmar_pendencia", { p_pendencia: id });
+    if (!error) return { ok: true };
+    const msg = String(error.message || "");
+    if (msg.startsWith("Este aviso some sozinho")) return { ok: false, erro: "Este aviso some sozinho quando o dado for preenchido." };
+    if (msg.includes("sem permissão") || msg.includes("não encontrad")) return { ok: false, erro: "Esta pendência já foi resolvida ou você não tem permissão." };
+    return { ok: false, erro: "Não foi possível salvar agora. Tente de novo." };
+  } catch {
+    return { ok: false, erro: SEM_CONEXAO };
+  }
+}

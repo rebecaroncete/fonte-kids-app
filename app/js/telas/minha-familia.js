@@ -10,10 +10,17 @@
 //   • criança: nome, data de nascimento, alergias/cuidados e foto;
 //   • relação com cada criança (informar_relacao);
 //   • autorizados a retirar: incluir e remover.
+// Pendências (Etapa 5D): quadro "Para completar" no topo de cada família.
+//   • relação não informada → botão para informar (some sozinha quando
+//     todos os responsáveis informarem);
+//   • sem data de nascimento → "Editar dados" (some sozinha);
+//   • manuais (ex.: conferir nascimento) → o responsável marca como
+//     resolvida; a liderança recebe aviso no sino.
 // O banco (RLS + funções) garante que o responsável mexa só na própria família.
 // =====================================================================
 import { el, montar, aviso, carregando, mascararTelefone, telefoneParaLogin } from "../ui.js";
-import { minhaFamilia, informarRelacao, listarSalas, editarCrianca, incluirAutorizado, removerAutorizado } from "../supabase.js";
+import { minhaFamilia, informarRelacao, listarSalas, editarCrianca, incluirAutorizado, removerAutorizado,
+  listarPendencias, confirmarPendencia, nomePendencia } from "../supabase.js";
 import { avatarComFoto, avatarLista, preencherFotos } from "../foto.js";
 import { abrirJanela, janelaFoto, campo } from "../janela.js";
 import { idade, textoIdade, salaDaCrianca, textoSala } from "./cadastros.js";
@@ -39,8 +46,9 @@ export async function render(alvo) {
 
 async function desenhar(mostrarCarregando = false) {
   if (mostrarCarregando) montar(alvoTela, carregando());
-  const [r, rs] = await Promise.all([minhaFamilia(), listarSalas()]);
+  const [r, rs, rp] = await Promise.all([minhaFamilia(), listarSalas(), listarPendencias("abertas")]);
   const salas = rs.ok ? rs.lista : [];
+  const pendencias = rp.ok ? rp.lista : [];
 
   if (!r.ok) {
     montar(alvoTela, el("h1", { text: "Minha família" }), aviso("erro", r.erro));
@@ -55,16 +63,17 @@ async function desenhar(mostrarCarregando = false) {
   const varias = r.familias.length > 1;
   montar(alvoTela,
     el("h1", { text: varias ? "Minhas famílias" : "Minha família" }),
-    r.familias.map((f) => blocoFamilia(f, salas, varias)),
+    r.familias.map((f) => blocoFamilia(f, salas, varias, pendencias.filter((x) => x.familia_id === f.id))),
     el("p", { class: "suave", text: "As alterações valem na hora e a liderança do Fonte Kids é avisada." }));
   preencherFotos(alvoTela);
 }
 
-function blocoFamilia(f, salas, mostrarTitulo) {
+function blocoFamilia(f, salas, mostrarTitulo, pendencias = []) {
   const principal = f.responsaveis.find((x) => x.principal) || f.responsaveis[0];
   const criancas = [...f.criancas].sort((a, b) => Number(b.ativo) - Number(a.ativo));
   return el("div", {},
     mostrarTitulo ? el("h2", { text: principal?.pessoa?.nome ? `Família de ${principal.pessoa.nome}` : "Família" }) : null,
+    pendencias.length ? quadroPendencias(pendencias, f) : null,
     criancas.length
       ? criancas.map((c) => cartaoCrianca(c, f, salas))
       : el("p", { class: "suave", text: "Nenhuma criança nesta família." }),
@@ -74,6 +83,71 @@ function blocoFamilia(f, salas, mostrarTitulo) {
         class: "botao botao--pequeno botao--secundario", type: "button", text: "Incluir autorizado",
         onclick: () => janelaIncluirAutorizado(f.id),
       }))));
+}
+
+// ---------- Para completar (pendências da família) ----------
+
+function quadroPendencias(pendencias, f) {
+  const criancaPorId = new Map(f.criancas.map((c) => [c.id, c]));
+  return el("section", { class: "cartao cartao--amarelo para-completar" },
+    el("h2", { text: "Para completar" }),
+    el("p", { class: "atalho__texto", text: "Ajude a manter o cadastro em dia. Estes avisos somem quando o dado é preenchido ou conferido." }),
+    el("ul", { class: "lista" }, pendencias.map((p) => itemPendencia(p, criancaPorId.get(p.crianca_id), f))));
+}
+
+function itemPendencia(p, c, f) {
+  const nomeCri = c?.pessoa?.nome || p.crianca_nome || "";
+  const primeiro = nomeCri ? nomeCri.trim().split(/\s+/)[0] : "";
+  let texto = p.mensagem;
+  const acoes = [];
+
+  if (p.tipo === "relacao_nao_informada") {
+    const minha = c ? f.minhasRelacoes.get(c.pessoa?.id) : null;
+    if (minha) {
+      texto = `Você já informou a sua relação${primeiro ? ` com ${primeiro}` : ""}. Falta outro responsável informar a dele(a) pelo app.`;
+    } else if (c) {
+      texto = `Informe a sua relação${primeiro ? ` com ${primeiro}` : " com a criança"} (ex.: mãe, pai, avó).`;
+      acoes.push(el("button", { class: "botao botao--pequeno botao--secundario", type: "button", text: "Informar relação",
+        onclick: () => janelaRelacao(c.id, nomeCri, null) }));
+    }
+  } else if (p.tipo === "nascimento_vazio" && c) {
+    texto = `Falta a data de nascimento${primeiro ? ` de ${primeiro}` : ""}.`;
+    acoes.push(el("button", { class: "botao botao--pequeno botao--secundario", type: "button", text: "Editar dados",
+      onclick: () => janelaEditarCrianca(c) }));
+  } else if (!p.automatica) {
+    if (c && p.tipo === "conferir_nascimento") {
+      acoes.push(el("button", { class: "botao botao--pequeno", type: "button", text: "Editar dados",
+        onclick: () => janelaEditarCrianca(c) }));
+    }
+    acoes.push(el("button", { class: "botao botao--pequeno botao--secundario", type: "button", text: "Marcar como resolvida",
+      onclick: () => janelaResolverPendencia(p) }));
+  }
+
+  return el("li", { class: "notif pendencia" },
+    el("div", { class: "linha" },
+      el("span", { class: "etiqueta etiqueta--laranja", text: nomePendencia(p.tipo) }),
+      nomeCri ? el("span", { class: "notif__titulo", text: nomeCri }) : null),
+    el("p", { class: "notif__corpo", text: texto }),
+    acoes.length ? el("div", { class: "linha acoes-cartao" }, acoes) : null);
+}
+
+function janelaResolverPendencia(p) {
+  abrirJanela({
+    titulo: "Marcar como resolvida",
+    conteudo: [
+      el("p", { class: "notif__titulo", text: nomePendencia(p.tipo) }),
+      el("p", { text: p.mensagem }),
+      el("p", { class: "suave", text: "Confirme que o dado está certo (ou que já corrigiu). A liderança do Fonte Kids é avisada." }),
+    ],
+    textoSalvar: "Está certo, resolver",
+    sucesso: "Pendência resolvida. Obrigado!",
+    aoSalvar: async () => {
+      const r = await confirmarPendencia(p.id);
+      if (!r.ok) return r.erro;
+      await desenhar();
+      return null;
+    },
+  });
 }
 
 function secao(tituloSecao, ...conteudo) {

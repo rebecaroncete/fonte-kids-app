@@ -6,9 +6,11 @@
 // Os resumos de verdade (crianças, escalas, check-ins) chegam na Fase 5.
 // Recepção e liderança têm atalho para "Cadastros" (Etapa 5B);
 // responsável, para "Minha família" (Etapa 5C).
+// Pendências de cadastro (Etapa 5D): a equipe vê quantas estão abertas no
+// departamento; o responsável, quantas faltam na própria família.
 // =====================================================================
 import { el, montar, aviso, carregando } from "../ui.js";
-import { estadoPrimeiroAcesso, meuPerfil, contarNaoLidas } from "../supabase.js";
+import { estadoPrimeiroAcesso, meuPerfil, contarNaoLidas, contarPendencias } from "../supabase.js";
 
 export const layout = "padrao";
 export const titulo = "Início";
@@ -25,7 +27,7 @@ const BLOCOS = {
 
 export async function render(alvo) {
   montar(alvo, carregando());
-  const [est, perfil, notif] = await Promise.all([estadoPrimeiroAcesso(), meuPerfil(), contarNaoLidas()]);
+  const [est, perfil, notif, pend] = await Promise.all([estadoPrimeiroAcesso(), meuPerfil(), contarNaoLidas(), contarPendencias()]);
 
   if (!est.ok) {
     montar(alvo, el("h1", { text: "Início" }), aviso("erro", "Não foi possível carregar seus dados agora. Tente recarregar a página."));
@@ -59,6 +61,23 @@ export async function render(alvo) {
       el("h2", { class: "atalho__titulo", text: "Notificações" }),
       el("p", { class: "atalho__texto", text: n === 0 ? "Nenhuma notificação nova." : `Você tem ${n} ${n > 1 ? "notificações novas" : "notificação nova"}.` })),
     el("a", { class: "botao botao--pequeno", href: "#/notificacoes", text: "Ver" })));
+
+  // Pendências de cadastro
+  const np = pend.ok ? pend.total : 0;
+  const equipe = perfil.ok && perfil.temPapel("admin", "pastor", "lider", "recepcao");
+  if (equipe) {
+    partes.push(el("section", { class: "cartao atalho" },
+      el("div", {},
+        el("h2", { class: "atalho__titulo", text: "Pendências de cadastro" }),
+        el("p", { class: "atalho__texto", text: np === 0 ? "Nenhuma pendência aberta." : `${np} ${np > 1 ? "pendências abertas" : "pendência aberta"} no departamento.` })),
+      el("a", { class: "botao botao--pequeno", href: "#/pendencias", text: "Ver" })));
+  } else if (np > 0 && perfil.ok && perfil.temPapel("responsavel")) {
+    partes.push(el("section", { class: "cartao atalho" },
+      el("div", {},
+        el("h2", { class: "atalho__titulo", text: "Para completar" }),
+        el("p", { class: "atalho__texto", text: `Falta${np > 1 ? "m" : ""} ${np} ${np > 1 ? "itens" : "item"} no cadastro da sua família.` })),
+      el("a", { class: "botao botao--pequeno", href: "#/minha-familia", text: "Ver" })));
+  }
 
   for (const p of unicos) {
     const b = BLOCOS[p.papel];

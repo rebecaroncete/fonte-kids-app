@@ -16,5 +16,5 @@ export const CONFIG = {
   dominioLogin: "login.fonteitaparica.invalid",
 
   nomeApp: "Fonte Kids",
-  versao: "0.8.0 (Fase 10 · Etapa 5C – edição)",
+  versao: "0.9.0 (Fase 10 · Etapa 5D – pendências)",
 };

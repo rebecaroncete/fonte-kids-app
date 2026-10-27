@@ -265,3 +265,12 @@ input[type="file"].entrada { padding: var(--e2); }
 .previa-foto img { width: 100%; height: 100%; object-fit: cover; }
 .janela { max-height: 90vh; overflow-y: auto; }
 .acoes-cartao { margin-top: var(--e3); }
+
+/* ---------- Pendências de cadastro (Etapa 5D) ---------- */
+.pendencias { display: flex; flex-direction: column; gap: var(--e3); }
+.pendencias > .cartao { margin: 0; }
+.pendencia__topo { justify-content: space-between; }
+.pendencia__familia { margin: 0; font-size: 1.1rem; }
+.pendencia .notif__corpo { margin: var(--e1) 0; }
+.pendencia .acoes-cartao { margin-top: var(--e2); }
+.para-completar .lista { margin-top: var(--e2); }
