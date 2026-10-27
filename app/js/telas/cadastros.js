@@ -9,6 +9,7 @@
 // =====================================================================
 import { el, montar, aviso, carregando, iniciais } from "../ui.js";
 import { meuPerfil, listarSalas, listarCriancas, listarFamilias, listarVoluntarias } from "../supabase.js";
+import { avatarLista, preencherFotos } from "../foto.js";
 
 export const layout = "padrao";
 export const titulo = "Cadastros";
@@ -28,6 +29,24 @@ export function idade(dataIso) {
   if (hoje.getMonth() + 1 < m || (hoje.getMonth() + 1 === m && hoje.getDate() < d)) anos--;
   return anos >= 0 ? anos : null;
 }
+/**
+ * Sala da criança: a sala fixa, quando a liderança definiu uma (exceção);
+ * senão, a sala ativa da faixa de idade (como no app atual).
+ * Acima de 12 anos ou sem data de nascimento: sem sala (com aviso).
+ * Retorna { sala, porIdade, motivo }.
+ */
+export function salaDaCrianca(salaFixaId, anos, salas) {
+  if (salaFixaId) {
+    const s = salas.find((x) => x.id === salaFixaId);
+    if (s) return { sala: s, porIdade: false };
+  }
+  if (anos === null) return { sala: null, motivo: "Sem data de nascimento: sem sala" };
+  const s = salas.filter((x) => x.ativa).find((x) => anos >= x.idade_min && anos <= x.idade_max);
+  if (s) return { sala: s, porIdade: true };
+  return { sala: null, motivo: anos > 12 ? "Acima de 12 anos: sem sala" : "Nenhuma sala para esta idade" };
+}
+export const textoSala = (r) => (r.sala ? `Sala ${r.sala.nome}${r.porIdade ? "" : " (definida pela liderança)"}` : r.motivo);
+
 export const textoIdade = (n) => (n === null ? "Idade não informada" : n === 0 ? "Menos de 1 ano" : `${n} ano${n > 1 ? "s" : ""}`);
 
 function parametro(nome) {
@@ -50,6 +69,7 @@ function listaComBusca(painel, { itens, rotuloBusca, filtros, desenharItem, vazi
     const proximos = achados.slice(mostrando, mostrando + POR_PAGINA);
     lista.append(...proximos.map((x) => el("li", {}, desenharItem(x))));
     mostrando += proximos.length;
+    preencherFotos(lista); // fotos só dos itens que estão aparecendo
     mais.hidden = mostrando >= achados.length;
     resumo.textContent = achados.length
       ? `${achados.length} encontrad${achados.length > 1 ? "os" : "o"}${mostrando < achados.length ? ` · mostrando ${mostrando}` : ""}`
@@ -76,9 +96,9 @@ function listaComBusca(painel, { itens, rotuloBusca, filtros, desenharItem, vazi
   atualizar();
 }
 
-function itemLink(href, nome, linhas, etiquetas = []) {
+function itemLink(href, nome, linhas, etiquetas = [], foto = null) {
   return el("a", { class: "lista__item lista__item--link", href },
-    el("div", { class: "avatar", "aria-hidden": "true", text: iniciais(nome) }),
+    foto ? avatarLista(foto.tipo, foto.id, nome) : el("div", { class: "avatar", "aria-hidden": "true", text: iniciais(nome) }),
     el("div", { class: "lista__texto" },
       el("p", { class: "notif__titulo", text: nome }),
       ...linhas.filter(Boolean).map((t) => el("p", { class: "notif__quando", text: t })),
@@ -93,22 +113,25 @@ async function abaCriancas(painel) {
   if (!painel.isConnected) return;
   if (!rc.ok) { montar(painel, aviso("erro", rc.erro)); return; }
   const salas = rs.ok ? rs.lista : [];
-  const nomeSala = new Map(salas.map((s) => [s.id, s.nome]));
   const itens = rc.lista
-    .map((c) => ({ ...c, nome: c.pessoa?.nome || "Sem nome", busca: normalizar(c.pessoa?.nome), anos: idade(c.pessoa?.data_nascimento) }))
+    .map((c) => {
+      const anos = idade(c.pessoa?.data_nascimento);
+      return { ...c, nome: c.pessoa?.nome || "Sem nome", busca: normalizar(c.pessoa?.nome), anos, sala: salaDaCrianca(c.sala_fixa_id, anos, salas) };
+    })
     .sort((a, b) => a.busca.localeCompare(b.busca));
   const filtros = [
     { valor: "ativas", texto: "Todas as salas", teste: (c) => c.ativo },
-    ...salas.filter((s) => s.ativa).map((s) => ({ valor: s.id, texto: s.nome, teste: (c) => c.ativo && c.sala_fixa_id === s.id })),
-    { valor: "sem_sala", texto: "Sem sala fixa", teste: (c) => c.ativo && !c.sala_fixa_id },
+    ...salas.filter((s) => s.ativa).map((s) => ({ valor: s.id, texto: `Sala ${s.nome}`, teste: (c) => c.ativo && c.sala.sala?.id === s.id })),
+    { valor: "sem_sala", texto: "Sem sala (acima de 12 anos ou sem idade)", teste: (c) => c.ativo && !c.sala.sala },
     { valor: "inativas", texto: "Inativas", teste: (c) => !c.ativo },
   ];
   listaComBusca(painel, {
     itens, filtros, rotuloBusca: "Buscar criança pelo nome", vazio: "Nenhuma criança encontrada.",
     desenharItem: (c) => itemLink(`#/ficha?tipo=crianca&id=${encodeURIComponent(c.id)}`, c.nome,
-      [`${textoIdade(c.anos)} · ${c.sala_fixa_id ? nomeSala.get(c.sala_fixa_id) || "Sala" : "Sem sala fixa"}`],
+      [`${textoIdade(c.anos)} · ${textoSala(c.sala)}`],
       [c.perfil === "visitante" ? el("span", { class: "etiqueta etiqueta--azul", text: "Visitante" }) : null,
-       !c.ativo ? el("span", { class: "etiqueta", text: "Inativa" }) : null].filter(Boolean)),
+       !c.ativo ? el("span", { class: "etiqueta", text: "Inativa" }) : null].filter(Boolean),
+      { tipo: "crianca", id: c.id }),
   });
 }
 
@@ -154,7 +177,8 @@ async function abaVoluntarias(painel) {
     desenharItem: (v) => itemLink(`#/ficha?tipo=voluntaria&id=${encodeURIComponent(v.id)}`, v.nome,
       [NOMES_FUNCAO[v.funcao] || null],
       [v.status !== "ativa" ? el("span", { class: "etiqueta etiqueta--laranja", text: NOMES_STATUS[v.status] || v.status }) : null,
-       v.anos !== null && v.anos < 18 ? el("span", { class: "etiqueta", text: "Menor de idade" }) : null].filter(Boolean)),
+       v.anos !== null && v.anos < 18 ? el("span", { class: "etiqueta", text: "Menor de idade" }) : null].filter(Boolean),
+      { tipo: "voluntaria", id: v.id }),
   });
 }
 

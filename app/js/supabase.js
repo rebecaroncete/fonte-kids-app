@@ -492,7 +492,7 @@ async function preencherNascimentos(pessoas) {
 /** Salas do Fonte Kids (para filtro e nomes). */
 export async function listarSalas() {
   try {
-    const { data, error } = await sb.from("salas").select("id, nome, ordem, ativa").order("ordem");
+    const { data, error } = await sb.from("salas").select("id, nome, ordem, ativa, idade_min, idade_max").order("ordem");
     if (error) return { ok: false, erro: ERRO_LISTA };
     return { ok: true, lista: data || [] };
   } catch {
@@ -555,7 +555,7 @@ async function pessoasDaFamilia(familiaId) {
 export async function fichaCrianca(id) {
   try {
     const { data: c, error } = await sb.from("criancas")
-      .select("id, familia_id, ativo, perfil, alergias_observacoes, sala:salas(nome), pessoa:pessoas(id, nome, sexo)")
+      .select("id, familia_id, ativo, perfil, alergias_observacoes, sala_fixa_id, pessoa:pessoas(id, nome, sexo)")
       .eq("id", id).maybeSingle();
     if (error) return { ok: false, erro: ERRO_FICHA };
     if (!c) return { ok: false, naoEncontrada: true, erro: "Ficha não encontrada ou sem permissão para ver." };
@@ -589,7 +589,7 @@ export async function fichaFamilia(id) {
     if (!f) return { ok: false, naoEncontrada: true, erro: "Ficha não encontrada ou sem permissão para ver." };
     const [fam, rCri] = await Promise.all([
       pessoasDaFamilia(id),
-      sb.from("criancas").select("id, ativo, sala:salas(nome), pessoa:pessoas(id, nome)").eq("familia_id", id),
+      sb.from("criancas").select("id, ativo, sala_fixa_id, pessoa:pessoas(id, nome)").eq("familia_id", id),
     ]);
     await preencherNascimentos((rCri.data || []).map((c) => c.pessoa));
     return { ok: true, familia: f, ...fam, criancas: rCri.data || [] };

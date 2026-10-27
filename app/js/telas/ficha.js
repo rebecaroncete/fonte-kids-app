@@ -10,7 +10,7 @@
 import { el, montar, aviso, carregando, mascararTelefone } from "../ui.js";
 import { fichaCrianca, fichaFamilia, fichaVoluntaria, listarSalas } from "../supabase.js";
 import { avatarComFoto } from "../foto.js";
-import { idade, textoIdade } from "./cadastros.js";
+import { idade, textoIdade, salaDaCrianca, textoSala } from "./cadastros.js";
 
 export const layout = "padrao";
 export const titulo = "Ficha";
@@ -94,7 +94,8 @@ function listaAutorizadas(autorizadas) {
 
 // ---------------- Criança ----------------
 async function desenharCrianca(alvo, id) {
-  const r = await fichaCrianca(id);
+  const [r, rs] = await Promise.all([fichaCrianca(id), listarSalas()]);
+  const salas = rs.ok ? rs.lista : [];
   if (!r.ok) { montar(alvo, voltar("criancas"), aviso(r.naoEncontrada ? "atencao" : "erro", r.erro)); return; }
   const c = r.crianca;
   const nome = c.pessoa?.nome || "Sem nome";
@@ -115,7 +116,7 @@ async function desenharCrianca(alvo, id) {
     voltar("criancas"),
     cabecalho(avatarComFoto("crianca", c.id, nome), nome,
       [`${textoIdade(idade(c.pessoa?.data_nascimento))} · nasc. ${dataBr(c.pessoa?.data_nascimento)}`,
-       c.sala?.nome ? `Sala: ${c.sala.nome}` : "Sem sala fixa"], etiquetas),
+       textoSala(salaDaCrianca(c.sala_fixa_id, idade(c.pessoa?.data_nascimento), salas))], etiquetas),
     c.alergias_observacoes
       ? aviso("atencao", `Alergias e cuidados: ${c.alergias_observacoes}`)
       : el("p", { class: "suave", text: "Nenhuma alergia ou cuidado especial informado." }),
@@ -133,7 +134,8 @@ async function desenharCrianca(alvo, id) {
 
 // ---------------- Família ----------------
 async function desenharFamilia(alvo, id) {
-  const r = await fichaFamilia(id);
+  const [r, rs] = await Promise.all([fichaFamilia(id), listarSalas()]);
+  const salas = rs.ok ? rs.lista : [];
   if (!r.ok) { montar(alvo, voltar("familias"), aviso(r.naoEncontrada ? "atencao" : "erro", r.erro)); return; }
   const principal = r.responsaveis.find((x) => x.principal) || r.responsaveis[0];
   const nome = principal?.pessoa?.nome ? `Família de ${principal.pessoa.nome}` : "Família";
@@ -148,7 +150,7 @@ async function desenharFamilia(alvo, id) {
           el("a", { class: "lista__item lista__item--link", href: `#/ficha?tipo=crianca&id=${encodeURIComponent(c.id)}` },
             el("div", { class: "lista__texto" },
               el("p", { class: "notif__titulo", text: c.pessoa?.nome || "Sem nome" }),
-              el("p", { class: "notif__quando", text: `${textoIdade(idade(c.pessoa?.data_nascimento))} · ${c.sala?.nome || "Sem sala fixa"}${c.ativo ? "" : " · inativa"}` }))))))
+              el("p", { class: "notif__quando", text: `${textoIdade(idade(c.pessoa?.data_nascimento))} · ${textoSala(salaDaCrianca(c.sala_fixa_id, idade(c.pessoa?.data_nascimento), salas))}${c.ativo ? "" : " · inativa"}` }))))))
       : el("p", { class: "suave", text: "Nenhuma criança visível." })),
     secao("Responsáveis", listaResponsaveis(r.responsaveis, null)),
     secao("Autorizados a retirar", listaAutorizadas(r.autorizadas)),
