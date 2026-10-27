@@ -10,6 +10,7 @@
   border-bottom: var(--traco);
   position: sticky; top: 0; z-index: 10;
 }
+.topo__marca { display: flex; align-items: center; gap: var(--e3); color: var(--texto); text-decoration: none; }
 .topo__logo { width: 40px; height: 40px; }
 .topo__nome { font-family: var(--fonte-titulo); font-weight: 800; font-size: 1.25rem; margin: 0; }
 .topo__acoes { margin-left: auto; display: flex; gap: var(--e2); }
@@ -159,3 +160,57 @@ select.entrada { cursor: pointer; }
 .crianca-rel { margin-bottom: var(--e4); }
 .crianca-rel .campo:last-child { margin-bottom: 0; }
 .crianca-rel__nome { font-family: var(--fonte-titulo); font-weight: 800; font-size: 1.2rem; margin: 0 0 var(--e3); }
+
+/* ---------- Casca: sino e menu (Fase 10 · Etapa 4) ---------- */
+.icone { width: 24px; height: 24px; fill: currentColor; }
+.botao-icone {
+  position: relative; display: inline-grid; place-items: center;
+  width: 44px; height: 44px; padding: 0;
+  color: var(--contorno); background: var(--superficie);
+  border: var(--traco); border-radius: var(--raio-p); box-shadow: var(--sombra-p);
+  cursor: pointer;
+}
+.botao-icone[aria-current="page"], .botao-icone[aria-expanded="true"] { background: var(--amarelo); }
+.sino__contagem {
+  position: absolute; top: -8px; right: -8px; min-width: 22px; height: 22px; padding: 0 5px;
+  display: grid; place-items: center; border-radius: 999px; border: var(--traco);
+  background: var(--laranja); font-size: .75rem; font-weight: 800; line-height: 1;
+}
+.menu {
+  position: absolute; top: calc(100% + 6px); right: var(--e4);
+  width: min(260px, calc(100vw - 32px));
+  background: var(--superficie); border: var(--traco); border-radius: var(--raio); box-shadow: var(--sombra);
+  padding: var(--e2); z-index: 20;
+}
+.menu__lista { list-style: none; margin: 0; padding: 0; }
+.menu__item {
+  display: block; width: 100%; padding: var(--e3); border: 0; border-radius: var(--raio-p);
+  background: none; text-align: left; font: 700 1rem var(--fonte-texto); color: var(--texto);
+  text-decoration: none; cursor: pointer;
+}
+.menu__item:hover { background: var(--fundo); }
+.menu__item[aria-current="page"] { background: var(--amarelo-claro); }
+.menu__item--sair { color: var(--erro); border-top: 2px dashed var(--borda-suave); border-radius: 0; margin-top: var(--e1); }
+
+/* ---------- Início, perfil e notificações ---------- */
+.cabecalho-tela { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--e2); margin-bottom: var(--e3); }
+.cabecalho-tela h1 { margin: 0; }
+.atalho { display: flex; align-items: center; justify-content: space-between; gap: var(--e3); }
+.atalho__titulo { margin: 0; }
+.atalho__texto { margin: 0; }
+
+.perfil-cabecalho { display: flex; align-items: center; gap: var(--e3); margin-bottom: var(--e4); }
+.perfil-cabecalho__nome { font-family: var(--fonte-titulo); font-weight: 800; font-size: 1.3rem; margin: 0; overflow-wrap: anywhere; }
+.avatar--grande { width: 64px; height: 64px; font-size: 1.3rem; }
+.dados { margin: 0; display: grid; gap: var(--e1); }
+.dados dt { font-weight: 800; font-size: .85rem; color: var(--texto-suave); margin-top: var(--e2); }
+.dados dd { margin: 0; overflow-wrap: anywhere; }
+.lista-simples { margin: 0; padding-left: 1.2em; }
+
+.notif { padding: var(--e3) var(--e4); background: var(--superficie); border: var(--traco); border-radius: var(--raio-p); }
+.notif--nova { background: var(--laranja-claro); }
+.notif__topo { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--e2); }
+.notif__titulo { font-weight: 800; margin: 0; }
+.notif__corpo { margin: var(--e1) 0 0; overflow-wrap: anywhere; }
+.notif__quando { font-size: .8rem; color: var(--texto-suave); margin: var(--e1) 0 0; }
+.notif .linha { margin-top: var(--e2); }

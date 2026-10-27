@@ -8,10 +8,13 @@
 // Rotas privadas exigem login; sem sessão, a pessoa vai para "Entrar".
 // Enquanto o 1º acesso não termina (senha → termo → relações), qualquer rota
 // privada leva para "#/primeiro-acesso", retomando de onde a pessoa parou.
+// Telas "padrao" com login ganham a casca (js/casca.js): sino + menu por papel.
 // =====================================================================
 import { CONFIG } from "../config.js";
 import { el, montar, carregando, aviso, toast } from "./ui.js";
-import { sb, sessaoAtual, sair, estadoPrimeiroAcesso } from "./supabase.js";
+import { sb, sessaoAtual, sair, estadoPrimeiroAcesso, limparPerfilGuardado } from "./supabase.js";
+import { montarTopo } from "./casca.js";
+import { iniciarNotificacoes, pararNotificacoes } from "./notificacoes.js";
 
 const ROTAS = {
   "/entrar":        { publica: true, soDeslogado: true, carregar: () => import("./telas/login.js") },
@@ -19,7 +22,13 @@ const ROTAS = {
   "/vitrine":       { publica: true, carregar: () => import("./telas/vitrine.js") },
   "/inicio":        { publica: false, carregar: () => import("./telas/inicio.js") },
   "/primeiro-acesso": { publica: false, carregar: () => import("./telas/primeiro-acesso.js") },
+  "/notificacoes":  { publica: false, carregar: () => import("./telas/notificacoes.js") },
+  "/perfil":        { publica: false, carregar: () => import("./telas/perfil.js") },
+  "/trocar-senha":  { publica: false, carregar: () => import("./telas/trocar-senha.js") },
 };
+
+/** Endereço interno conhecido? (usado para abrir links de notificações) */
+export function rotaExiste(rota) { return Object.prototype.hasOwnProperty.call(ROTAS, rota); }
 const ROTA_PRIMEIRO_ACESSO = "/primeiro-acesso";
 const ROTA_INICIAL = "/entrar";
 const ROTA_LOGADO = "/inicio";
@@ -56,18 +65,11 @@ export function irPara(rota) {
   if (rotaAtual() === rota) mostrar(); else location.hash = rota;
 }
 
-async function fazerSair() {
+export async function fazerSair() {
+  await pararNotificacoes();
   await sair();
   toast("info", "Você saiu.");
   irPara("/entrar");
-}
-
-function topo(logado) {
-  return el("header", { class: "topo" },
-    el("img", { class: "topo__logo", src: "img/logo.png", alt: "" }),
-    el("p", { class: "topo__nome", text: CONFIG.nomeApp }),
-    el("nav", { class: "topo__acoes", "aria-label": "Atalhos" },
-      logado ? el("button", { class: "botao botao--texto", type: "button", text: "Sair", onclick: fazerSair }) : null));
 }
 
 async function mostrar() {
@@ -101,7 +103,8 @@ async function mostrar() {
 
   document.title = tela.titulo ? `${tela.titulo} · ${CONFIG.nomeApp}` : CONFIG.nomeApp;
   const principal = el("main", { class: tela.layout === "central" ? "tela-central" : "conteudo", id: "principal", tabindex: "-1" });
-  const partes = tela.layout === "central" ? [principal] : [topo(!!sessao), principal,
+  if (sessao && tela.layout !== "central") iniciarNotificacoes(); // sino (só depois do 1º acesso)
+  const partes = tela.layout === "central" ? [principal] : [montarTopo({ logado: !!sessao, rota, aoSair: fazerSair }), principal,
     el("footer", { class: "rodape", text: `${CONFIG.nomeApp} · versão ${CONFIG.versao}` })];
   montar(raiz, partes);
 
@@ -118,7 +121,7 @@ async function mostrar() {
 // Sessão encerrada (sair em outra aba, sessão expirada): volta para "Entrar".
 sb.auth.onAuthStateChange((evento) => {
   if (evento === "SIGNED_IN") etapaGuardada = null;
-  if (evento === "SIGNED_OUT") { etapaGuardada = null; relacoesAdiadas = false; }
+  if (evento === "SIGNED_OUT") { etapaGuardada = null; relacoesAdiadas = false; limparPerfilGuardado(); pararNotificacoes(); }
   if (evento === "SIGNED_OUT") {
     const def = ROTAS[rotaAtual()];
     if (!def || !def.publica) setTimeout(() => irPara("/entrar"), 0);

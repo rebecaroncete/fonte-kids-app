@@ -260,3 +260,145 @@ export async function informarRelacao(criancaId, tipo, detalhe) {
     return { ok: false, erro: SEM_CONEXAO };
   }
 }
+
+// =====================================================================
+// Casca por papel (Fase 10 · Etapa 4): meu perfil, trocar senha,
+// notificações. Mesmo formato: { ok: true, ... } ou { ok: false, erro }.
+// =====================================================================
+
+export const NOMES_PAPEIS = {
+  admin: "Administração",
+  pastor: "Pastor(a)",
+  lider: "Liderança",
+  recepcao: "Recepção",
+  voluntaria: "Voluntária",
+  responsavel: "Responsável",
+};
+const ORDEM_PAPEIS = ["admin", "pastor", "lider", "recepcao", "voluntaria", "responsavel"];
+
+let perfilGuardado = null; // { uid, dados } – só na memória desta aba
+
+/** Esquece o perfil guardado (ao sair ou trocar de login). */
+export function limparPerfilGuardado() { perfilGuardado = null; }
+
+/**
+ * Dados do próprio login: nome, telefone e papéis (com o departamento).
+ * Retorna { ok, uid, nome, telefone, papeis: [{ papel, nomePapel, departamento }], temPapel(p) }.
+ */
+export async function meuPerfil(forcar = false) {
+  const s = await sessaoAtual();
+  if (!s) return { ok: false, erro: "Você não está conectado." };
+  const uid = s.user.id;
+  if (!forcar && perfilGuardado?.uid === uid) return perfilGuardado.dados;
+  try {
+    const [rPerfil, rPapeis] = await Promise.all([
+      sb.from("perfis").select("telefone, pessoa_id").eq("id", uid).maybeSingle(),
+      sb.from("papeis_usuario").select("papel, departamento_id").eq("perfil_id", uid),
+    ]);
+    if (rPerfil.error || rPapeis.error) throw new Error("leitura");
+    const perfil = rPerfil.data || {};
+
+    let nome = "";
+    if (perfil.pessoa_id) {
+      const { data } = await sb.from("pessoas").select("nome").eq("id", perfil.pessoa_id).maybeSingle();
+      nome = data?.nome || "";
+    }
+
+    const depIds = [...new Set((rPapeis.data || []).map((p) => p.departamento_id).filter(Boolean))];
+    let deps = new Map();
+    if (depIds.length) {
+      const { data } = await sb.from("departamentos").select("id, nome").in("id", depIds);
+      deps = new Map((data || []).map((d) => [d.id, d.nome]));
+    }
+
+    const papeis = (rPapeis.data || [])
+      .map((p) => ({ papel: p.papel, nomePapel: NOMES_PAPEIS[p.papel] || p.papel, departamento: deps.get(p.departamento_id) || "" }))
+      .sort((a, b) => ORDEM_PAPEIS.indexOf(a.papel) - ORDEM_PAPEIS.indexOf(b.papel));
+
+    const dados = {
+      ok: true, uid, nome,
+      telefone: perfil.telefone || (await telefoneDoLoginAtual()),
+      papeis,
+      temPapel: (...lista) => papeis.some((p) => lista.includes(p.papel)),
+    };
+    perfilGuardado = { uid, dados };
+    return dados;
+  } catch {
+    return { ok: false, erro: "Não foi possível carregar o seu perfil agora." };
+  }
+}
+
+/**
+ * Trocar senha (pessoa já conectada).
+ * 1) confere a senha atual (entrando de novo, com captcha);
+ * 2) grava a nova senha;
+ * 3) desconecta os outros aparelhos deste login.
+ */
+export async function trocarSenha(atual, nova, captchaToken) {
+  const tel = await telefoneDoLoginAtual();
+  if (!tel) return { ok: false, erro: "Você não está conectado. Entre de novo." };
+  try {
+    const { error } = await sb.auth.signInWithPassword({
+      email: emailDoLogin(tel), password: atual, options: { captchaToken },
+    });
+    if (error) {
+      const m = mensagemDeErro(error);
+      return { ok: false, erro: m === "Telefone ou senha incorretos." ? "A senha atual está incorreta." : m, refazerCaptcha: true };
+    }
+  } catch {
+    return { ok: false, erro: SEM_CONEXAO, refazerCaptcha: true };
+  }
+  try {
+    const { error } = await sb.auth.updateUser({ password: nova });
+    if (error) {
+      const cod = String(error.code || "");
+      const msg = String(error.message || "").toLowerCase();
+      if (cod === "same_password" || msg.includes("different from the old")) return { ok: false, erro: "A nova senha precisa ser diferente da atual.", refazerCaptcha: true };
+      if (cod === "weak_password" || msg.includes("weak")) return { ok: false, erro: "Senha fraca. Use pelo menos 8 caracteres, misturando letras e números.", refazerCaptcha: true };
+      if (error.status === 429) return { ok: false, erro: "Muitas tentativas seguidas. Aguarde alguns minutos e tente de novo.", refazerCaptcha: true };
+      return { ok: false, erro: "Não foi possível trocar a senha agora. Tente de novo.", refazerCaptcha: true };
+    }
+  } catch {
+    return { ok: false, erro: SEM_CONEXAO, refazerCaptcha: true };
+  }
+  try { await sb.auth.signOut({ scope: "others" }); } catch { /* a troca já valeu */ }
+  return { ok: true };
+}
+
+/** Quantas notificações ainda não lidas (só as do próprio login, pelo RLS). */
+export async function contarNaoLidas() {
+  try {
+    const { count, error } = await sb.from("notificacoes")
+      .select("id", { count: "exact", head: true }).is("lida_em", null);
+    if (error) return { ok: false };
+    return { ok: true, total: count || 0 };
+  } catch {
+    return { ok: false };
+  }
+}
+
+/** Notificações mais recentes (até 50). */
+export async function listarNotificacoes() {
+  try {
+    const { data, error } = await sb.from("notificacoes")
+      .select("id, titulo, corpo, link, tipo, lida_em, criado_em")
+      .order("criado_em", { ascending: false }).limit(50);
+    if (error) return { ok: false, erro: "Não foi possível carregar as notificações agora." };
+    return { ok: true, lista: data || [] };
+  } catch {
+    return { ok: false, erro: SEM_CONEXAO };
+  }
+}
+
+/** Marca uma notificação (ou todas, sem id) como lida. */
+export async function marcarLida(id) {
+  try {
+    let q = sb.from("notificacoes").update({ lida_em: new Date().toISOString() }).is("lida_em", null);
+    if (id) q = q.eq("id", id);
+    const { error } = await q;
+    if (error) return { ok: false, erro: "Não foi possível marcar como lida agora." };
+    return { ok: true };
+  } catch {
+    return { ok: false, erro: SEM_CONEXAO };
+  }
+}
