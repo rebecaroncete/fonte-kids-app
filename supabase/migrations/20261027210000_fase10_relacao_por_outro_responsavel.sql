@@ -14,6 +14,8 @@
 --    cônjuge/parceiro(a) entre o login e outro responsável da família.
 -- A pendência "relação não informada" continua somindo sozinha pelos
 -- gatilhos da Fase 4.
+-- Aplicada pelo MCP em 3 partes: fase10_relacao_por_outro_responsavel,
+-- ..._correcao (coluna ambígua) e fase10_relacoes_da_familia_trava (família vazia).
 -- =====================================================================
 
 -- ---------------------------------------------------------------------
@@ -50,8 +52,9 @@ security definer
 set search_path = ''
 as $$
 begin
-  if not (p_familia in (select private.minhas_familias())
-          or private.e_recepcao(private.dept_familia(p_familia))) then
+  if p_familia is null
+     or not coalesce(p_familia in (select private.minhas_familias())
+                     or private.e_recepcao(private.dept_familia(p_familia)), false) then
     raise exception 'Família não encontrada ou sem permissão';
   end if;
   return query
