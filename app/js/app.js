@@ -6,22 +6,46 @@
 //   titulo: texto da aba do navegador
 //   render(alvo): desenha a tela dentro de "alvo"
 // Rotas privadas exigem login; sem sessão, a pessoa vai para "Entrar".
+// Enquanto o 1º acesso não termina (senha → termo → relações), qualquer rota
+// privada leva para "#/primeiro-acesso", retomando de onde a pessoa parou.
 // =====================================================================
 import { CONFIG } from "../config.js";
 import { el, montar, carregando, aviso, toast } from "./ui.js";
-import { sb, sessaoAtual, sair } from "./supabase.js";
+import { sb, sessaoAtual, sair, estadoPrimeiroAcesso } from "./supabase.js";
 
 const ROTAS = {
   "/entrar":        { publica: true, soDeslogado: true, carregar: () => import("./telas/login.js") },
   "/esqueci-senha": { publica: true, soDeslogado: true, carregar: () => import("./telas/esqueci-senha.js") },
   "/vitrine":       { publica: true, carregar: () => import("./telas/vitrine.js") },
   "/inicio":        { publica: false, carregar: () => import("./telas/inicio.js") },
+  "/primeiro-acesso": { publica: false, carregar: () => import("./telas/primeiro-acesso.js") },
 };
+const ROTA_PRIMEIRO_ACESSO = "/primeiro-acesso";
 const ROTA_INICIAL = "/entrar";
 const ROTA_LOGADO = "/inicio";
 
 const raiz = document.getElementById("app");
 let renderAtual = 0;
+
+// ---------- Situação do 1º acesso (guardada só na memória desta aba) ----------
+// etapa: trocar_senha | aceitar_termo | informar_relacoes | pronto | sem_acesso
+let etapaGuardada = null;
+let relacoesAdiadas = false; // "Deixar para depois" vale só até sair ou fechar a aba
+
+/** A tela do 1º acesso avisa aqui quando a pessoa avança de passo. */
+export function definirEtapaAcesso(etapa) { etapaGuardada = etapa; }
+/** Relação não informada é só aviso: a pessoa pode deixar para depois. */
+export function adiarRelacoes() { relacoesAdiadas = true; }
+
+async function precisaPrimeiroAcesso() {
+  if (!etapaGuardada) {
+    const r = await estadoPrimeiroAcesso();
+    if (!r.ok) return false; // sem resposta: a tela mostra o erro; o banco continua protegendo os dados
+    etapaGuardada = r.etapa;
+  }
+  if (etapaGuardada === "trocar_senha" || etapaGuardada === "aceitar_termo") return true;
+  return etapaGuardada === "informar_relacoes" && !relacoesAdiadas;
+}
 
 function rotaAtual() {
   const h = location.hash.replace(/^#/, "");
@@ -58,6 +82,11 @@ async function mostrar() {
   // Proteção das rotas
   if (def && !def.publica && !sessao) { irPara("/entrar"); return; }
   if (def && def.soDeslogado && sessao) { irPara(ROTA_LOGADO); return; }
+  if (def && !def.publica && sessao && rota !== ROTA_PRIMEIRO_ACESSO) {
+    const precisa = await precisaPrimeiroAcesso();
+    if (meu !== renderAtual) return;
+    if (precisa) { irPara(ROTA_PRIMEIRO_ACESSO); return; }
+  }
 
   let tela;
   try {
@@ -88,6 +117,8 @@ async function mostrar() {
 
 // Sessão encerrada (sair em outra aba, sessão expirada): volta para "Entrar".
 sb.auth.onAuthStateChange((evento) => {
+  if (evento === "SIGNED_IN") etapaGuardada = null;
+  if (evento === "SIGNED_OUT") { etapaGuardada = null; relacoesAdiadas = false; }
   if (evento === "SIGNED_OUT") {
     const def = ROTAS[rotaAtual()];
     if (!def || !def.publica) setTimeout(() => irPara("/entrar"), 0);

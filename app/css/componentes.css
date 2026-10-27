@@ -145,3 +145,17 @@
 /* Verificação anti-robô (Turnstile) – reserva o espaço do quadro */
 .captcha { min-height: 65px; display: flex; justify-content: center; margin: 0.25rem 0 0.75rem; }
 .captcha .aviso { width: 100%; }
+
+/* ---------- 1º acesso (Fase 10 · Etapa 3) ---------- */
+[hidden] { display: none !important; }
+.passo-rotulo { margin: 0; font-weight: 800; font-size: .85rem; letter-spacing: .04em; text-transform: uppercase; color: var(--laranja-escuro); }
+.termo-texto {
+  max-height: 50vh; overflow-y: auto; white-space: pre-wrap; overflow-wrap: anywhere;
+  padding: var(--e3); margin-bottom: var(--e2);
+  background: var(--fundo); border: var(--traco); border-radius: var(--raio-p);
+}
+.termo-texto:focus { outline: 3px solid var(--azul-claro); }
+select.entrada { cursor: pointer; }
+.crianca-rel { margin-bottom: var(--e4); }
+.crianca-rel .campo:last-child { margin-bottom: 0; }
+.crianca-rel__nome { font-family: var(--fonte-titulo); font-weight: 800; font-size: 1.2rem; margin: 0 0 var(--e3); }

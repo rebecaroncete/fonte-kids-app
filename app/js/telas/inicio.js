@@ -1,35 +1,36 @@
 // =====================================================================
-// Tela: Início (PROVISÓRIA – Fase 10 · Etapa 2)
-// Só confirma que o login funcionou e mostra em que etapa do 1º acesso a
-// pessoa está. As telas de troca de senha, termo e relações chegam na
-// Etapa 3; o início por papel, na Etapa 4.
+// Tela: Início (PROVISÓRIA – Fase 10 · Etapa 3)
+// Quem ainda não terminou o 1º acesso é levado antes para
+// "#/primeiro-acesso" (js/app.js). Aqui chega quem já terminou, ou quem
+// deixou as relações para depois. O início por papel chega na Etapa 4.
 // =====================================================================
 import { el, montar, aviso, carregando } from "../ui.js";
-import { sb } from "../supabase.js";
+import { estadoPrimeiroAcesso } from "../supabase.js";
 
 export const layout = "padrao";
 export const titulo = "Início";
 export const privada = true;
 
-const ETAPAS = {
-  trocar_senha:      ["atencao", "Próximo passo: trocar a senha inicial. (Tela disponível na próxima etapa do app.)"],
-  aceitar_termo:     ["atencao", "Próximo passo: ler e aceitar o termo de uso de dados (LGPD). (Tela disponível na próxima etapa do app.)"],
-  informar_relacoes: ["atencao", "Próximo passo: informar a sua relação com cada criança. (Tela disponível na próxima etapa do app.)"],
-  pronto:            ["sucesso", "Tudo certo com o seu acesso."],
-  sem_acesso:        ["erro", "Seu acesso não está ativo. Fale com a liderança do Fonte Kids."],
-};
-
 export async function render(alvo) {
   montar(alvo, carregando());
-  let etapa = null;
-  try {
-    const { data, error } = await sb.rpc("estado_primeiro_acesso");
-    if (!error) etapa = data?.etapa ?? null;
-  } catch { /* segue com etapa nula */ }
+  const est = await estadoPrimeiroAcesso();
 
-  const [tipo, texto] = ETAPAS[etapa] || ["erro", "Não foi possível carregar seus dados agora. Tente recarregar a página."];
+  let conteudo;
+  if (!est.ok) {
+    conteudo = aviso("erro", "Não foi possível carregar seus dados agora. Tente recarregar a página.");
+  } else if (est.etapa === "sem_acesso") {
+    conteudo = aviso("erro", "Seu acesso não está ativo. Fale com a liderança do Fonte Kids.");
+  } else if (est.etapa === "informar_relacoes") {
+    conteudo = [
+      aviso("atencao", "Falta informar a sua relação com uma ou mais crianças."),
+      el("p", {}, el("a", { class: "botao botao--secundario", href: "#/primeiro-acesso", text: "Informar agora" })),
+    ];
+  } else {
+    conteudo = aviso("sucesso", "Tudo certo com o seu acesso.");
+  }
+
   montar(alvo,
     el("h1", { text: "Você entrou 🎉" }),
-    aviso(tipo, texto),
+    conteudo,
     el("p", { class: "suave", text: "Versão de teste: as demais telas chegam nas próximas etapas." }));
 }

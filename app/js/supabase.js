@@ -140,3 +140,123 @@ export async function verificarConexao() {
     return false;
   }
 }
+
+// =====================================================================
+// 1º acesso (Fase 10 · Etapa 3)
+// Todas as funções retornam { ok: true, ... } ou { ok: false, erro } com
+// mensagem simples (sem detalhe técnico).
+// =====================================================================
+
+const SEM_CONEXAO = "Sem conexão com o servidor. Verifique a internet e tente de novo.";
+
+/** Em que passo do 1º acesso a pessoa está (função estado_primeiro_acesso). */
+export async function estadoPrimeiroAcesso() {
+  try {
+    const { data, error } = await sb.rpc("estado_primeiro_acesso");
+    if (error || !data?.etapa) return { ok: false, erro: "Não foi possível carregar seus dados agora." };
+    return { ok: true, ...data };
+  } catch {
+    return { ok: false, erro: SEM_CONEXAO };
+  }
+}
+
+/** Telefone do login atual (só dígitos, com 55), lido do e-mail técnico. */
+export async function telefoneDoLoginAtual() {
+  const s = await sessaoAtual();
+  const email = s?.user?.email || "";
+  return email.endsWith(`@${CONFIG.dominioLogin}`) ? email.split("@")[0] : "";
+}
+
+/**
+ * Troca a senha inicial e libera o perfil (concluir_troca_senha).
+ * Se a senha já tinha sido trocada mas a confirmação falhou (internet caiu),
+ * tentar de novo com a mesma senha também conclui.
+ */
+export async function trocarSenhaInicial(novaSenha) {
+  let mesmaSenha = false;
+  try {
+    const { error } = await sb.auth.updateUser({ password: novaSenha });
+    if (error) {
+      const cod = String(error.code || "");
+      const msg = String(error.message || "").toLowerCase();
+      if (cod === "same_password" || msg.includes("different from the old")) mesmaSenha = true;
+      else if (cod === "weak_password" || msg.includes("weak")) return { ok: false, erro: "Senha fraca. Use pelo menos 8 caracteres, misturando letras e números." };
+      else if (cod === "reauthentication_needed") return { ok: false, erro: "Por segurança, saia, entre de novo com a senha inicial e troque a senha logo em seguida." };
+      else if (error.status === 429) return { ok: false, erro: "Muitas tentativas seguidas. Aguarde alguns minutos e tente de novo." };
+      else return { ok: false, erro: "Não foi possível trocar a senha agora. Tente de novo." };
+    }
+  } catch {
+    return { ok: false, erro: SEM_CONEXAO };
+  }
+  try {
+    const { error } = await sb.rpc("concluir_troca_senha");
+    if (!error) return { ok: true };
+    if (mesmaSenha) return { ok: false, erro: "A nova senha precisa ser diferente da senha inicial." };
+    return { ok: false, erro: "A senha foi trocada, mas não conseguimos confirmar. Tente de novo com a mesma nova senha." };
+  } catch {
+    return { ok: false, erro: SEM_CONEXAO };
+  }
+}
+
+/** Termo LGPD vigente: { ok, versao, texto }. */
+export async function termoVigente() {
+  try {
+    const { data, error } = await sb.from("termos_lgpd_versoes")
+      .select("versao, texto").eq("vigente", true).maybeSingle();
+    if (error || !data) return { ok: false, erro: "Não foi possível carregar o termo agora." };
+    return { ok: true, versao: data.versao, texto: data.texto };
+  } catch {
+    return { ok: false, erro: SEM_CONEXAO };
+  }
+}
+
+/** Aceite do termo na versão mostrada na tela. */
+export async function aceitarTermo(versao) {
+  try {
+    const { error } = await sb.rpc("aceitar_termo_lgpd", { p_versao: versao });
+    if (!error) return { ok: true };
+    if (String(error.message || "").includes("desatualizada")) {
+      return { ok: false, erro: "O termo foi atualizado. Recarregue a página para ler a versão nova." };
+    }
+    return { ok: false, erro: "Não foi possível registrar o aceite agora. Tente de novo." };
+  } catch {
+    return { ok: false, erro: SEM_CONEXAO };
+  }
+}
+
+/** Nomes das crianças (ids vindos de estado_primeiro_acesso). */
+export async function criancasPorId(ids) {
+  if (!ids?.length) return { ok: true, lista: [] };
+  try {
+    const { data: cri, error: e1 } = await sb.from("criancas").select("id, pessoa_id").in("id", ids);
+    if (e1) throw e1;
+    const pessoaIds = (cri || []).map((c) => c.pessoa_id).filter(Boolean);
+    let nomes = new Map();
+    if (pessoaIds.length) {
+      const { data: pes, error: e2 } = await sb.from("pessoas").select("id, nome").in("id", pessoaIds);
+      if (e2) throw e2;
+      nomes = new Map((pes || []).map((p) => [p.id, p.nome]));
+    }
+    const lista = ids.map((id, i) => {
+      const c = (cri || []).find((x) => x.id === id);
+      return { id, nome: (c && nomes.get(c.pessoa_id)) || `Criança ${i + 1}` };
+    });
+    return { ok: true, lista };
+  } catch {
+    return { ok: false, erro: "Não foi possível carregar as crianças agora." };
+  }
+}
+
+/** Relação do responsável com uma criança (informar_relacao). */
+export async function informarRelacao(criancaId, tipo, detalhe) {
+  try {
+    const { error } = await sb.rpc("informar_relacao", {
+      p_crianca: criancaId, p_tipo: tipo, p_detalhe: detalhe || null,
+    });
+    if (!error) return { ok: true };
+    if (String(error.message || "").includes("Descreva")) return { ok: false, erro: "Descreva a relação (ex.: madrinha)." };
+    return { ok: false, erro: "Não foi possível salvar agora. Tente de novo." };
+  } catch {
+    return { ok: false, erro: SEM_CONEXAO };
+  }
+}
