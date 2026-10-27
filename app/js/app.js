@@ -9,6 +9,8 @@
 // Enquanto o 1º acesso não termina (senha → termo → relações), qualquer rota
 // privada leva para "#/primeiro-acesso", retomando de onde a pessoa parou.
 // Telas "padrao" com login ganham a casca (js/casca.js): sino + menu por papel.
+// App instalável (Etapa 6, js/pwa.js): service worker, aviso de versão nova,
+// aviso sem conexão e convite de instalação (abaixo do topo, só com login).
 // =====================================================================
 import { CONFIG } from "../config.js";
 import { el, montar, carregando, aviso, toast } from "./ui.js";
@@ -16,6 +18,7 @@ import { sb, sessaoAtual, sair, estadoPrimeiroAcesso, limparPerfilGuardado } fro
 import { montarTopo } from "./casca.js";
 import { iniciarNotificacoes, pararNotificacoes } from "./notificacoes.js";
 import { limparFotos } from "./foto.js";
+import { iniciarPWA, faixaInstalacao } from "./pwa.js";
 
 const ROTAS = {
   "/entrar":        { publica: true, soDeslogado: true, carregar: () => import("./telas/login.js") },
@@ -110,7 +113,8 @@ async function mostrar() {
   document.title = tela.titulo ? `${tela.titulo} · ${CONFIG.nomeApp}` : CONFIG.nomeApp;
   const principal = el("main", { class: tela.layout === "central" ? "tela-central" : "conteudo", id: "principal", tabindex: "-1" });
   if (sessao && tela.layout !== "central") iniciarNotificacoes(); // sino (só depois do 1º acesso)
-  const partes = tela.layout === "central" ? [principal] : [montarTopo({ logado: !!sessao, rota, aoSair: fazerSair }), principal,
+  const partes = tela.layout === "central" ? [principal] : [montarTopo({ logado: !!sessao, rota, aoSair: fazerSair }),
+    sessao ? faixaInstalacao() : null, principal,
     el("footer", { class: "rodape", text: `${CONFIG.nomeApp} · versão ${CONFIG.versao}` })];
   montar(raiz, partes);
 
@@ -135,4 +139,5 @@ sb.auth.onAuthStateChange((evento) => {
 });
 
 window.addEventListener("hashchange", mostrar);
+iniciarPWA();
 mostrar();

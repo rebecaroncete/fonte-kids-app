@@ -16,12 +16,17 @@ app/
   js/notificacoes.js  contagem de não lidas + tempo real (Realtime)
   js/ui.js            utilidades (criar elementos com segurança, avisos, telefone)
   js/telas/*.js       uma tela por arquivo (layout, titulo, render)
+  manifest.webmanifest  app instalável (nome, cores, ícones)
+  sw.js               service worker: guarda SÓ os arquivos do app (VERSAO + ARQUIVOS)
+  js/pwa.js           registro do sw, aviso de versão nova, sem conexão, convite de instalação
   img/logo.png        logo com fundo transparente
+  img/icones/         ícones do app (192, 512, maskable, iPhone 180, favicon)
   fonts/              Baloo 2 e Nunito servidas pelo próprio app (sem Google Fonts)
   vendor/             supabase-js 2.118.0 (versão fixa)
 ```
 
 ## Regras
+- **A cada entrega:** subir `versao` em `config.js` **e** `VERSAO` em `sw.js` (mesmo número); arquivo novo em `app/` entra em `ARQUIVOS` do `sw.js`. Conferir com `node ferramentas/conferir-pwa.mjs`.
 - Nenhuma chave secreta, senha ou dado pessoal no código. Exemplos só com dados fictícios.
 - Textos na tela sempre por `textContent` (nunca `innerHTML` com dados).
 - Para trocar a versão do supabase-js: baixar o novo `dist/umd/supabase.js`, salvar em `vendor/` e mudar o nome no `index.html`.

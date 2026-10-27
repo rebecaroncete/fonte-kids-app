@@ -16,5 +16,6 @@ export const CONFIG = {
   dominioLogin: "login.fonteitaparica.invalid",
 
   nomeApp: "Fonte Kids",
-  versao: "0.9.1 (Fase 10 · Etapa 5D – relações da família)",
+  // Ao mudar a versão, mude também VERSAO em sw.js (o mesmo número).
+  versao: "0.10.0 (Fase 10 · Etapa 6 – app instalável)",
 };

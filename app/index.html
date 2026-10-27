@@ -4,14 +4,21 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <!-- Segurança: o app só fala com o próprio endereço, o Supabase, o Cloudinary
-       (fotos) e o captcha da Cloudflare. Nada de scripts de terceiros. -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://challenges.cloudflare.com; style-src 'self'; font-src 'self'; img-src 'self' data: blob: https://res.cloudinary.com https://api.cloudinary.com; connect-src 'self' https://pnujayydfuimfhcgrxjo.supabase.co wss://pnujayydfuimfhcgrxjo.supabase.co; frame-src https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'; form-action 'self'">
+       (fotos) e o captcha da Cloudflare. Nada de scripts de terceiros.
+       manifest/worker: só arquivos do próprio app (Etapa 6). -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://challenges.cloudflare.com; style-src 'self'; font-src 'self'; img-src 'self' data: blob: https://res.cloudinary.com https://api.cloudinary.com; connect-src 'self' https://pnujayydfuimfhcgrxjo.supabase.co wss://pnujayydfuimfhcgrxjo.supabase.co; frame-src https://challenges.cloudflare.com; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
   <meta name="referrer" content="no-referrer">
   <meta name="robots" content="noindex, nofollow">
   <meta name="theme-color" content="#f58941">
   <title>Fonte Kids</title>
-  <link rel="icon" type="image/png" href="img/logo.png">
-  <link rel="apple-touch-icon" href="img/logo.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" sizes="32x32" href="img/icones/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="img/icones/icone-192.png">
+  <link rel="apple-touch-icon" href="img/icones/apple-touch-icon-180.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Fonte Kids">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <link rel="preload" href="fonts/nunito-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="fonts/baloo-2-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="css/tema.css">

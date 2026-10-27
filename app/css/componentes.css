@@ -274,3 +274,32 @@ input[type="file"].entrada { padding: var(--e2); }
 .pendencia .notif__corpo { margin: var(--e1) 0; }
 .pendencia .acoes-cartao { margin-top: var(--e2); }
 .para-completar .lista { margin-top: var(--e2); }
+
+/* ---------- App instalável (Etapa 6) ---------- */
+/* Convite "Instale o app na tela inicial" (abaixo da barra do topo) */
+.instalar {
+  display: flex; gap: var(--e3); align-items: flex-start;
+  max-width: var(--largura); margin: var(--e4) auto 0; width: calc(100% - 2 * var(--e4));
+  padding: var(--e3) var(--e4);
+  background: var(--amarelo-claro); border: var(--traco); border-radius: var(--raio); box-shadow: var(--sombra-p);
+}
+.instalar__icone { width: 48px; height: 48px; flex: none; }
+.instalar__texto { flex: 1; min-width: 0; }
+.instalar__titulo { font-size: 1.15rem; margin: 0 0 var(--e1); }
+.instalar__sub { margin: 0 0 var(--e2); font-size: .95rem; }
+.instalar__passos { margin: 0 0 var(--e2); padding-left: 1.3em; font-size: .95rem; }
+.instalar__passos li { margin-bottom: var(--e1); }
+
+/* Faixas fixas: versão nova (embaixo) e sem conexão (em cima) */
+.faixa-fixa {
+  position: fixed; left: 50%; transform: translateX(-50%); z-index: 90;
+  width: min(92vw, 420px);
+  display: flex; align-items: center; justify-content: space-between; gap: var(--e3);
+  padding: var(--e2) var(--e3) var(--e2) var(--e4);
+  border: var(--traco); border-radius: var(--raio-p); box-shadow: var(--sombra);
+  font-weight: 700;
+}
+.faixa-fixa p { margin: 0; }
+.faixa-fixa--versao { bottom: calc(var(--e4) + env(safe-area-inset-bottom, 0px)); background: var(--azul-claro); animation: subir .2s ease-out; }
+.faixa-fixa--offline { top: calc(var(--e2) + env(safe-area-inset-top, 0px)); background: var(--atencao-claro); font-size: .9rem; }
+body:has(.faixa-fixa--versao) .toasts { bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
