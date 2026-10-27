@@ -257,3 +257,11 @@ select.entrada { cursor: pointer; }
   width: min(92vw, 420px); background: var(--superficie); color: inherit; }
 .janela::backdrop { background: rgba(31, 27, 24, .75); }
 .janela h2 { margin-top: 0; }
+
+/* ---------- Edição pelo responsável (Etapa 5C) ---------- */
+textarea.entrada { min-height: 96px; padding-top: var(--e2); padding-bottom: var(--e2); resize: vertical; font: inherit; }
+input[type="file"].entrada { padding: var(--e2); }
+.previa-foto { overflow: hidden; }
+.previa-foto img { width: 100%; height: 100%; object-fit: cover; }
+.janela { max-height: 90vh; overflow-y: auto; }
+.acoes-cartao { margin-top: var(--e3); }

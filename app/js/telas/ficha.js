@@ -6,10 +6,11 @@
 //   #/ficha?tipo=voluntaria&id=… voluntária (só liderança ou ela mesma)
 // O banco (RLS) decide o que cada login pode ver. Foto pela Edge Function
 // foto-assinada (link de 5 min). Telefones com botão de WhatsApp (wa.me).
+// Foto dos responsáveis (Etapa 5C) para conferir quem retira a criança.
 // =====================================================================
 import { el, montar, aviso, carregando, mascararTelefone } from "../ui.js";
 import { fichaCrianca, fichaFamilia, fichaVoluntaria, listarSalas } from "../supabase.js";
-import { avatarComFoto } from "../foto.js";
+import { avatarComFoto, avatarLista, preencherFotos } from "../foto.js";
 import { idade, textoIdade, salaDaCrianca, textoSala } from "./cadastros.js";
 
 export const layout = "padrao";
@@ -48,12 +49,15 @@ function botaoWhatsapp(telefone, nome) {
 }
 
 /** Cartão de uma pessoa de contato (responsável ou autorizada). */
-function contato(nome, detalhes, telefone, etiquetas = []) {
-  return el("li", { class: "notif" },
+function contato(nome, detalhes, telefone, etiquetas = [], avatar = null) {
+  const texto = [
     el("p", { class: "notif__titulo", text: nome || "Sem nome" }),
     ...detalhes.filter(Boolean).map((t) => el("p", { class: "notif__quando", text: t })),
     etiquetas.length ? el("div", { class: "linha" }, etiquetas) : null,
     el("p", { class: "notif__corpo", text: telefone ? mascararTelefone(telefone) : "Sem telefone no cadastro" }),
+  ];
+  return el("li", { class: "notif" },
+    avatar ? el("div", { class: "linha" }, avatar, el("div", {}, ...texto)) : texto,
     telefone ? el("div", { class: "linha" }, botaoWhatsapp(telefone, nome)) : null);
 }
 
@@ -83,7 +87,8 @@ function listaResponsaveis(responsaveis, relacoes) {
     const rel = relacoes?.get(r.pessoa?.id);
     const textoRel = rel ? (rel.tipo === "outro" && rel.detalhe ? rel.detalhe : RELACOES[rel.tipo] || rel.tipo) : null;
     return contato(r.pessoa?.nome, [textoRel ? `Relação: ${textoRel}` : null], r.pessoa?.telefone,
-      r.principal ? [el("span", { class: "etiqueta etiqueta--azul", text: "Principal" })] : []);
+      r.principal ? [el("span", { class: "etiqueta etiqueta--azul", text: "Principal" })] : [],
+      r.pessoa?.id ? avatarLista("pessoa", r.pessoa.id, r.pessoa?.nome) : null);
   }));
 }
 
@@ -130,6 +135,7 @@ async function desenharCrianca(alvo, id) {
       ? `${quandoBr(uc.entrada_em)}${uc.sala?.nome ? ` · ${uc.sala.nome}` : ""}${uc.saida_em ? " · já saiu" : " · ainda sem check-out"}`
       : "Nenhum check-in registrado." })),
     el("p", {}, el("a", { class: "botao botao--secundario", href: `#/ficha?tipo=familia&id=${encodeURIComponent(c.familia_id)}`, text: "Ver a família" })));
+  preencherFotos(alvo);
 }
 
 // ---------------- Família ----------------
@@ -155,6 +161,7 @@ async function desenharFamilia(alvo, id) {
     secao("Responsáveis", listaResponsaveis(r.responsaveis, null)),
     secao("Autorizados a retirar", listaAutorizadas(r.autorizadas)),
     r.familia.observacoes ? secao("Observações", el("p", { text: r.familia.observacoes })) : null);
+  preencherFotos(alvo);
 }
 
 // ---------------- Voluntária ----------------

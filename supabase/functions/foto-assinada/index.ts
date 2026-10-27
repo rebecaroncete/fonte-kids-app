@@ -6,13 +6,14 @@
 // Chamada pelo app (usuário logado):
 //   POST /functions/v1/foto-assinada
 //   Authorization: Bearer <token da sessão do usuário>
-//   { "tipo": "crianca" | "voluntaria", "ids": ["<uuid>", ...] }   (até 100 ids)
+//   { "tipo": "crianca" | "voluntaria" | "pessoa", "ids": ["<uuid>", ...] }   (até 100 ids)
+//   ("pessoa" = foto de adulto/responsável, por id da pessoa – Etapa 5C)
 // Resposta:
 //   { "fotos": { "<uuid>": "<link temporário>", ... }, "expira_em": "<data ISO>" }
 //   Ids sem permissão ou sem foto simplesmente não aparecem em "fotos".
 //
-// Quem decide a permissão é o BANCO (funções fotos_criancas e
-// fotos_voluntarias, chamadas com o token do próprio usuário).
+// Quem decide a permissão é o BANCO (funções fotos_criancas,
+// fotos_voluntarias e fotos_pessoas, chamadas com o token do próprio usuário).
 //
 // Variáveis de ambiente (Edge Functions → Secrets):
 //   CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET   (obrigatórias, cadastradas pela admin)
@@ -34,6 +35,7 @@ const MAX_IDS = 100;
 const RPC: Record<string, string> = {
   crianca: "fotos_criancas",
   voluntaria: "fotos_voluntarias",
+  pessoa: "fotos_pessoas",
 };
 
 function resposta(corpo: unknown, status = 200): Response {
@@ -76,7 +78,7 @@ Deno.serve(async (req: Request) => {
     return resposta({ erro: "Corpo da requisição inválido." }, 400);
   }
   const rpc = typeof corpo.tipo === "string" ? RPC[corpo.tipo] : undefined;
-  if (!rpc) return resposta({ erro: 'tipo deve ser "crianca" ou "voluntaria".' }, 400);
+  if (!rpc) return resposta({ erro: 'tipo deve ser "crianca", "voluntaria" ou "pessoa".' }, 400);
   if (!Array.isArray(corpo.ids) || corpo.ids.length === 0 || corpo.ids.length > MAX_IDS) {
     return resposta({ erro: `Envie de 1 a ${MAX_IDS} ids.` }, 400);
   }

@@ -24,7 +24,7 @@ function guardada(tipo, id) {
 /**
  * Links temporários de várias fotos de uma vez.
  * Retorna Map(id → url); quem não tem foto ou permissão fica de fora.
- * tipo: "crianca" | "voluntaria"
+ * tipo: "crianca" | "voluntaria" | "pessoa" (adulto, por id da pessoa)
  */
 export async function linksFotos(tipo, ids) {
   const resultado = new Map();
@@ -70,6 +70,74 @@ export async function linkFoto(tipo, id) {
 
 /** Esquece os links (ao sair). */
 export function limparFotos() { guardadas.clear(); }
+
+/** Esquece o link de uma foto (depois de trocar a foto). */
+export function esquecerFoto(tipo, id) { guardadas.delete(`${tipo}:${id}`); }
+
+// ---------- Envio de foto nova (Etapa 5C) ----------
+const LADO_MAX = 800;          // o servidor ainda limita a 400 px
+const TAMANHO_MAX = 15 * 1024 * 1024; // arquivo original até 15 MB
+
+/** Abre a imagem escolhida (já com a rotação certa da câmera). */
+async function abrirImagem(arquivo) {
+  if (window.createImageBitmap) {
+    try { return await createImageBitmap(arquivo, { imageOrientation: "from-image" }); } catch { /* tenta do outro jeito */ }
+  }
+  const url = URL.createObjectURL(arquivo);
+  try {
+    const img = new Image();
+    img.src = url;
+    await img.decode();
+    return img;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+/** Reduz a foto no próprio aparelho e devolve um JPEG (data URL). */
+export async function prepararFoto(arquivo) {
+  if (!arquivo || !arquivo.type?.startsWith("image/")) throw new Error("Escolha um arquivo de imagem.");
+  if (arquivo.size > TAMANHO_MAX) throw new Error("A foto é grande demais (máximo 15 MB).");
+  let img;
+  try { img = await abrirImagem(arquivo); } catch { throw new Error("Não foi possível abrir esta imagem. Tente uma foto em JPG ou PNG."); }
+  const w = img.width, h = img.height;
+  const escala = Math.min(1, LADO_MAX / Math.max(w, h));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(w * escala));
+  canvas.height = Math.max(1, Math.round(h * escala));
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  if (img.close) img.close();
+  return canvas.toDataURL("image/jpeg", 0.85);
+}
+
+/**
+ * Envia a foto nova pela Edge Function "enviar-foto" (o banco confere a permissão).
+ * tipo: "eu" | "crianca" (id = id da criança). Retorna { ok } ou { ok: false, erro }.
+ */
+export async function enviarFoto(tipo, id, dataUrl) {
+  const s = await sessaoAtual();
+  if (!s) return { ok: false, erro: "Você não está conectado." };
+  try {
+    const r = await fetch(`${CONFIG.supabaseUrl}/functions/v1/enviar-foto`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: CONFIG.supabaseChavePublica,
+        Authorization: `Bearer ${s.access_token}`,
+      },
+      body: JSON.stringify({ tipo, id: id || null, imagem: dataUrl }),
+    });
+    if (r.ok) return { ok: true };
+    if (r.status === 403) return { ok: false, erro: "Sem permissão para trocar esta foto." };
+    if (r.status === 413 || r.status === 400) return { ok: false, erro: "Foto inválida ou grande demais. Tente outra." };
+    return { ok: false, erro: "Não foi possível enviar a foto agora. Tente de novo." };
+  } catch {
+    return { ok: false, erro: "Sem conexão com o servidor. Verifique a internet e tente de novo." };
+  }
+}
 
 /**
  * Coloca a foto dentro de um avatar (só depois que ela carregar) e deixa

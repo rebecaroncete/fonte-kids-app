@@ -674,3 +674,50 @@ export async function minhaFamilia() {
     return { ok: false, erro: SEM_CONEXAO };
   }
 }
+
+// =====================================================================
+// Edição pelo responsável (Etapa 5C). A alteração vale na hora; o banco
+// confere a família, registra na auditoria e avisa a liderança.
+// =====================================================================
+
+// Mensagens do banco que podem ser mostradas como estão (todas escritas por nós).
+const ERRO_LEGIVEL = /^(Informe o nome|Data de nascimento inválida|Alergias e cuidados|Telefone inválido|Observação|Limite de 10|Conclua o primeiro acesso)/;
+
+async function chamarEdicao(funcao, args) {
+  try {
+    const { data, error } = await sb.rpc(funcao, args);
+    if (!error) return { ok: true, resultado: data };
+    const msg = String(error.message || "");
+    if (ERRO_LEGIVEL.test(msg)) return { ok: false, erro: msg };
+    if (msg.includes("sem permissão") || msg.includes("não encontrad")) return { ok: false, erro: "Sem permissão para alterar este cadastro." };
+    return { ok: false, erro: "Não foi possível salvar agora. Tente de novo." };
+  } catch {
+    return { ok: false, erro: SEM_CONEXAO };
+  }
+}
+
+/** Data de nascimento de uma pessoa (pela função nascimentos(), que confere a permissão). */
+export async function nascimentoDe(pessoaId) {
+  if (!pessoaId) return null;
+  const p = { id: pessoaId };
+  await preencherNascimentos([p]);
+  return p.data_nascimento || null;
+}
+
+export async function editarMeuPerfil(nome, nascimento) {
+  const r = await chamarEdicao("editar_meu_perfil", { p_nome: nome, p_nascimento: nascimento || null });
+  if (r.ok) limparPerfilGuardado();
+  return r;
+}
+
+export function editarCrianca(criancaId, nome, nascimento, alergias) {
+  return chamarEdicao("editar_crianca", { p_crianca: criancaId, p_nome: nome, p_nascimento: nascimento || null, p_alergias: alergias || null });
+}
+
+export function incluirAutorizado(familiaId, nome, telefone, observacao) {
+  return chamarEdicao("incluir_autorizado", { p_familia: familiaId, p_nome: nome, p_telefone: telefone, p_observacao: observacao || null });
+}
+
+export function removerAutorizado(autorizadoId) {
+  return chamarEdicao("remover_autorizado", { p_autorizado: autorizadoId });
+}
