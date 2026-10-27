@@ -8,7 +8,7 @@ O branch `main` continua com o app atual (Apps Script + planilha) funcionando no
 | Pasta | Conteúdo |
 |---|---|
 | `migrations/` | Criação do banco, em ordem. Já aplicadas no projeto em 26/10/2026. Os nomes batem com o histórico do Supabase. |
-| `tests/teste_seguranca_rls.sql` | Teste das regras de acesso com dados **fictícios**, num departamento fictício próprio (funciona com o banco já preenchido). Tudo é desfeito ao final; o resultado aparece como mensagem "RESULTADO DOS TESTES" (121 verificações: regras de acesso, fotos, cadastro único de pessoas e logins). |
+| `tests/teste_seguranca_rls.sql` | Teste das regras de acesso com dados **fictícios**, num departamento fictício próprio (funciona com o banco já preenchido). Tudo é desfeito ao final; o resultado aparece como mensagem "RESULTADO DOS TESTES" (122 verificações: regras de acesso, fotos, cadastro único de pessoas e logins). |
 | `migracao/` | Fase 2: scripts de limpeza e importação da planilha (sem dados). |
 | `functions/foto-assinada/` | Fase 3: Edge Function que devolve links **temporários** (5 min) das fotos privadas no Cloudinary, só para quem tem permissão. |
 | `functions/gerenciar-login/` | Fase 4 · Etapa 3: cria e redefine logins (telefone → e-mail técnico), sem senha no código nem na resposta. |

@@ -462,6 +462,11 @@ begin
     r := r || E'\n❌ LOGIN: criou um 2º login para a mesma pessoa'; falhas := falhas + 1;
   exception when unique_violation then r := r || E'\n✅ LOGIN: 2º login para a mesma pessoa é recusado';
   end;
+  -- como o Auth real faz: cria o usuário e só depois grava o metadata
+  insert into public.pessoas (igreja_id, nome) values (v_igreja, 'Pessoa Metadata Tardio') returning id into lg_pessoa;
+  update auth.users set raw_app_meta_data = raw_app_meta_data || jsonb_build_object('pessoa_id', lg_pessoa) where id = u_estranho;
+  select count(*) into n from public.perfis where id = u_estranho and pessoa_id = lg_pessoa;
+  r := r || format(E'\n%s LOGIN: metadata gravado depois da criação também liga o perfil à pessoa: %s (esperado 1)', case when n=1 then '✅' else '❌' end, n); falhas := falhas + (n<>1)::int;
   select troca_senha_obrigatoria into lg_ok from public.perfis where id = u_falso;
   r := r || format(E'\n%s LOGIN: login novo nasce com troca de senha obrigatória: %s', case when lg_ok then '✅' else '❌' end, lg_ok); falhas := falhas + (not coalesce(lg_ok, false))::int;
 
