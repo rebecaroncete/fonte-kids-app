@@ -16,11 +16,15 @@
 //   • sem data de nascimento → "Editar dados" (some sozinha);
 //   • manuais (ex.: conferir nascimento) → o responsável marca como
 //     resolvida; a liderança recebe aviso no sino.
+// Relação de OUTRO responsável (complemento da 5D): na seção Responsáveis,
+// "Informar relação" abre uma janelinha com uma linha por criança e a
+// opção "É meu cônjuge/parceiro(a)". O que a própria pessoa já informou
+// no login dela não é alterado (aparece como "informada por ele(a)").
 // O banco (RLS + funções) garante que o responsável mexa só na própria família.
 // =====================================================================
 import { el, montar, aviso, carregando, mascararTelefone, telefoneParaLogin } from "../ui.js";
 import { minhaFamilia, informarRelacao, listarSalas, editarCrianca, incluirAutorizado, removerAutorizado,
-  listarPendencias, confirmarPendencia, nomePendencia } from "../supabase.js";
+  listarPendencias, confirmarPendencia, nomePendencia, informarRelacoesDe, informarConjuge } from "../supabase.js";
 import { avatarComFoto, avatarLista, preencherFotos } from "../foto.js";
 import { abrirJanela, janelaFoto, campo } from "../janela.js";
 import { idade, textoIdade, salaDaCrianca, textoSala } from "./cadastros.js";
@@ -38,6 +42,7 @@ const quandoBr = (iso) => new Date(iso).toLocaleString("pt-BR", {
 const hojeIso = () => new Date().toLocaleDateString("en-CA", { timeZone: FUSO }); // AAAA-MM-DD
 
 let alvoTela = null;
+let eu = null; // pessoa do próprio login
 
 export async function render(alvo) {
   alvoTela = alvo;
@@ -60,6 +65,7 @@ async function desenhar(mostrarCarregando = false) {
     return;
   }
 
+  eu = r.eu;
   const varias = r.familias.length > 1;
   montar(alvoTela,
     el("h1", { text: varias ? "Minhas famílias" : "Minha família" }),
@@ -77,7 +83,7 @@ function blocoFamilia(f, salas, mostrarTitulo, pendencias = []) {
     criancas.length
       ? criancas.map((c) => cartaoCrianca(c, f, salas))
       : el("p", { class: "suave", text: "Nenhuma criança nesta família." }),
-    secao("Responsáveis", listaResponsaveis(f.responsaveis)),
+    secao("Responsáveis", listaResponsaveis(f)),
     secao("Autorizados a retirar", listaAutorizadas(f.autorizadas),
       el("p", { class: "acoes-cartao" }, el("button", {
         class: "botao botao--pequeno botao--secundario", type: "button", text: "Incluir autorizado",
@@ -104,7 +110,18 @@ function itemPendencia(p, c, f) {
   if (p.tipo === "relacao_nao_informada") {
     const minha = c ? f.minhasRelacoes.get(c.pessoa?.id) : null;
     if (minha) {
-      texto = `Você já informou a sua relação${primeiro ? ` com ${primeiro}` : ""}. Falta outro responsável informar a dele(a) pelo app.`;
+      // responsáveis ligados a esta criança que ainda estão sem relação
+      const faltam = c ? f.responsaveis.filter((r) => r.pessoa?.id && r.pessoa.id !== eu
+        && criancasDe(f, r).some((x) => x.id === c.id) && !relacaoDe(f, r.pessoa.id, c.pessoa?.id)) : [];
+      if (faltam.length) {
+        texto = `Falta a relação de ${faltam.map((r) => primeiroNome(r.pessoa.nome)).join(" e ")} com ${primeiro || "a criança"}. Você pode informar por ${faltam.length > 1 ? "eles" : "ele(a)"}.`;
+        for (const r of faltam) {
+          acoes.push(el("button", { class: "botao botao--pequeno botao--secundario", type: "button",
+            text: `Informar por ${primeiroNome(r.pessoa.nome)}`, onclick: () => janelaRelacoesDe(r, f) }));
+        }
+      } else {
+        texto = `Você já informou a sua relação${primeiro ? ` com ${primeiro}` : ""}. Falta outro responsável informar a dele(a).`;
+      }
     } else if (c) {
       texto = `Informe a sua relação${primeiro ? ` com ${primeiro}` : " com a criança"} (ex.: mãe, pai, avó).`;
       acoes.push(el("button", { class: "botao botao--pequeno botao--secundario", type: "button", text: "Informar relação",
@@ -209,13 +226,61 @@ function contato(avatar, nome, detalhes, telefone, etiquetas = [], acao = null) 
     acao ? el("div", { class: "linha" }, acao) : null);
 }
 
-function listaResponsaveis(responsaveis) {
+// ---------- Relações dos responsáveis ----------
+
+const primeiroNome = (nome) => (nome || "").trim().split(/\s+/)[0] || "";
+
+/** Relação de um adulto com uma criança (pessoa_id de cada um), em qualquer direção. */
+function relacaoDe(f, adultoId, criancaPessoaId) {
+  return f.relacoes.find((x) => x.tipo !== "conjuge" &&
+    ((x.pessoa_id === adultoId && x.relacionada_id === criancaPessoaId) ||
+     (x.pessoa_id === criancaPessoaId && x.relacionada_id === adultoId))) || null;
+}
+function saoConjuges(f, a, b) {
+  return f.relacoes.some((x) => x.tipo === "conjuge" &&
+    ((x.pessoa_id === a && x.relacionada_id === b) || (x.pessoa_id === b && x.relacionada_id === a)));
+}
+/** Crianças ligadas a um responsável (se nenhuma estiver ligada, as ativas da família). */
+function criancasDe(f, resp) {
+  const ids = new Set((resp.responsaveis_criancas || []).map((x) => x.crianca_id));
+  const ligadas = f.criancas.filter((c) => ids.has(c.id));
+  return ligadas.length ? ligadas : f.criancas.filter((c) => c.ativo);
+}
+
+function listaResponsaveis(f) {
+  const responsaveis = f.responsaveis;
   if (!responsaveis.length) return el("p", { class: "suave", text: "Nenhum responsável cadastrado." });
-  const ordenados = [...responsaveis].sort((a, b) => Number(b.principal) - Number(a.principal));
-  return el("ul", { class: "lista" }, ordenados.map((r) => contato(
-    r.pessoa?.id ? avatarLista("pessoa", r.pessoa.id, r.pessoa?.nome) : null,
-    r.pessoa?.nome, [], r.pessoa?.telefone,
-    r.principal ? [el("span", { class: "etiqueta etiqueta--azul", text: "Principal" })] : [])));
+  const ordenados = [...responsaveis].sort((a, b) =>
+    Number(b.pessoa?.id === eu) - Number(a.pessoa?.id === eu) || Number(b.principal) - Number(a.principal));
+  return el("ul", { class: "lista" }, ordenados.map((r) => {
+    const pid = r.pessoa?.id;
+    const souEu = pid && pid === eu;
+    const etiquetas = [
+      souEu ? el("span", { class: "etiqueta", text: "Você" }) : null,
+      r.principal ? el("span", { class: "etiqueta etiqueta--azul", text: "Principal" }) : null,
+      !souEu && pid && eu && saoConjuges(f, eu, pid) ? el("span", { class: "etiqueta etiqueta--laranja", text: "Seu cônjuge/parceiro(a)" }) : null,
+    ].filter(Boolean);
+
+    let detalhe = null;
+    let acao = null;
+    if (!souEu && pid) {
+      const cri = criancasDe(f, r);
+      const partes = cri.map((c) => {
+        const rel = relacaoDe(f, pid, c.pessoa?.id);
+        return rel ? `${textoRelacao(rel)} de ${primeiroNome(c.pessoa?.nome)}` : null;
+      }).filter(Boolean);
+      const falta = cri.length - partes.length;
+      detalhe = partes.length
+        ? `Relação: ${partes.join(" · ")}${falta ? ` · falta ${falta}` : ""}`
+        : "Relação com as crianças: ainda não informada";
+      acao = el("button", {
+        class: falta ? "botao botao--pequeno botao--secundario" : "botao botao--pequeno", type: "button",
+        text: falta ? "Informar relação" : "Corrigir relação", onclick: () => janelaRelacoesDe(r, f),
+      });
+    }
+    return contato(pid ? avatarLista("pessoa", pid, r.pessoa?.nome) : null,
+      r.pessoa?.nome, [detalhe], r.pessoa?.telefone, etiquetas, acao);
+  }));
 }
 
 function listaAutorizadas(autorizadas) {
@@ -272,6 +337,64 @@ function janelaRelacao(criancaId, nome, atual) {
       const res = await informarRelacao(criancaId, tipo.value, det);
       if (!res.ok) return res.erro;
       definirEtapaAcesso(null); // o app confere de novo se ainda falta alguma relação
+      await desenhar();
+      return null;
+    },
+  });
+}
+
+function janelaRelacoesDe(resp, f) {
+  const pid = resp.pessoa?.id;
+  const nomeResp = resp.pessoa?.nome || "este responsável";
+  const linhas = criancasDe(f, resp).map((c) => {
+    const nomeCri = c.pessoa?.nome || "Criança";
+    const atual = relacaoDe(f, pid, c.pessoa?.id);
+    if (atual?.pelo_proprio) {
+      return { c, fixa: true, no: el("p", { class: "notif__corpo",
+        text: `${nomeCri}: ${textoRelacao(atual)} (informada por ${primeiroNome(nomeResp)} no app)` }) };
+    }
+    const tipo = el("select", { class: "entrada" },
+      el("option", { value: "", text: "Escolha…" }),
+      TIPOS_RELACAO.map(([v, t]) => el("option", { value: v, text: t })));
+    if (atual?.tipo) tipo.value = atual.tipo;
+    const detalhe = el("input", { class: "entrada", type: "text", maxlength: "60", placeholder: "Ex.: padrinho",
+      value: atual?.tipo === "outro" ? atual.detalhe || "" : "" });
+    const blocoDet = campo(`Qual relação com ${primeiroNome(nomeCri)}?`, detalhe);
+    blocoDet.hidden = tipo.value !== "outro";
+    tipo.addEventListener("change", () => { blocoDet.hidden = tipo.value !== "outro"; if (!blocoDet.hidden) detalhe.focus(); });
+    return { c, fixa: false, tipo, detalhe, no: el("div", {}, campo(`${primeiroNome(nomeResp)} é… de ${nomeCri}`, tipo), blocoDet) };
+  });
+
+  const eraConjuge = !!(eu && pid && saoConjuges(f, eu, pid));
+  const conj = el("input", { type: "checkbox", id: `conjuge-${resp.id}` });
+  conj.checked = eraConjuge;
+
+  abrirJanela({
+    titulo: `Relação de ${primeiroNome(nomeResp)}`,
+    conteudo: [
+      el("p", { class: "suave", text: `Informe a relação de ${nomeResp} com as crianças. Se ${primeiroNome(nomeResp)} informar diferente depois, vale o que ele(a) informar.` }),
+      ...linhas.map((l) => l.no),
+      el("label", { class: "linha", for: conj.id }, conj, el("span", { text: `${primeiroNome(nomeResp)} é meu cônjuge/parceiro(a)` })),
+    ],
+    sucesso: "Relação salva.",
+    aoSalvar: async () => {
+      const lista = [];
+      for (const l of linhas) {
+        if (l.fixa || !l.tipo.value) continue;
+        const det = l.tipo.value === "outro" ? l.detalhe.value.trim() : null;
+        if (l.tipo.value === "outro" && !det) { l.detalhe.focus(); return "Descreva a relação (ex.: padrinho)."; }
+        lista.push({ crianca: l.c.id, tipo: l.tipo.value, detalhe: det });
+      }
+      if (!lista.length && conj.checked === eraConjuge) return "Escolha a relação com pelo menos uma criança.";
+      if (lista.length) {
+        const r = await informarRelacoesDe(resp.id, lista);
+        if (!r.ok) return r.erro;
+      }
+      if (conj.checked !== eraConjuge) {
+        const r = await informarConjuge(resp.id, conj.checked);
+        if (!r.ok) return r.erro;
+      }
+      definirEtapaAcesso(null);
       await desenhar();
       return null;
     },

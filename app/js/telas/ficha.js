@@ -80,13 +80,16 @@ function voltar(aba) {
   }));
 }
 
-function listaResponsaveis(responsaveis, relacoes) {
+const nomeRelacao = (rel) => (rel.tipo === "outro" && rel.detalhe ? rel.detalhe : RELACOES[rel.tipo] || rel.tipo);
+
+/** extras (opcional): Map(pessoaId → [linhas]) – ex.: relações com cada criança e cônjuge (ficha da família). */
+function listaResponsaveis(responsaveis, relacoes, extras = null) {
   if (!responsaveis.length) return el("p", { class: "suave", text: "Nenhum responsável visível." });
   const ordenados = [...responsaveis].sort((a, b) => Number(b.principal) - Number(a.principal));
   return el("ul", { class: "lista" }, ordenados.map((r) => {
     const rel = relacoes?.get(r.pessoa?.id);
-    const textoRel = rel ? (rel.tipo === "outro" && rel.detalhe ? rel.detalhe : RELACOES[rel.tipo] || rel.tipo) : null;
-    return contato(r.pessoa?.nome, [textoRel ? `Relação: ${textoRel}` : null], r.pessoa?.telefone,
+    const textoRel = rel ? nomeRelacao(rel) : null;
+    return contato(r.pessoa?.nome, [textoRel ? `Relação: ${textoRel}` : null, ...(extras?.get(r.pessoa?.id) || [])], r.pessoa?.telefone,
       r.principal ? [el("span", { class: "etiqueta etiqueta--azul", text: "Principal" })] : [],
       r.pessoa?.id ? avatarLista("pessoa", r.pessoa.id, r.pessoa?.nome) : null);
   }));
@@ -158,10 +161,35 @@ async function desenharFamilia(alvo, id) {
               el("p", { class: "notif__titulo", text: c.pessoa?.nome || "Sem nome" }),
               el("p", { class: "notif__quando", text: `${textoIdade(idade(c.pessoa?.data_nascimento))} · ${textoSala(salaDaCrianca(c.sala_fixa_id, idade(c.pessoa?.data_nascimento), salas))}${c.ativo ? "" : " · inativa"}` }))))))
       : el("p", { class: "suave", text: "Nenhuma criança visível." })),
-    secao("Responsáveis", listaResponsaveis(r.responsaveis, null)),
+    secao("Responsáveis", listaResponsaveis(r.responsaveis, null, linhasDaFamilia(r))),
     secao("Autorizados a retirar", listaAutorizadas(r.autorizadas)),
     r.familia.observacoes ? secao("Observações", el("p", { text: r.familia.observacoes })) : null);
   preencherFotos(alvo);
+}
+
+/** Para cada responsável: "Pai de Ana · Pai de Bia" e "Cônjuge/parceiro(a) de …". */
+function linhasDaFamilia(r) {
+  const primeiro = (n) => (n || "").trim().split(/\s+/)[0] || "";
+  const nomePorPessoa = new Map([
+    ...r.responsaveis.map((x) => [x.pessoa?.id, x.pessoa?.nome]),
+    ...r.criancas.map((c) => [c.pessoa?.id, c.pessoa?.nome]),
+  ]);
+  const criancasPessoa = new Set(r.criancas.map((c) => c.pessoa?.id));
+  const mapa = new Map();
+  for (const x of r.responsaveis) {
+    const pid = x.pessoa?.id;
+    if (!pid) continue;
+    const comCriancas = (r.relacoes || []).filter((y) => y.tipo !== "conjuge" &&
+      ((y.pessoa_id === pid && criancasPessoa.has(y.relacionada_id)) || (y.relacionada_id === pid && criancasPessoa.has(y.pessoa_id))))
+      .map((y) => `${nomeRelacao(y)} de ${primeiro(nomePorPessoa.get(y.pessoa_id === pid ? y.relacionada_id : y.pessoa_id))}`);
+    const conjuges = (r.relacoes || []).filter((y) => y.tipo === "conjuge" && (y.pessoa_id === pid || y.relacionada_id === pid))
+      .map((y) => nomePorPessoa.get(y.pessoa_id === pid ? y.relacionada_id : y.pessoa_id)).filter(Boolean);
+    mapa.set(pid, [
+      comCriancas.length ? `Relação: ${comCriancas.join(" · ")}` : "Relação com as crianças: não informada",
+      conjuges.length ? `Cônjuge/parceiro(a) de ${conjuges.join(", ")}` : null,
+    ]);
+  }
+  return mapa;
 }
 
 // ---------------- Voluntária ----------------

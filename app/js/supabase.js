@@ -588,12 +588,13 @@ export async function fichaFamilia(id) {
     const { data: f, error } = await sb.from("familias").select("id, observacoes").eq("id", id).maybeSingle();
     if (error) return { ok: false, erro: ERRO_FICHA };
     if (!f) return { ok: false, naoEncontrada: true, erro: "Ficha não encontrada ou sem permissão para ver." };
-    const [fam, rCri] = await Promise.all([
+    const [fam, rCri, rRel] = await Promise.all([
       pessoasDaFamilia(id),
       sb.from("criancas").select("id, ativo, sala_fixa_id, pessoa:pessoas(id, nome)").eq("familia_id", id),
+      relacoesDaFamilia(id),
     ]);
     await preencherNascimentos((rCri.data || []).map((c) => c.pessoa));
-    return { ok: true, familia: f, ...fam, criancas: rCri.data || [] };
+    return { ok: true, familia: f, ...fam, criancas: rCri.data || [], relacoes: rRel.ok ? rRel.lista : [] };
   } catch {
     return { ok: false, erro: SEM_CONEXAO };
   }
@@ -648,7 +649,7 @@ export async function minhaFamilia() {
     const pessoasCri = criancas.map((c) => c.pessoa).filter(Boolean);
     const criIds = criancas.map((c) => c.id);
 
-    const [fams, , rRel, rChk] = await Promise.all([
+    const [fams, , rRel, rChk, relsFam] = await Promise.all([
       Promise.all(ids.map((id) => pessoasDaFamilia(id))),
       preencherNascimentos(pessoasCri),
       pessoasCri.length
@@ -659,6 +660,7 @@ export async function minhaFamilia() {
         ? sb.from("checkins").select("crianca_id, entrada_em, saida_em, sala:salas(nome)")
             .in("crianca_id", criIds).order("entrada_em", { ascending: false }).limit(500)
         : Promise.resolve({ data: [] }),
+      Promise.all(ids.map((id) => relacoesDaFamilia(id))),
     ]);
     const minhasRelacoes = new Map((rRel.data || []).map((r) => [r.relacionada_id, r]));
     const ultimosCheckins = new Map();
@@ -668,8 +670,9 @@ export async function minhaFamilia() {
       id, ...fams[i],
       criancas: criancas.filter((c) => c.familia_id === id),
       minhasRelacoes, ultimosCheckins,
+      relacoes: relsFam[i].ok ? relsFam[i].lista : [],
     }));
-    return { ok: true, familias };
+    return { ok: true, familias, eu: perfil.pessoaId };
   } catch {
     return { ok: false, erro: SEM_CONEXAO };
   }
@@ -681,7 +684,7 @@ export async function minhaFamilia() {
 // =====================================================================
 
 // Mensagens do banco que podem ser mostradas como estão (todas escritas por nós).
-const ERRO_LEGIVEL = /^(Informe o nome|Data de nascimento inválida|Alergias e cuidados|Telefone inválido|Observação|Limite de 10|Conclua o primeiro acesso)/;
+const ERRO_LEGIVEL = /^(Informe o nome|Data de nascimento inválida|Alergias e cuidados|Telefone inválido|Observação|Limite de 10|Conclua o primeiro acesso|Descreva a relação|Tipo de relação inválido)/;
 
 async function chamarEdicao(funcao, args) {
   try {
@@ -774,4 +777,31 @@ export async function confirmarPendencia(id) {
   } catch {
     return { ok: false, erro: SEM_CONEXAO };
   }
+}
+
+// =====================================================================
+// Relações informadas por outro responsável da família e cônjuge
+// (Etapa 5D, complemento). Vale na hora; a liderança é avisada.
+// O que a própria pessoa informou no login dela não é sobrescrito.
+// =====================================================================
+
+/** Relações da família: [{ pessoa_id, relacionada_id, tipo, detalhe, pelo_proprio }]. */
+export async function relacoesDaFamilia(familiaId) {
+  try {
+    const { data, error } = await sb.rpc("relacoes_da_familia", { p_familia: familiaId });
+    if (error) return { ok: false, lista: [] };
+    return { ok: true, lista: data || [] };
+  } catch {
+    return { ok: false, lista: [] };
+  }
+}
+
+/** lista: [{ crianca, tipo, detalhe }] → { ok, resultado: { gravadas, mantidas } } */
+export function informarRelacoesDe(responsavelId, lista) {
+  return chamarEdicao("informar_relacoes_de", { p_responsavel: responsavelId, p_relacoes: lista });
+}
+
+/** Marca (sim = true) ou desmarca cônjuge/parceiro(a) com outro responsável da família. */
+export function informarConjuge(responsavelId, sim) {
+  return chamarEdicao("informar_conjuge", { p_responsavel: responsavelId, p_conjuge: !!sim });
 }
