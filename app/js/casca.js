@@ -14,6 +14,7 @@ import { aoMudarContagem } from "./notificacoes.js";
 // (sem "papeis" = todos os logins)
 const ITENS_MENU = [
   { rota: "/inicio", texto: "Início" },
+  { rota: "/minha-familia", texto: "Minha família", papeis: ["responsavel"] },
   { rota: "/cadastros", texto: "Cadastros", papeis: ["admin", "pastor", "lider", "recepcao", "voluntaria"] },
   { rota: "/notificacoes", texto: "Notificações" },
   { rota: "/perfil", texto: "Meu perfil" },

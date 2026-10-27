@@ -251,3 +251,9 @@ select.entrada { cursor: pointer; }
 .foto-ampliada::backdrop { background: rgba(31, 27, 24, .75); }
 .foto-ampliada img { display: block; width: 100%; height: auto; max-height: 70vh; object-fit: contain; border-radius: var(--raio-p); }
 .foto-ampliada__nome { font-weight: 800; margin: var(--e3) 0; }
+
+/* ---------- Janelinha de formulário (Etapa 5C: relação com a criança) ---------- */
+.janela { border: var(--traco); border-radius: var(--raio); box-shadow: var(--sombra); padding: var(--e4);
+  width: min(92vw, 420px); background: var(--superficie); color: inherit; }
+.janela::backdrop { background: rgba(31, 27, 24, .75); }
+.janela h2 { margin-top: 0; }

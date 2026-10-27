@@ -317,6 +317,7 @@ export async function meuPerfil(forcar = false) {
 
     const dados = {
       ok: true, uid, nome,
+      pessoaId: perfil.pessoa_id || null,
       telefone: perfil.telefone || (await telefoneDoLoginAtual()),
       papeis,
       temPapel: (...lista) => papeis.some((p) => lista.includes(p.papel)),
@@ -613,6 +614,62 @@ export async function fichaVoluntaria(id) {
       cultos = (data || []).map((x) => x.nome);
     }
     return { ok: true, voluntaria: v, cultos };
+  } catch {
+    return { ok: false, erro: SEM_CONEXAO };
+  }
+}
+
+// =====================================================================
+// Minha família (Fase 10 · Etapa 5C) – responsável
+// Só as famílias em que o próprio login é responsável (filtra pela pessoa
+// do login, então liderança/recepção não recebem as famílias dos outros).
+// =====================================================================
+
+/**
+ * { ok, familias: [{ id, responsaveis, autorizadas, criancas,
+ *   minhasRelacoes: Map(pessoaCriancaId → {tipo, detalhe}),
+ *   ultimosCheckins: Map(criancaId → checkin) }] }
+ */
+export async function minhaFamilia() {
+  const perfil = await meuPerfil();
+  if (!perfil.ok) return { ok: false, erro: perfil.erro };
+  if (!perfil.pessoaId) return { ok: true, familias: [] };
+  try {
+    const { data: minhas, error } = await sb.from("responsaveis").select("familia_id").eq("pessoa_id", perfil.pessoaId);
+    if (error) return { ok: false, erro: "Não foi possível carregar a sua família agora." };
+    const ids = [...new Set((minhas || []).map((m) => m.familia_id))];
+    if (!ids.length) return { ok: true, familias: [] };
+
+    const { data: cri, error: e2 } = await sb.from("criancas")
+      .select("id, familia_id, ativo, perfil, alergias_observacoes, sala_fixa_id, pessoa:pessoas(id, nome)")
+      .in("familia_id", ids);
+    if (e2) return { ok: false, erro: "Não foi possível carregar a sua família agora." };
+    const criancas = cri || [];
+    const pessoasCri = criancas.map((c) => c.pessoa).filter(Boolean);
+    const criIds = criancas.map((c) => c.id);
+
+    const [fams, , rRel, rChk] = await Promise.all([
+      Promise.all(ids.map((id) => pessoasDaFamilia(id))),
+      preencherNascimentos(pessoasCri),
+      pessoasCri.length
+        ? sb.from("relacoes_pessoas").select("relacionada_id, tipo, detalhe")
+            .eq("pessoa_id", perfil.pessoaId).in("relacionada_id", pessoasCri.map((p) => p.id))
+        : Promise.resolve({ data: [] }),
+      criIds.length
+        ? sb.from("checkins").select("crianca_id, entrada_em, saida_em, sala:salas(nome)")
+            .in("crianca_id", criIds).order("entrada_em", { ascending: false }).limit(500)
+        : Promise.resolve({ data: [] }),
+    ]);
+    const minhasRelacoes = new Map((rRel.data || []).map((r) => [r.relacionada_id, r]));
+    const ultimosCheckins = new Map();
+    for (const ck of rChk.data || []) if (!ultimosCheckins.has(ck.crianca_id)) ultimosCheckins.set(ck.crianca_id, ck);
+
+    const familias = ids.map((id, i) => ({
+      id, ...fams[i],
+      criancas: criancas.filter((c) => c.familia_id === id),
+      minhasRelacoes, ultimosCheckins,
+    }));
+    return { ok: true, familias };
   } catch {
     return { ok: false, erro: SEM_CONEXAO };
   }

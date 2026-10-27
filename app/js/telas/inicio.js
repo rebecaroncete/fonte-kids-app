@@ -4,7 +4,8 @@
 // "#/primeiro-acesso" (js/app.js). Aqui: saudação, papéis, aviso das
 // relações (se adiadas), notificações novas e um bloco por papel.
 // Os resumos de verdade (crianças, escalas, check-ins) chegam na Fase 5.
-// Recepção e liderança têm atalho para "Cadastros" (Etapa 5B).
+// Recepção e liderança têm atalho para "Cadastros" (Etapa 5B);
+// responsável, para "Minha família" (Etapa 5C).
 // =====================================================================
 import { el, montar, aviso, carregando } from "../ui.js";
 import { estadoPrimeiroAcesso, meuPerfil, contarNaoLidas } from "../supabase.js";
@@ -19,7 +20,7 @@ const BLOCOS = {
   lider:       { cor: "laranja", titulo: "Liderança",     texto: "Você cuida do departamento: voluntárias, famílias, escalas e pedidos de nova senha.", link: { href: "#/cadastros", texto: "Ver cadastros" } },
   recepcao:    { cor: "amarelo", titulo: "Recepção",      texto: "Você consulta crianças e famílias e, em breve, faz o check-in nos cultos.", link: { href: "#/cadastros", texto: "Ver cadastros" } },
   voluntaria:  { cor: "amarelo", titulo: "Voluntária",    texto: "Aqui você vai acompanhar as suas escalas e as salas em que serve." },
-  responsavel: { cor: "laranja", titulo: "Minha família", texto: "Aqui você vai acompanhar as suas crianças, os check-ins e os avisos do Fonte Kids." },
+  responsavel: { cor: "laranja", titulo: "Minha família", texto: "Veja as suas crianças, a sala de cada uma, o último check-in e quem pode retirá-las.", link: { href: "#/minha-familia", texto: "Ver minha família" } },
 };
 
 export async function render(alvo) {

@@ -17,7 +17,7 @@ import { irPara, definirEtapaAcesso, adiarRelacoes } from "../app.js";
 export const layout = "padrao";
 export const titulo = "Primeiro acesso";
 
-const TIPOS_RELACAO = [
+export const TIPOS_RELACAO = [
   ["mae", "Mãe"], ["pai", "Pai"], ["madrasta", "Madrasta"], ["padrasto", "Padrasto"],
   ["avo", "Avô ou avó"], ["tio", "Tio ou tia"], ["irmao", "Irmão ou irmã"],
   ["responsavel_legal", "Responsável legal"], ["outro", "Outro"],
