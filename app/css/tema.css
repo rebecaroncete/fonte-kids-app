@@ -1,0 +1,79 @@
+/* =====================================================================
+   Fonte Kids – tema (cores, fontes, espaçamentos)
+   Paleta tirada da logo: laranja, amarelo, azul e contorno escuro.
+   Fontes servidas pelo próprio app (sem Google Fonts: nenhum dado de
+   acesso vai para terceiros).
+   ===================================================================== */
+@font-face { font-family: "Baloo 2"; font-weight: 700; font-display: swap; src: url("../fonts/baloo-2-latin-700-normal.woff2") format("woff2"); }
+@font-face { font-family: "Baloo 2"; font-weight: 800; font-display: swap; src: url("../fonts/baloo-2-latin-800-normal.woff2") format("woff2"); }
+@font-face { font-family: "Nunito"; font-weight: 400; font-display: swap; src: url("../fonts/nunito-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "Nunito"; font-weight: 600; font-display: swap; src: url("../fonts/nunito-latin-600-normal.woff2") format("woff2"); }
+@font-face { font-family: "Nunito"; font-weight: 700; font-display: swap; src: url("../fonts/nunito-latin-700-normal.woff2") format("woff2"); }
+@font-face { font-family: "Nunito"; font-weight: 800; font-display: swap; src: url("../fonts/nunito-latin-800-normal.woff2") format("woff2"); }
+
+:root {
+  color-scheme: light;
+
+  /* Marca (da logo) */
+  --laranja: #f58941;
+  --laranja-escuro: #c9621f;
+  --laranja-claro: #fde3cf;
+  --amarelo: #fdbb43;
+  --amarelo-claro: #fff1cf;
+  --azul: #00bff3;
+  --azul-texto: #00749a;   /* azul com contraste para texto/links */
+  --azul-claro: #d6f4fd;
+  --contorno: #1f1b18;     /* traço preto da logo */
+
+  /* Neutros */
+  --fundo: #fff8ef;
+  --superficie: #ffffff;
+  --texto: #1f1b18;
+  --texto-suave: #5e554d;
+  --borda-suave: #e9ddcf;
+
+  /* Estados */
+  --sucesso: #1f8a4c;  --sucesso-claro: #dcf3e4;
+  --atencao: #9a6200;  --atencao-claro: #fff1cf;
+  --erro: #b3261e;     --erro-claro: #fbe1de;
+
+  /* Tipografia */
+  --fonte-titulo: "Baloo 2", "Nunito", system-ui, sans-serif;
+  --fonte-texto: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  /* Forma (traço de desenho, como na logo) */
+  --traco: 2px solid var(--contorno);
+  --raio: 14px;
+  --raio-p: 10px;
+  --sombra: 3px 3px 0 var(--contorno);
+  --sombra-p: 2px 2px 0 var(--contorno);
+
+  /* Espaços */
+  --e1: 4px; --e2: 8px; --e3: 12px; --e4: 16px; --e5: 24px; --e6: 32px;
+  --largura: 560px;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background: var(--fundo);
+  color: var(--texto);
+  font-family: var(--fonte-texto);
+  font-size: 16px;
+  line-height: 1.5;
+}
+h1, h2, h3 { font-family: var(--fonte-titulo); line-height: 1.15; margin: 0 0 var(--e3); }
+h1 { font-size: 1.9rem; font-weight: 800; }
+h2 { font-size: 1.4rem; font-weight: 800; }
+h3 { font-size: 1.15rem; font-weight: 700; }
+p { margin: 0 0 var(--e3); }
+a { color: var(--azul-texto); font-weight: 700; }
+img { max-width: 100%; display: block; }
+:focus-visible { outline: 3px solid var(--azul); outline-offset: 2px; }
+.so-leitor { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
