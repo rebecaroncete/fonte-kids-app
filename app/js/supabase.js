@@ -473,6 +473,22 @@ export async function gerenciarLogin(corpo) {
 const ERRO_LISTA = "Não foi possível carregar a lista agora.";
 const ERRO_FICHA = "Não foi possível carregar a ficha agora.";
 
+/**
+ * A data de nascimento não pode ser lida direto da tabela "pessoas"
+ * (coluna protegida). Ela vem pela função nascimentos(), que confere a
+ * permissão de cada pessoa. Preenche p.data_nascimento nos objetos.
+ */
+async function preencherNascimentos(pessoas) {
+  const lista = pessoas.filter((p) => p?.id);
+  if (!lista.length) return;
+  try {
+    const { data, error } = await sb.rpc("nascimentos", { p_ids: [...new Set(lista.map((p) => p.id))] });
+    if (error) return;
+    const mapa = new Map((data || []).map((x) => [x.id, x.data_nascimento]));
+    for (const p of lista) p.data_nascimento = mapa.get(p.id) || null;
+  } catch { /* sem idade: a tela mostra "Idade não informada" */ }
+}
+
 /** Salas do Fonte Kids (para filtro e nomes). */
 export async function listarSalas() {
   try {
@@ -488,9 +504,10 @@ export async function listarSalas() {
 export async function listarCriancas() {
   try {
     const { data, error } = await sb.from("criancas")
-      .select("id, familia_id, ativo, perfil, sala_fixa_id, pessoa:pessoas(nome, nome_busca, data_nascimento)")
+      .select("id, familia_id, ativo, perfil, sala_fixa_id, pessoa:pessoas(id, nome, nome_busca)")
       .limit(2000);
     if (error) return { ok: false, erro: ERRO_LISTA };
+    await preencherNascimentos((data || []).map((c) => c.pessoa));
     return { ok: true, lista: data || [] };
   } catch {
     return { ok: false, erro: SEM_CONEXAO };
@@ -514,9 +531,10 @@ export async function listarFamilias() {
 export async function listarVoluntarias() {
   try {
     const { data, error } = await sb.from("voluntarias")
-      .select("id, status, funcao, pessoa:pessoas(nome, nome_busca, data_nascimento)")
+      .select("id, status, funcao, pessoa:pessoas(id, nome, nome_busca)")
       .limit(2000);
     if (error) return { ok: false, erro: ERRO_LISTA };
+    await preencherNascimentos((data || []).map((v) => v.pessoa));
     return { ok: true, lista: data || [] };
   } catch {
     return { ok: false, erro: SEM_CONEXAO };
@@ -537,10 +555,11 @@ async function pessoasDaFamilia(familiaId) {
 export async function fichaCrianca(id) {
   try {
     const { data: c, error } = await sb.from("criancas")
-      .select("id, familia_id, ativo, perfil, alergias_observacoes, sala:salas(nome), pessoa:pessoas(id, nome, data_nascimento, sexo)")
+      .select("id, familia_id, ativo, perfil, alergias_observacoes, sala:salas(nome), pessoa:pessoas(id, nome, sexo)")
       .eq("id", id).maybeSingle();
     if (error) return { ok: false, erro: ERRO_FICHA };
     if (!c) return { ok: false, naoEncontrada: true, erro: "Ficha não encontrada ou sem permissão para ver." };
+    await preencherNascimentos([c.pessoa]);
 
     const [fam, rIrmaos, rRel, rCheck] = await Promise.all([
       pessoasDaFamilia(c.familia_id),
@@ -570,8 +589,9 @@ export async function fichaFamilia(id) {
     if (!f) return { ok: false, naoEncontrada: true, erro: "Ficha não encontrada ou sem permissão para ver." };
     const [fam, rCri] = await Promise.all([
       pessoasDaFamilia(id),
-      sb.from("criancas").select("id, ativo, sala:salas(nome), pessoa:pessoas(nome, data_nascimento)").eq("familia_id", id),
+      sb.from("criancas").select("id, ativo, sala:salas(nome), pessoa:pessoas(id, nome)").eq("familia_id", id),
     ]);
+    await preencherNascimentos((rCri.data || []).map((c) => c.pessoa));
     return { ok: true, familia: f, ...fam, criancas: rCri.data || [] };
   } catch {
     return { ok: false, erro: SEM_CONEXAO };
@@ -582,10 +602,11 @@ export async function fichaFamilia(id) {
 export async function fichaVoluntaria(id) {
   try {
     const { data: v, error } = await sb.from("voluntarias")
-      .select("id, status, funcao, email, profissao, salas_preferidas, cultos_preferidos, teto_mensal, aprovada_em, pessoa:pessoas(id, nome, telefone, data_nascimento)")
+      .select("id, status, funcao, email, profissao, salas_preferidas, cultos_preferidos, teto_mensal, aprovada_em, pessoa:pessoas(id, nome, telefone)")
       .eq("id", id).maybeSingle();
     if (error) return { ok: false, erro: ERRO_FICHA };
     if (!v) return { ok: false, naoEncontrada: true, erro: "Ficha não encontrada ou sem permissão para ver." };
+    await preencherNascimentos([v.pessoa]);
     let cultos = [];
     if (v.cultos_preferidos?.length) {
       const { data } = await sb.from("cultos_recorrentes").select("id, nome").in("id", v.cultos_preferidos);
