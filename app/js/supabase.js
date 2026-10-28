@@ -1206,5 +1206,6 @@ export function minhaEscala() { return chamarRpc("minha_escala", {}); }
 export function responderEscala(item, resposta) { return chamarRpc("responder_escala", { p_item: item, p_resposta: resposta }); }
 export function pegarVaga(item) { return chamarRpc("pegar_vaga", { p_item: item }); }
 export function minhaIndisponibilidade(mes) { return chamarRpc("minha_indisponibilidade", { p_mes: mes }); }
-export function salvarIndisponibilidade(mes, cultos) { return chamarRpc("salvar_indisponibilidade", { p_mes: mes, p_cultos: cultos }); }
+/** teto: vezes que pode servir no mês (0 = não pode no mês; null = o de sempre). */
+export function salvarIndisponibilidade(mes, cultos, teto = null) { return chamarRpc("salvar_indisponibilidade", { p_mes: mes, p_cultos: cultos, p_teto: teto }); }
 export function lembretesEscala(de, ate) { return chamarRpc("lembretes_escala", { p_de: de, p_ate: ate }); }

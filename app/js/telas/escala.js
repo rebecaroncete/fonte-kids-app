@@ -2,6 +2,8 @@
 // Tela: Escala do mês (Fase 6 · 6B)   #/escala?mes=YYYY-MM
 // Liderança (o banco confere tudo):
 //   • Começar o mês, vagas por sala (inclusive salas juntas) e por culto.
+//   • Cultos sem salinha no mês: cancelar/reativar o culto ou fechar/juntar
+//     salas de qualquer data do mês (antes de gerar).
 //   • Pedir a indisponibilidade com prazo do mês (avisa as voluntárias;
 //     só responde quem tiver culto em que não pode). Passado o prazo, gerar.
 //   • Gerar o rascunho (motor no banco), trocar/esvaziar/remover/adicionar
@@ -17,7 +19,7 @@ import { abrirJanela, campo } from "../janela.js";
 import {
   meuPerfil, escalaDoMes, configurarEscala, definirVagasCulto, gerarRascunho, candidatasVaga, trocarVaga,
   adicionarVaga, removerVaga, publicarEscala, regrasEscalaAtuais, definirRegrasEscala, voluntariasEscala,
-  definirTetoVoluntaria, indisponibilidadeDoMes, pedirIndisponibilidade,
+  definirTetoVoluntaria, indisponibilidadeDoMes, pedirIndisponibilidade, listarSalas, definirSalasDia, cancelarCulto,
 } from "../supabase.js";
 
 export const layout = "padrao";
@@ -180,17 +182,30 @@ function secaoCulto(c, lider) {
   if (soVazias) itens = itens.filter((i) => !i.nome);
   if (soVazias && !itens.length) return null;
   const nome = `${dataBr(c.data)} · ${c.hora}`;
+  const fechadas = (c.grupos || []).filter((g) => g.cancelada).map((g) => g.nome.replace(/ anos$/, ""));
+  const juntas = (c.grupos || []).filter((g) => !g.cancelada && g.salas.length > 1).map((g) => g.nome.replace(/ anos$/, ""));
   return el("section", { class: "secao-lista" },
     el("div", { class: "secao-titulo" },
       el("h2", { text: `${nome} · ${c.nome}` }),
-      lider && !c.cancelado ? menuAcoes([
-        { texto: "Adicionar vaga", acao: () => janelaAdicionar(c) },
-        rascunho ? { texto: "Vagas deste culto", acao: () => janelaVagasCulto(c) } : null,
+      lider ? menuAcoes([
+        c.cancelado ? null : { texto: "Adicionar vaga", acao: () => janelaAdicionar(c) },
+        rascunho && !c.cancelado ? { texto: "Vagas deste culto", acao: () => janelaVagasCulto(c) } : null,
+        c.cancelado || !c.grupos ? null : { texto: "Salas deste culto", acao: () => janelaSalasCulto(c) },
+        c.cancelado
+          ? { texto: "Reativar culto", acao: () => confirmar(`Reativar o culto de ${nome}?`, "Reativar",
+              () => cancelarCulto(c.id, false), "Culto reativado. Gere a escala de novo para incluir as vagas.") }
+          : { texto: "Sem salinha neste culto", perigo: true, acao: () => confirmar(
+              `Cancelar a salinha do Kids em ${nome}? O culto sai da escala e do check-in deste dia.${c.itens.length ? " As vagas já geradas deste culto saem quando você gerar de novo." : ""}`,
+              "Sem salinha", () => cancelarCulto(c.id, true), "Culto sem salinha.", true) },
       ], `Mais ações para ${nome}`) : null),
-    c.cancelado ? el("p", { class: "suave", text: "Culto cancelado." }) : null,
+    c.cancelado ? el("p", { class: "suave", text: "Sem salinha do Kids neste culto." }) : null,
+    !c.cancelado && (fechadas.length || juntas.length)
+      ? el("p", { class: "resumo-lista", text: [fechadas.length ? `Fechada: ${fechadas.join(", ")}` : null,
+          juntas.length ? `Juntas: ${juntas.join(", ")}` : null].filter(Boolean).join(" · ") })
+      : null,
     itens.length
       ? el("ul", { class: "lista-compacta" }, itens.map((i) => itemVaga(i, c, lider)))
-      : el("p", { class: "suave", text: rascunho ? "Ainda sem vagas geradas." : "Sem vagas." }));
+      : c.cancelado ? null : el("p", { class: "suave", text: rascunho ? "Ainda sem vagas geradas." : "Sem vagas." }));
 }
 
 function itemVaga(i, c, lider) {
@@ -347,6 +362,51 @@ function janelaVagasMes(depois) {
       if (!r.ok) return r.erro;
       await desenhar();
       if (typeof depois === "function") setTimeout(depois, 0);
+      return null;
+    },
+  });
+}
+
+/** Salas de um culto do mês: "Aberta", "Fechada" ou "Junto com …" (como em Cultos e salas). */
+async function janelaSalasCulto(c) {
+  const rs = await listarSalas();
+  if (!rs.ok) { toast("erro", rs.erro); return; }
+  const ativas = rs.lista.filter((x) => x.ativa);
+  const atual = new Map();
+  for (const g of c.grupos) {
+    for (const id of g.salas) {
+      if (id !== g.sala_id) atual.set(id, `junto:${g.sala_id}`);
+      else atual.set(id, g.cancelada ? "fechada" : "aberta");
+    }
+  }
+  const seletores = ativas.map((s) => {
+    const sel = el("select", { class: "entrada" },
+      el("option", { value: "aberta", text: "Aberta" }),
+      el("option", { value: "fechada", text: "Fechada" }),
+      ativas.filter((o) => o.id !== s.id).map((o) => el("option", { value: `junto:${o.id}`, text: `Junto com ${o.nome}` })));
+    sel.value = atual.get(s.id) || "aberta";
+    return { sala: s, sel };
+  });
+  const temItens = c.itens.length > 0;
+  abrirJanela({
+    titulo: `Salas – ${dataBr(c.data)} · ${c.hora}`,
+    sucesso: temItens ? "Salas salvas. Gere a escala de novo para aplicar." : "Salas salvas.",
+    conteudo: [
+      el("p", { class: "suave", text: "Vale só para este culto. Para tirar a salinha inteira, use ⋯ → \"Sem salinha neste culto\"." }),
+      ...seletores.map(({ sala, sel }) => campo(sala.nome, sel)),
+    ],
+    aoSalvar: async () => {
+      const lista = [];
+      for (const { sala, sel } of seletores) {
+        if (sel.value === "fechada") lista.push({ sala_id: sala.id, cancelada: true, junto_com: null });
+        else if (sel.value.startsWith("junto:")) lista.push({ sala_id: sala.id, cancelada: false, junto_com: sel.value.slice(6) });
+      }
+      if (lista.length && lista.length === seletores.length && lista.every((x) => x.cancelada)) {
+        return "Para fechar todas as salas, use \"Sem salinha neste culto\".";
+      }
+      const r = await definirSalasDia(c.id, lista);
+      if (!r.ok) return r.erro;
+      await desenhar();
       return null;
     },
   });
@@ -549,7 +609,9 @@ async function janelaIndisponibilidade() {
   const r = await indisponibilidadeDoMes(mes);
   if (!r.ok) { toast("erro", r.erro); return; }
   const lista = r.resultado || [];
-  const marcaram = lista.filter((v) => v.cultos > 0);
+  const marcaram = lista.filter((v) => v.cultos > 0 || (v.teto !== null && v.teto !== undefined));
+  const linhaMarcou = (v) => [v.cultos ? `${v.cultos} culto(s) em que não pode` : null,
+    v.teto === 0 ? "não pode servir neste mês" : v.teto ? `no máximo ${v.teto} vez(es) no mês` : null].filter(Boolean).join(" · ");
   const semNada = lista.filter((v) => v.respondeu && !v.cultos);
   const prazo = dados.escala?.prazo_indisponibilidade;
   const item = (v, linha) => el("li", {}, el("div", { class: "item-compacto" },
@@ -565,7 +627,7 @@ async function janelaIndisponibilidade() {
         : "A indisponibilidade deste mês ainda não foi pedida. Use \"Pedir indisponibilidade\" no cartão do mês." }),
       el("strong", { text: `Marcaram indisponibilidade (${marcaram.length})` }),
       marcaram.length
-        ? el("ul", { class: "lista-compacta" }, marcaram.map((v) => item(v, `${v.cultos} culto(s) em que não pode`)))
+        ? el("ul", { class: "lista-compacta" }, marcaram.map((v) => item(v, linhaMarcou(v))))
         : el("p", { class: "suave", text: "Ninguém ainda." }),
       semNada.length ? el("strong", { text: `Responderam que podem em todos (${semNada.length})` }) : null,
       semNada.length ? el("ul", { class: "lista-compacta" }, semNada.map((v) => item(v))) : null,

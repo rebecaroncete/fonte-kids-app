@@ -5,11 +5,12 @@
 //     liderança), "Adicionar à agenda" (.ics feito aqui no aparelho) e
 //     quem serve junto.
 //   • Vagas abertas da escala publicada: "Quero esta vaga".
-//   • Indisponibilidade dos meses em que a liderança pediu (até publicar).
+//   • Indisponibilidade dos meses em que a liderança pediu (até publicar):
+//     só os cultos preferidos dela e quantas vezes pode servir no mês.
 // =====================================================================
 import { el, montar, aviso, carregando, menuAcoes, toast } from "../ui.js";
 import { icone } from "../icones.js";
-import { abrirJanela } from "../janela.js";
+import { abrirJanela, campo } from "../janela.js";
 import { minhaEscala, responderEscala, pegarVaga, minhaIndisponibilidade, salvarIndisponibilidade } from "../supabase.js";
 
 export const layout = "padrao";
@@ -149,22 +150,35 @@ async function janelaIndisponibilidade(mes) {
   const r = await minhaIndisponibilidade(mes);
   if (!r.ok) { toast("erro", r.erro); return; }
   const x = r.resultado || {};
+  const prazo = x.prazo ? ` até ${x.prazo.slice(8, 10)}/${x.prazo.slice(5, 7)}` : "";
+  // quantas vezes pode servir neste mês (vazio = o de sempre)
+  const padrao = x.teto_padrao ?? 3;
+  const teto = el("select", { class: "entrada" },
+    el("option", { value: "", text: `O de sempre (até ${padrao} ${padrao === 1 ? "vez" : "vezes"})` }),
+    Array.from({ length: 11 }, (_, n) => el("option", { value: String(n),
+      text: n === 0 ? "Não posso servir neste mês" : `Até ${n} ${n === 1 ? "vez" : "vezes"}` })));
+  teto.value = x.teto === null || x.teto === undefined ? "" : String(x.teto);
   const caixas = (x.cultos || []).map((c) => {
     const caixa = el("input", { type: "checkbox", value: c.id });
     caixa.checked = !!c.indisponivel;
     return el("label", { class: "marcar" }, caixa, `${dataBr(c.data)} · ${c.hora} · ${c.nome}`);
   });
+  const lista = caixas.length ? el("div", { class: "mt-2" }, caixas) : el("p", { class: "suave", text: "Nenhum culto neste mês." });
+  const atualizar = () => { lista.hidden = teto.value === "0"; };
+  teto.addEventListener("change", atualizar);
+  atualizar();
   abrirJanela({
     titulo: `Indisponibilidade – ${x.nome_mes}`,
     sucesso: "Indisponibilidade salva. Obrigada!",
     conteudo: [
-      el("p", { text: "Marque os cultos em que você NÃO pode servir." }),
-      el("p", { class: "suave", text: "Se puder em todos, não precisa fazer nada (ou salve sem marcar)." }),
-      caixas.length ? el("div", { class: "mt-2" }, caixas) : el("p", { class: "suave", text: "Nenhum culto neste mês." }),
+      el("p", { class: "suave", text: `Responda${prazo}. Se puder em todos os seus cultos, não precisa fazer nada.` }),
+      campo(`Quantas vezes pode servir em ${x.nome_mes}?`, teto),
+      el("p", { class: "sem-margem", text: "Marque os cultos em que você NÃO pode servir:" }),
+      lista,
     ],
     aoSalvar: async () => {
-      const ids = caixas.map((l) => l.querySelector("input")).filter((c) => c.checked).map((c) => c.value);
-      const res = await salvarIndisponibilidade(x.mes, ids);
+      const ids = teto.value === "0" ? [] : caixas.map((l) => l.querySelector("input")).filter((c) => c.checked).map((c) => c.value);
+      const res = await salvarIndisponibilidade(x.mes, ids, teto.value === "" ? null : Number(teto.value));
       if (!res.ok) return res.erro;
       await desenhar();
       return null;

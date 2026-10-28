@@ -11,7 +11,7 @@
 // O app mostra "Versão nova disponível – Atualizar"; a troca só acontece
 // quando a pessoa toca em Atualizar (nada muda no meio de um check-in).
 // =====================================================================
-const VERSAO = "0.21.0";
+const VERSAO = "0.22.0";
 const PREFIXO = "fonte-kids-app-";
 const CACHE = PREFIXO + VERSAO;
 
