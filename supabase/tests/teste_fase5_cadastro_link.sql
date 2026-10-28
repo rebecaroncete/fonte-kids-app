@@ -14,8 +14,8 @@ declare
   v_kids uuid; v_igreja uuid; v_termo text;
   f_outra uuid; v_fam uuid; v_principal uuid; v_cri uuid; v_id uuid;
   tel1 text := '5519' || '9' || lpad((floor(random() * 1e8))::bigint::text, 8, '0');
-  tel2 text := '5519' || '8' || lpad((floor(random() * 1e8))::bigint::text, 8, '0');
-  tel3 text := '5519' || '7' || lpad((floor(random() * 1e8))::bigint::text, 8, '0');
+  tel2 text := '5518' || '9' || lpad((floor(random() * 1e8))::bigint::text, 8, '0');
+  tel3 text := '5517' || '9' || lpad((floor(random() * 1e8))::bigint::text, 8, '0');
   dados jsonb; j jsonb; x jsonb; n bigint; txt text; ok boolean;
   r text := ''; falhas int := 0; total int := 0;
 begin
