@@ -33,6 +33,7 @@ import { idade, textoIdade, salaDaCrianca } from "./cadastros.js";
 import { TIPOS_RELACAO } from "./primeiro-acesso.js";
 import { definirEtapaAcesso } from "../app.js";
 import { janelaNovaCrianca } from "../nova-crianca.js";
+import { janelaHistorico } from "../historico.js";
 
 export const layout = "padrao";
 export const titulo = "Minha família";
@@ -205,6 +206,7 @@ function cartaoCrianca(c, f, salas) {
         { texto: "Editar dados", acao: () => janelaEditarCrianca(c) },
         { texto: "Trocar foto", acao: () => janelaFoto({ tipo: "crianca", id: c.id, nome, tipoFoto: "crianca", idFoto: c.id, aoTrocar: () => desenhar() }) },
         rel ? { texto: "Corrigir relação", acao: () => janelaRelacao(c.id, nome, rel) } : null,
+        { texto: "Histórico", acao: () => janelaHistorico(c.id, nome) },
       ], `Mais ações para ${nome}`)),
     c.alergias_observacoes
       ? el("div", { class: "cuidados", role: "note" },

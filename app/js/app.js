@@ -44,6 +44,7 @@ const ROTAS = {
   // Cadastro de família nova (5D): sem login; só esta tela (#/cadastro)
   "/cadastro":      { publica: true, carregar: () => import("./telas/cadastro.js") },
   "/grupos-whatsapp": { publica: false, carregar: () => import("./telas/grupos-whatsapp.js") },
+  "/historico":     { publica: false, carregar: () => import("./telas/historico.js") },
 };
 
 /** Endereço interno conhecido? (usado para abrir links de notificações) */

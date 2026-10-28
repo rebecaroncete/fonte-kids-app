@@ -1,7 +1,7 @@
 // =====================================================================
 // Tela: Ficha (Fase 10 · Etapa 5B) – só leitura
 //   #/ficha?tipo=crianca&id=…   criança (foto, sala, cuidados, responsáveis,
-//                               autorizados, irmãos, último check-in)
+//                               autorizados, irmãos, histórico – Fase 5 · 5E)
 //   #/ficha?tipo=familia&id=…   família (responsáveis, autorizados, crianças)
 //   #/ficha?tipo=voluntaria&id=… voluntária (só liderança ou ela mesma)
 // O banco (RLS) decide o que cada login pode ver. Foto pela Edge Function
@@ -14,6 +14,7 @@ import { fichaCrianca, fichaFamilia, fichaVoluntaria, listarSalas, meuPerfil } f
 import { janelaNovaCrianca } from "../nova-crianca.js";
 import { avatarComFoto, avatarLista, preencherFotos } from "../foto.js";
 import { idade, textoIdade, salaDaCrianca } from "./cadastros.js";
+import { secaoHistorico } from "../historico.js";
 
 export const layout = "padrao";
 export const titulo = "Ficha";
@@ -35,9 +36,6 @@ const dataBr = (iso) => {
   const [a, m, d] = iso.slice(0, 10).split("-");
   return `${d}/${m}/${a}`;
 };
-const quandoBr = (iso) => new Date(iso).toLocaleString("pt-BR", {
-  timeZone: FUSO, day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
-});
 
 /** Botão redondo do WhatsApp, só para telefone no padrão 55 + DDD + número. */
 function botaoWhatsapp(telefone, nome) {
@@ -129,7 +127,6 @@ async function desenharCrianca(alvo, id) {
     !c.ativo ? el("span", { class: "etiqueta etiqueta--neutra", text: "Inativa" }) : null,
   ].filter(Boolean);
 
-  const uc = r.ultimoCheckin;
   montar(alvo,
     voltar("criancas"),
     cabecalho(avatarComFoto("crianca", c.id, nome), nome,
@@ -149,9 +146,7 @@ async function desenharCrianca(alvo, id) {
           el("span", { class: "item-compacto__nome", text: i.pessoa?.nome || "Sem nome" }),
           i.ativo ? null : el("span", { class: "item-compacto__linha", text: "Inativa" })),
         icone("seta", null, "item-compacto__seta")))))) : null,
-    secao("Último check-in", el("p", { class: "sem-margem", text: uc
-      ? `${quandoBr(uc.entrada_em)}${uc.sala?.nome ? ` · ${uc.sala.nome}` : ""}${uc.saida_em ? " · já saiu" : " · ainda sem check-out"}`
-      : "Nenhum check-in registrado." })),
+    secaoHistorico(c.id, nome),
     el("p", { class: "mt-5" }, el("a", { class: "botao botao--secundario", href: `#/ficha?tipo=familia&id=${encodeURIComponent(c.familia_id)}`, text: "Ver família" })));
   preencherFotos(alvo);
 }

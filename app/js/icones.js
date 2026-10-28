@@ -50,6 +50,7 @@ const DESENHOS = {
   atualizar:   [P("M3 12a9 9 0 0 1 15-6.7L21 8"), P("M21 3v5h-5"), P("M21 12a9 9 0 0 1-15 6.7L3 16"), P("M8 16H3v5")],
   checkin:     [P("M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"), P("m10 17 5-5-5-5"), P("M15 12H3")],
   calendario:  [["rect", { x: 3, y: 4, width: 18, height: 18, rx: 2 }], P("M16 2v4"), P("M8 2v4"), P("M3 10h18")],
+  historico:   [C(12, 12, 9), P("M12 7v5l3 2")],
   telao:       [["rect", { x: 2, y: 3, width: 20, height: 14, rx: 2 }], P("M8 21h8"), P("M12 17v4")],
 };
 

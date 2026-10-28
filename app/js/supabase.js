@@ -1092,3 +1092,29 @@ export async function gruposWhatsapp() {
 export function marcarGrupoWhatsapp(pessoaId, grupo, noGrupo) {
   return chamarRpc("marcar_grupo_whatsapp", { p_pessoa: pessoaId, p_grupo: grupo, p_no_grupo: noGrupo });
 }
+
+// =====================================================================
+// Fase 5 · 5E – Histórico (só leitura, só pelas funções do banco).
+// Nunca vem data de nascimento, telefone nem alergias.
+// =====================================================================
+
+/** Check-ins de uma criança: { ok, resumo, itens, tem_mais }. antes = entrada_em do último item já mostrado. */
+export async function historicoCrianca(criancaId, antes = null, limite = 20) {
+  const r = await chamarRpc("historico_crianca", { p_crianca: criancaId, p_antes: antes, p_limite: limite });
+  if (!r.ok) return r;
+  return { ok: true, resumo: r.resultado?.resumo || null, itens: r.resultado?.itens || [], tem_mais: !!r.resultado?.tem_mais };
+}
+
+/** Cultos que já aconteceram (equipe): { ok, itens, tem_mais, proximo_antes }. dias = null → tudo. */
+export async function historicoCultos(dias = 30, antes = null) {
+  const r = await chamarRpc("historico_cultos", { p_dias: dias, p_antes: antes });
+  if (!r.ok) return r;
+  return { ok: true, itens: r.resultado?.itens || [], tem_mais: !!r.resultado?.tem_mais, proximo_antes: r.resultado?.proximo_antes || null };
+}
+
+/** Quem veio num culto (equipe): { ok, culto, salas: [{ nome, criancas }] } */
+export async function historicoCulto(cultoId) {
+  const r = await chamarRpc("historico_culto", { p_culto: cultoId });
+  if (!r.ok) return r;
+  return { ok: true, culto: r.resultado?.culto || null, salas: r.resultado?.salas || [] };
+}

@@ -42,6 +42,7 @@ const ABAS = {
 export const ITENS_MAIS = [
   { rota: "/checkin", texto: "Check-in", icone: "checkin", papeis: [...LIDERANCA, "recepcao"] },
   { rota: "/cadastros", texto: "Crianças e famílias", icone: "cadastros", papeis: [...LIDERANCA, "recepcao"] },
+  { rota: "/historico", texto: "Histórico", icone: "historico", papeis: [...LIDERANCA, "recepcao"] },
   { rota: "/minha-familia", texto: "Minha família", icone: "familia", papeis: ["responsavel"] },
   { rota: "/perfil", texto: "Meu perfil", icone: "perfil" },
   { rota: "/trocar-senha", texto: "Trocar senha", icone: "senha" },
@@ -86,6 +87,8 @@ function abaDaRota(rota, abas) {
     "/acessos": "/mais",
     "/cultos": "/mais",
     "/telao-link": "/mais",
+    "/historico": "/mais",
+    "/grupos-whatsapp": "/mais",
     "/minha-familia": abas.includes("familia") ? "/minha-familia" : "/mais",
   };
   return mapa[rota] || rota;
