@@ -515,6 +515,28 @@ export async function listarCriancas() {
   }
 }
 
+/**
+ * Contagens para o Início (Etapa 7). O RLS decide o que entra:
+ * equipe = o departamento; responsável = a própria família.
+ * Retorna { criancas, familias, autorizados } (null quando não deu para contar).
+ */
+export async function contarCadastros() {
+  const contar = async (tabela, filtro) => {
+    try {
+      let q = sb.from(tabela).select("id", { count: "exact", head: true });
+      if (filtro) q = filtro(q);
+      const { count, error } = await q;
+      return error ? null : count || 0;
+    } catch { return null; }
+  };
+  const [criancas, familias, autorizados] = await Promise.all([
+    contar("criancas", (q) => q.eq("ativo", true)),
+    contar("familias"),
+    contar("pessoas_autorizadas"),
+  ]);
+  return { criancas, familias, autorizados };
+}
+
 /** Famílias visíveis (responsáveis e crianças com nome). */
 export async function listarFamilias() {
   try {

@@ -453,3 +453,11 @@ a.item-compacto:hover { background: var(--fundo); }
 
 /* Conteúdo recebe foco ao trocar de tela (leitor de tela); sem contorno visível */
 #principal:focus { outline: none; }
+
+/* Início (Etapa 7) */
+.saudacao { margin-bottom: var(--e4); }
+.saudacao h1 { margin: 0; }
+.saudacao p { margin: 2px 0 0; }
+.saudacao + .cartao { margin-bottom: var(--e4); }
+.numeros--tres { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.numeros--tres .numero { flex-direction: column; align-items: flex-start; gap: var(--e2); padding: var(--e3); }

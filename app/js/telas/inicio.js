@@ -1,33 +1,56 @@
 // =====================================================================
-// Tela: Início por papel (Fase 10 · Etapa 4)
+// Tela: Início como painel (Fase 10 · Etapa 7)
 // Quem ainda não terminou o 1º acesso é levado antes para
-// "#/primeiro-acesso" (js/app.js). Aqui: saudação, papéis, aviso das
-// relações (se adiadas), notificações novas e um bloco por papel.
-// Os resumos de verdade (crianças, escalas, check-ins) chegam na Fase 5.
-// Recepção e liderança têm atalho para "Cadastros" (Etapa 5B);
-// responsável, para "Minha família" (Etapa 5C).
-// Pendências de cadastro (Etapa 5D): a equipe vê quantas estão abertas no
-// departamento; o responsável, quantas faltam na própria família.
+// "#/primeiro-acesso" (js/app.js).
+// Painel por papel: algo a completar (cartão amarelo, se houver),
+// cartões de número, atalhos em grade e os avisos mais recentes.
+//   Liderança/pastor/admin e recepção: números do departamento.
+//   Responsável: números da própria família.
+// Fase 5: em dia de culto, a recepção ganha o cartão "Check-in" no topo.
 // =====================================================================
 import { el, montar, aviso, carregando } from "../ui.js";
-import { estadoPrimeiroAcesso, meuPerfil, contarNaoLidas, contarPendencias } from "../supabase.js";
+import { icone } from "../icones.js";
+import { estadoPrimeiroAcesso, meuPerfil, contarNaoLidas, contarPendencias, contarCadastros, listarNotificacoes } from "../supabase.js";
+import { tipoDeBarra } from "../casca.js";
 
 export const layout = "padrao";
 export const titulo = "Início";
 
-// Um bloco por papel (na ordem de ORDEM_PAPEIS, em js/supabase.js)
-const BLOCOS = {
-  admin:       { cor: "azul",    titulo: "Administração", texto: "Você acompanha e ajusta tudo no app: cadastros, logins e configurações." },
-  pastor:      { cor: "azul",    titulo: "Pastoral",      texto: "Você acompanha todos os departamentos da igreja." },
-  lider:       { cor: "laranja", titulo: "Liderança",     texto: "Você cuida do departamento: voluntárias, famílias, escalas e pedidos de nova senha.", link: { href: "#/cadastros", texto: "Ver cadastros" } },
-  recepcao:    { cor: "amarelo", titulo: "Recepção",      texto: "Você consulta crianças e famílias e, em breve, faz o check-in nos cultos.", link: { href: "#/cadastros", texto: "Ver cadastros" } },
-  voluntaria:  { cor: "amarelo", titulo: "Voluntária",    texto: "Aqui você vai acompanhar as suas escalas e as salas em que serve." },
-  responsavel: { cor: "laranja", titulo: "Minha família", texto: "Veja as suas crianças, a sala de cada uma, o último check-in e quem pode retirá-las.", link: { href: "#/minha-familia", texto: "Ver minha família" } },
+const FUSO = "America/Sao_Paulo";
+const hoje = () => {
+  const t = new Date().toLocaleDateString("pt-BR", { timeZone: FUSO, weekday: "long", day: "numeric", month: "long" });
+  return t.charAt(0).toUpperCase() + t.slice(1);
 };
+const quando = (iso) => {
+  const d = new Date(iso);
+  const dia = d.toLocaleDateString("pt-BR", { timeZone: FUSO });
+  return dia === new Date().toLocaleDateString("pt-BR", { timeZone: FUSO })
+    ? `Hoje, ${d.toLocaleTimeString("pt-BR", { timeZone: FUSO, hour: "2-digit", minute: "2-digit" })}`
+    : d.toLocaleDateString("pt-BR", { timeZone: FUSO, day: "numeric", month: "short" });
+};
+
+function numero(nomeIcone, valor, rotulo, href, variante) {
+  if (valor === null || valor === undefined) return null;
+  return el("a", { class: `numero${variante ? " numero--" + variante : ""}`, href },
+    el("span", { class: "numero__icone" }, icone(nomeIcone)),
+    el("span", {}, el("span", { class: "numero__valor", text: String(valor) }), el("span", { class: "numero__rotulo", text: rotulo })));
+}
+
+function atalho(nomeIcone, rotulo, href) {
+  return el("a", { class: "atalhos__item", href }, el("span", { class: "atalhos__icone" }, icone(nomeIcone)), rotulo);
+}
+
+function completar(titulo, texto, href, botao) {
+  return el("section", { class: "cartao cartao--atencao cartao--compacto" },
+    el("span", { class: "numero__icone" }, icone("pendencias")),
+    el("div", { class: "flex-1" }, el("strong", { text: titulo }), el("br"), el("span", { class: "suave", text: texto })),
+    el("a", { class: "botao botao--primario botao--pequeno", href, text: botao }));
+}
 
 export async function render(alvo) {
   montar(alvo, carregando());
-  const [est, perfil, notif, pend] = await Promise.all([estadoPrimeiroAcesso(), meuPerfil(), contarNaoLidas(), contarPendencias()]);
+  const [est, perfil, notif, pend, cad, lista] = await Promise.all([
+    estadoPrimeiroAcesso(), meuPerfil(), contarNaoLidas(), contarPendencias(), contarCadastros(), listarNotificacoes()]);
 
   if (!est.ok) {
     montar(alvo, el("h1", { text: "Início" }), aviso("erro", "Não foi possível carregar seus dados agora. Tente recarregar a página."));
@@ -38,62 +61,66 @@ export async function render(alvo) {
     return;
   }
 
+  const tipo = tipoDeBarra(perfil);
+  const equipe = tipo === "lideranca" || tipo === "equipe";
+  const lideranca = tipo === "lideranca";
   const primeiroNome = perfil.ok && perfil.nome ? perfil.nome.trim().split(/\s+/)[0] : "";
-  const papeis = perfil.ok ? perfil.papeis : [];
-  const unicos = [...new Map(papeis.map((p) => [p.papel, p])).values()];
+  const nNotif = notif.ok ? notif.total : null;
+  const nPend = pend.ok ? pend.total : null;
 
   const partes = [
-    el("h1", { text: primeiroNome ? `Olá, ${primeiroNome}!` : "Olá!" }),
-    unicos.length
-      ? el("p", { class: "linha" }, unicos.map((p) => el("span", { class: "etiqueta", text: p.nomePapel })))
-      : null,
+    el("div", { class: "saudacao" },
+      el("h1", { text: primeiroNome ? `Olá, ${primeiroNome}` : "Olá" }),
+      el("p", { class: "suave", text: hoje() })),
   ];
 
+  // Algo a completar (amarelo, com a ação principal da tela)
   if (est.etapa === "informar_relacoes") {
-    partes.push(
-      aviso("atencao", "Falta informar a sua relação com uma ou mais crianças."),
-      el("p", {}, el("a", { class: "botao botao--secundario", href: "#/primeiro-acesso", text: "Informar agora" })));
+    partes.push(completar("Relação com as crianças", "Falta informar", "#/primeiro-acesso", "Informar"));
+  } else if (!equipe && nPend > 0) {
+    partes.push(completar(`${nPend} ${nPend > 1 ? "itens" : "item"} para completar`, "No cadastro da família", "#/minha-familia", "Completar"));
   }
 
-  const n = notif.ok ? notif.total : 0;
-  partes.push(el("section", { class: "cartao atalho" },
-    el("div", {},
-      el("h2", { class: "atalho__titulo", text: "Notificações" }),
-      el("p", { class: "atalho__texto", text: n === 0 ? "Nenhuma notificação nova." : `Você tem ${n} ${n > 1 ? "notificações novas" : "notificação nova"}.` })),
-    el("a", { class: "botao botao--pequeno", href: "#/notificacoes", text: "Ver" })));
+  // Números
+  const numeros = equipe
+    ? [numero("crianca", cad.criancas, "Crianças", "#/cadastros?aba=criancas", "destaque"),
+       perfil.temPapel("admin", "pastor", "lider", "recepcao") ? numero("inicio", cad.familias, "Famílias", "#/cadastros?aba=familias") : null,
+       perfil.temPapel("admin", "pastor", "lider", "recepcao") ? numero("pendencias", nPend, "Pendências", "#/pendencias", nPend > 0 ? "atencao" : null) : null,
+       numero("avisos", nNotif, nNotif === 1 ? "Aviso novo" : "Avisos novos", "#/notificacoes")]
+    : [numero("crianca", cad.criancas, cad.criancas === 1 ? "Criança" : "Crianças", "#/minha-familia", "destaque"),
+       numero("autorizados", cad.autorizados, cad.autorizados === 1 ? "Autorizado" : "Autorizados", "#/minha-familia"),
+       numero("avisos", nNotif, nNotif === 1 ? "Aviso novo" : "Avisos novos", "#/notificacoes")];
+  const visiveis = numeros.filter(Boolean);
+  partes.push(el("div", { class: visiveis.length === 3 ? "numeros numeros--tres" : "numeros" }, visiveis));
 
-  // Pendências de cadastro
-  const np = pend.ok ? pend.total : 0;
-  const equipe = perfil.ok && perfil.temPapel("admin", "pastor", "lider", "recepcao");
-  if (equipe) {
-    partes.push(el("section", { class: "cartao atalho" },
-      el("div", {},
-        el("h2", { class: "atalho__titulo", text: "Pendências de cadastro" }),
-        el("p", { class: "atalho__texto", text: np === 0 ? "Nenhuma pendência aberta." : `${np} ${np > 1 ? "pendências abertas" : "pendência aberta"} no departamento.` })),
-      el("a", { class: "botao botao--pequeno", href: "#/pendencias", text: "Ver" })));
-  } else if (np > 0 && perfil.ok && perfil.temPapel("responsavel")) {
-    partes.push(el("section", { class: "cartao atalho" },
-      el("div", {},
-        el("h2", { class: "atalho__titulo", text: "Para completar" }),
-        el("p", { class: "atalho__texto", text: `Falta${np > 1 ? "m" : ""} ${np} ${np > 1 ? "itens" : "item"} no cadastro da sua família.` })),
-      el("a", { class: "botao botao--pequeno", href: "#/minha-familia", text: "Ver" })));
-  }
-
-  for (const p of unicos) {
-    const b = BLOCOS[p.papel];
-    if (!b) continue;
-    const dep = p.departamento && !["admin", "pastor"].includes(p.papel) ? ` · ${p.departamento}` : "";
-    partes.push(el("section", { class: `cartao cartao--${b.cor}` },
-      el("h2", { text: b.titulo + dep }),
-      el("p", { class: "atalho__texto", text: b.texto }),
-      b.link ? el("p", {}, el("a", { class: "botao botao--pequeno", href: b.link.href, text: b.link.texto })) : null));
-  }
-
+  // Atalhos
+  const atalhos = lideranca
+    ? [atalho("crianca", "Crianças", "#/cadastros?aba=criancas"), atalho("inicio", "Famílias", "#/cadastros?aba=familias"),
+       atalho("familia", "Voluntárias", "#/cadastros?aba=voluntarias"), atalho("logins", "Logins", "#/logins")]
+    : equipe
+      ? [atalho("crianca", "Crianças", "#/cadastros?aba=criancas"),
+         perfil.temPapel("recepcao") ? atalho("inicio", "Famílias", "#/cadastros?aba=familias") : null,
+         perfil.temPapel("recepcao") ? atalho("pendencias", "Pendências", "#/pendencias") : null,
+         atalho("perfil", "Perfil", "#/perfil")]
+      : [atalho("familia", "Família", "#/minha-familia"), atalho("autorizados", "Autorizados", "#/minha-familia"),
+         atalho("perfil", "Perfil", "#/perfil"), atalho("senha", "Senha", "#/trocar-senha")];
   partes.push(
-    el("p", { class: "linha" },
-      el("a", { class: "botao botao--pequeno", href: "#/perfil", text: "Meu perfil" }),
-      el("a", { class: "botao botao--pequeno", href: "#/trocar-senha", text: "Trocar senha" })),
-    el("p", { class: "suave", text: "Versão de teste: cadastro, check-in e escalas chegam nas próximas etapas." }));
+    el("div", { class: "secao-titulo" }, el("h2", { text: "Atalhos" })),
+    el("div", { class: "atalhos" }, atalhos.filter(Boolean)));
+
+  // Avisos recentes
+  const recentes = lista.ok ? lista.lista.slice(0, 3) : [];
+  if (recentes.length) {
+    partes.push(
+      el("div", { class: "secao-titulo" }, el("h2", { text: "Avisos recentes" }), el("a", { href: "#/notificacoes", text: "Ver todos" })),
+      el("ul", { class: "lista-compacta" }, recentes.map((n) => el("li", {},
+        el("a", { class: "item-compacto", href: "#/notificacoes" },
+          el("span", { class: n.lida_em ? "item-compacto__ponto item-compacto__ponto--lido" : "item-compacto__ponto", "aria-hidden": "true" }),
+          el("span", { class: "item-compacto__texto" },
+            el("span", { class: "item-compacto__nome", text: n.titulo || "Aviso" }),
+            el("span", { class: "item-compacto__linha", text: (n.lida_em ? "" : "Novo · ") + quando(n.criado_em) })),
+          icone("seta", null, "item-compacto__seta"))))));
+  }
 
   montar(alvo, partes);
 }
