@@ -11,11 +11,15 @@
 //   • Regras da escala, teto por voluntária e quem já respondeu a
 //     indisponibilidade.
 // Equipe (recepção/voluntária): só a escala publicada, com os nomes.
+// Fase 9: "Imagem da escala" (escala publicada): cartões por culto num PNG
+// feito no aparelho, para compartilhar no grupo ou baixar.
 // Sem telefones aqui: os lembretes ficam em #/lembretes-escala.
 // =====================================================================
 import { el, montar, aviso, carregando, menuAcoes, toast } from "../ui.js";
 import { icone } from "../icones.js";
 import { abrirJanela, campo } from "../janela.js";
+import { imagemDaEscala } from "../imagem-escala.js";
+import { CONFIG } from "../../config.js";
 import {
   meuPerfil, escalaDoMes, configurarEscala, definirVagasCulto, gerarRascunho, candidatasVaga, trocarVaga,
   adicionarVaga, removerVaga, publicarEscala, regrasEscalaAtuais, definirRegrasEscala, voluntariasEscala,
@@ -147,6 +151,9 @@ function resumo(lider) {
       : null,
   ].filter(Boolean);
 
+  const imagem = !rascunho && temItens
+    ? el("button", { class: "botao botao--secundario botao--pequeno", type: "button", onclick: janelaImagem }, icone("imagem"), "Imagem da escala")
+    : null;
   const acoes = lider ? [
     rascunho ? el("button", { class: "botao botao--secundario botao--pequeno", type: "button", onclick: janelaVagasMes }, "Vagas por sala") : null,
     rascunho && !pedida ? el("button", { class: "botao botao--primario botao--pequeno", type: "button", onclick: () => janelaPedir(false) },
@@ -155,7 +162,8 @@ function resumo(lider) {
       type: "button", onclick: () => gerar(temItens) }, temItens ? "Gerar de novo" : "Gerar escala") : null,
     rascunho && temItens ? el("button", { class: "botao botao--primario botao--pequeno", type: "button", onclick: publicar }, "Publicar") : null,
     !rascunho ? el("a", { class: "botao botao--secundario botao--pequeno", href: "#/lembretes-escala" }, icone("conversa"), "Lembretes") : null,
-  ].filter(Boolean) : [];
+    imagem,
+  ].filter(Boolean) : [imagem].filter(Boolean);
   // o ⋯ fica no canto direito do cartão, para o menu abrir dentro da tela
   const menu = lider ? menuAcoes([
     rascunho && pedida ? { texto: "Mudar prazo da indisponibilidade", acao: () => janelaPedir(true) } : null,
@@ -232,6 +240,43 @@ function itemVaga(i, c, lider) {
 }
 
 // ---------- Ações ----------
+
+/** Imagem da escala publicada: prévia + Compartilhar (celular) ou Baixar. */
+async function janelaImagem() {
+  const nomeMes = dados.nome_mes.charAt(0).toUpperCase() + dados.nome_mes.slice(1);
+  let blob;
+  try {
+    blob = await imagemDaEscala(dados, `Escala ${CONFIG.nomeApp}`, nomeMes);
+  } catch (e) {
+    toast("erro", e?.message || "Não foi possível gerar a imagem.");
+    return;
+  }
+  const nomeArquivo = `escala-fonte-kids-${mes.slice(0, 7)}.png`;
+  const arquivo = new File([blob], nomeArquivo, { type: "image/png" });
+  const url = URL.createObjectURL(blob);
+  const compartilha = !!(navigator.canShare && navigator.canShare({ files: [arquivo] }));
+  const janela = abrirJanela({
+    titulo: "Imagem da escala",
+    textoSalvar: compartilha ? "Compartilhar" : "Baixar imagem",
+    conteudo: [
+      el("img", { class: "previa-escala", src: url, alt: `Prévia da escala de ${dados.nome_mes}` }),
+      el("p", { class: "suave", text: compartilha
+        ? "Toque em Compartilhar e escolha o WhatsApp (grupo das voluntárias)."
+        : "A imagem vai para os downloads; depois é só mandar no grupo." }),
+    ],
+    aoSalvar: async () => {
+      if (compartilha) {
+        try { await navigator.share({ files: [arquivo], title: `Escala de ${dados.nome_mes}` }); }
+        catch (e) { if (e?.name !== "AbortError") return "Não foi possível compartilhar. Tente Baixar pelo computador."; }
+        return null;
+      }
+      const a = el("a", { href: url, download: nomeArquivo });
+      document.body.append(a); a.click(); a.remove();
+      return null;
+    },
+  });
+  janela.addEventListener("close", () => setTimeout(() => URL.revokeObjectURL(url), 60000), { once: true });
+}
 
 async function comecar() {
   const r = await configurarEscala(mes, null);

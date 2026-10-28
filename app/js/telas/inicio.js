@@ -10,11 +10,12 @@
 // no topo; o responsável vê o check-in de hoje dos filhos (sala e código).
 // Fase 6: quem serve na escala vê a próxima vaga e a indisponibilidade a marcar.
 // Fase 8: cartão "Próximos eventos" para todos (até 3, com link para o evento).
+// Fase 9: liderança vê o "Último culto" (crianças, visitantes, primeira vez) → Indicadores.
 // =====================================================================
 import { el, montar, aviso, carregando } from "../ui.js";
 import { icone } from "../icones.js";
 import { estadoPrimeiroAcesso, meuPerfil, contarNaoLidas, contarPendencias, contarCadastros, listarNotificacoes,
-  cultosDeHoje, meusCheckinsHoje, minhaEscala, proximosEventos } from "../supabase.js";
+  cultosDeHoje, meusCheckinsHoje, minhaEscala, proximosEventos, ultimoCulto } from "../supabase.js";
 import { tipoDeBarra } from "../casca.js";
 
 export const layout = "padrao";
@@ -88,9 +89,9 @@ export async function render(alvo) {
   const fazCheckin = perfil.ok && perfil.temPapel("admin", "pastor", "lider", "recepcao");
   const ehResponsavel = perfil.ok && perfil.temPapel("responsavel");
   const serve = perfil.ok && perfil.temPapel("voluntaria");
-  const [hojeCultos, meusHoje, escala, eventos] = await Promise.all([
+  const [hojeCultos, meusHoje, escala, eventos, ultimo] = await Promise.all([
     fazCheckin ? cultosDeHoje() : null, ehResponsavel ? meusCheckinsHoje() : null, serve ? minhaEscala() : null,
-    proximosEventos()]);
+    proximosEventos(), lideranca ? ultimoCulto() : null]);
   if (hojeCultos?.ok && hojeCultos.lista.length) {
     const c = hojeCultos.lista.find((x) => x.sugerido) || hojeCultos.lista[0];
     partes.push(el("section", { class: "cartao cartao--checkin-hoje" },
@@ -109,6 +110,19 @@ export async function render(alvo) {
         el("span", { class: "codigo-mini", "aria-label": `Código ${k.codigo}`, text: k.codigo }))))
       ,
       el("p", { class: "suave sem-margem mt-2", text: "Mostre o código na porta da sala na hora de buscar." })));
+  }
+
+  // Último culto (Fase 9, liderança)
+  const u = ultimo?.ok ? ultimo.resultado : null;
+  if (u) {
+    const dia = new Date(`${u.data}T12:00:00`).toLocaleDateString("pt-BR", { timeZone: FUSO, weekday: "short", day: "2-digit", month: "2-digit" }).replace(".", "");
+    const linha = [`${u.presencas} ${u.presencas === 1 ? "criança" : "crianças"}`, `${u.visitantes} ${u.visitantes === 1 ? "visitante" : "visitantes"}`,
+      u.primeira_vez ? `${u.primeira_vez} primeira vez` : null].filter(Boolean).join(" · ");
+    partes.push(el("section", { class: "cartao cartao--compacto cartao--indicador" },
+      el("span", { class: "numero__icone" }, icone("grafico")),
+      el("div", { class: "flex-1" }, el("strong", { text: `Último culto · ${dia.charAt(0).toUpperCase()}${dia.slice(1)} ${u.hora}` }), el("br"),
+        el("span", { class: "suave", text: linha })),
+      el("a", { class: "botao botao--secundario botao--pequeno", href: "#/indicadores", text: "Indicadores" })));
   }
 
   // Escala (Fase 6)
