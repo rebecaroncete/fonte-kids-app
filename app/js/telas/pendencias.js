@@ -13,7 +13,7 @@
 // =====================================================================
 import { icone } from "../icones.js";
 import { el, montar, aviso, carregando } from "../ui.js";
-import { meuPerfil, listarPendencias, confirmarPendencia, nomePendencia } from "../supabase.js";
+import { meuPerfil, listarPendencias, confirmarPendencia, nomePendencia, voluntariasSemAcesso } from "../supabase.js";
 import { abrirJanela } from "../janela.js";
 import { normalizar } from "./cadastros.js";
 
@@ -61,14 +61,27 @@ async function desenhar(situacao) {
     area);
 
   montar(area, carregando());
-  const r = await listarPendencias(situacao);
+  const [r, vol] = await Promise.all([listarPendencias(situacao),
+    situacao === "abertas" ? voluntariasSemAcesso(true) : Promise.resolve({ ok: true, lista: [] })]);
   if (!area.isConnected) return;
   if (!r.ok) { montar(area, aviso("erro", r.erro)); return; }
-  desenharLista(area, situacao, r.lista);
+  desenharLista(area, situacao, r.lista, vol.ok ? vol.lista : []);
 }
 
-function desenharLista(area, situacao, todas) {
-  if (!todas.length) {
+/** Cartão das voluntárias que ainda não entraram no app (só liderança). */
+function cartaoVoluntarias(lista) {
+  return el("section", { class: "cartao cartao--pendencias" },
+    el("a", { class: "pendencia__familia-link", href: "#/logins" },
+      el("span", { class: "pendencia__familia", text: `Voluntárias sem acesso (${lista.length})` }), icone("seta", null, "item-compacto__seta")),
+    el("ul", { class: "lista-pendencias" }, lista.map((v) => el("li", { class: "pendencia" },
+      el("div", { class: "pendencia__linha" },
+        el("div", { class: "flex-1" },
+          el("p", { class: "sem-margem" }, el("strong", { text: v.nome })),
+          el("p", { class: "item-compacto__linha", text: [v.motivo, v.telefone].filter(Boolean).join(" · ") })))))));
+}
+
+function desenharLista(area, situacao, todas, voluntarias = []) {
+  if (!todas.length && !voluntarias.length) {
     montar(area, aviso(situacao === "abertas" ? "sucesso" : "info",
       situacao === "abertas" ? "Nenhuma pendência aberta. Tudo em dia!" : "Nenhuma pendência resolvida ainda."));
     return;
@@ -79,9 +92,10 @@ function desenharLista(area, situacao, todas) {
   // Filtro por tipo, com contagem
   const porTipo = new Map();
   for (const p of itens) porTipo.set(p.tipo, (porTipo.get(p.tipo) || 0) + 1);
-  if (escolhas.tipo !== "todos" && !porTipo.has(escolhas.tipo)) escolhas.tipo = "todos";
+  if (escolhas.tipo !== "todos" && !porTipo.has(escolhas.tipo) && !(escolhas.tipo === "voluntarias" && voluntarias.length)) escolhas.tipo = "todos";
   // Filtros em chips: tipo (com contagem) e forma de mostrar
-  const tipos = [["todos", `Todos (${itens.length})`],
+  const tipos = [["todos", `Todos (${itens.length + voluntarias.length})`],
+    ...(voluntarias.length ? [["voluntarias", `Voluntárias (${voluntarias.length})`]] : []),
     ...[...porTipo.entries()].sort((a, b) => b[1] - a[1]).map(([t, n]) => [t, `${nomePendencia(t)} (${n})`])];
   const chipsTipo = tipos.map(([valor, texto]) => el("button", { class: "chip", type: "button", text: texto,
     "aria-pressed": String(escolhas.tipo === valor), onclick: () => { escolhas.tipo = valor; marcar(); atualizar(); } }));
@@ -114,7 +128,10 @@ function desenharLista(area, situacao, todas) {
   function atualizar() {
     escolhas.busca = busca.value;
     const termo = normalizar(busca.value);
-    const achados = itens.filter((p) => (escolhas.tipo === "todos" || p.tipo === escolhas.tipo) && (!termo || p.busca.includes(termo)));
+    const achados = escolhas.tipo === "voluntarias" ? []
+      : itens.filter((p) => (escolhas.tipo === "todos" || p.tipo === escolhas.tipo) && (!termo || p.busca.includes(termo)));
+    const vols = ["todos", "voluntarias"].includes(escolhas.tipo)
+      ? voluntarias.filter((v) => !termo || normalizar(v.nome).includes(termo)) : [];
 
     if (escolhas.agrupar === "familia") {
       const grupos = new Map();
@@ -133,9 +150,14 @@ function desenharLista(area, situacao, todas) {
       resumo.textContent = achados.length ? `${achados.length} pendência${achados.length > 1 ? "s" : ""}` : "";
     }
 
+    if (vols.length) {
+      blocos.unshift(() => cartaoVoluntarias(vols));
+      resumo.textContent = [resumo.textContent, `${vols.length} voluntária${vols.length > 1 ? "s" : ""} sem acesso`].filter(Boolean).join(" · ");
+    }
+
     lista.replaceChildren();
     mostrando = 0;
-    if (!achados.length) { lista.append(aviso("info", "Nenhuma pendência encontrada com esses filtros.")); mais.hidden = true; return; }
+    if (!blocos.length) { lista.append(aviso("info", "Nenhuma pendência encontrada com esses filtros.")); mais.hidden = true; return; }
     desenharMais();
   }
 

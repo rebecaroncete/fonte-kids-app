@@ -778,12 +778,47 @@ export async function listarPendencias(situacao = "abertas") {
 /** Quantas pendências abertas o login enxerga (para o início). */
 export async function contarPendencias() {
   try {
-    const { count, error } = await sb.from("pendencias_cadastro")
-      .select("id", { count: "exact", head: true }).is("resolvida_em", null);
+    const [{ count, error }, vol] = await Promise.all([
+      sb.from("pendencias_cadastro").select("id", { count: "exact", head: true }).is("resolvida_em", null),
+      voluntariasSemAcesso(),
+    ]);
     if (error) return { ok: false };
-    return { ok: true, total: count || 0 };
+    return { ok: true, total: (count || 0) + (vol.ok ? vol.lista.length : 0), cadastro: count || 0, voluntarias: vol.ok ? vol.lista.length : 0 };
   } catch {
     return { ok: false };
+  }
+}
+
+/**
+ * Voluntárias que ainda não entraram no app (Etapa 7, decidido em 27/10/2026).
+ * Só para a liderança do Fonte Kids, pastores e admin (situacao_logins confere
+ * no banco); para os outros logins volta lista vazia, sem consultar.
+ * Guardada por 1 minuto para não repetir a consulta a cada troca de tela.
+ */
+const MOTIVOS_SEM_ACESSO = {
+  primeiro_acesso: "Ainda não entrou no app",
+  sem_login: "Sem login",
+  sem_telefone: "Sem telefone no cadastro",
+  telefone_invalido: "Telefone fora do padrão",
+  telefone_em_uso: "Telefone já usado por outro login",
+  telefone_compartilhado: "Telefone compartilhado",
+};
+let volGuardadas = null;
+export async function voluntariasSemAcesso(forcar = false) {
+  const perfil = await meuPerfil();
+  if (!perfil.ok || !perfil.temPapel("admin", "pastor", "lider")) return { ok: true, lista: [] };
+  if (!forcar && volGuardadas && volGuardadas.uid === perfil.uid && Date.now() - volGuardadas.em < 60000) return volGuardadas.r;
+  try {
+    const { data, error } = await sb.rpc("situacao_logins");
+    if (error) return { ok: false, lista: [] };
+    const lista = (data || [])
+      .filter((x) => x.e_voluntaria && MOTIVOS_SEM_ACESSO[x.situacao])
+      .map((x) => ({ pessoaId: x.pessoa_id, nome: x.nome, situacao: x.situacao, motivo: MOTIVOS_SEM_ACESSO[x.situacao], telefone: x.telefone_mascarado }));
+    const r = { ok: true, lista };
+    volGuardadas = { uid: perfil.uid, em: Date.now(), r };
+    return r;
+  } catch {
+    return { ok: false, lista: [] };
   }
 }
 
