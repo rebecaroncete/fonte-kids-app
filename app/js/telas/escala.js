@@ -19,6 +19,7 @@ import { el, montar, aviso, carregando, menuAcoes, toast } from "../ui.js";
 import { icone } from "../icones.js";
 import { abrirJanela, campo } from "../janela.js";
 import { imagemDaEscala } from "../imagem-escala.js";
+import { janelaImagem } from "../compartilhar-imagem.js";
 import { CONFIG } from "../../config.js";
 import {
   meuPerfil, escalaDoMes, configurarEscala, definirVagasCulto, gerarRascunho, candidatasVaga, trocarVaga,
@@ -152,7 +153,7 @@ function resumo(lider) {
   ].filter(Boolean);
 
   const imagem = !rascunho && temItens
-    ? el("button", { class: "botao botao--secundario botao--pequeno", type: "button", onclick: janelaImagem }, icone("imagem"), "Imagem da escala")
+    ? el("button", { class: "botao botao--secundario botao--pequeno", type: "button", onclick: imagemEscala }, icone("imagem"), "Imagem da escala")
     : null;
   const acoes = lider ? [
     rascunho ? el("button", { class: "botao botao--secundario botao--pequeno", type: "button", onclick: janelaVagasMes }, "Vagas por sala") : null,
@@ -242,7 +243,7 @@ function itemVaga(i, c, lider) {
 // ---------- Ações ----------
 
 /** Imagem da escala publicada: prévia + Compartilhar (celular) ou Baixar. */
-async function janelaImagem() {
+async function imagemEscala() {
   const nomeMes = dados.nome_mes.charAt(0).toUpperCase() + dados.nome_mes.slice(1);
   let blob;
   try {
@@ -251,31 +252,8 @@ async function janelaImagem() {
     toast("erro", e?.message || "Não foi possível gerar a imagem.");
     return;
   }
-  const nomeArquivo = `escala-fonte-kids-${mes.slice(0, 7)}.png`;
-  const arquivo = new File([blob], nomeArquivo, { type: "image/png" });
-  const url = URL.createObjectURL(blob);
-  const compartilha = !!(navigator.canShare && navigator.canShare({ files: [arquivo] }));
-  const janela = abrirJanela({
-    titulo: "Imagem da escala",
-    textoSalvar: compartilha ? "Compartilhar" : "Baixar imagem",
-    conteudo: [
-      el("img", { class: "previa-escala", src: url, alt: `Prévia da escala de ${dados.nome_mes}` }),
-      el("p", { class: "suave", text: compartilha
-        ? "Toque em Compartilhar e escolha o WhatsApp (grupo das voluntárias)."
-        : "A imagem vai para os downloads; depois é só mandar no grupo." }),
-    ],
-    aoSalvar: async () => {
-      if (compartilha) {
-        try { await navigator.share({ files: [arquivo], title: `Escala de ${dados.nome_mes}` }); }
-        catch (e) { if (e?.name !== "AbortError") return "Não foi possível compartilhar. Tente Baixar pelo computador."; }
-        return null;
-      }
-      const a = el("a", { href: url, download: nomeArquivo });
-      document.body.append(a); a.click(); a.remove();
-      return null;
-    },
-  });
-  janela.addEventListener("close", () => setTimeout(() => URL.revokeObjectURL(url), 60000), { once: true });
+  janelaImagem({ titulo: "Imagem da escala", blob, nomeArquivo: `escala-fonte-kids-${mes.slice(0, 7)}.png`,
+    alt: `Prévia da escala de ${dados.nome_mes}` });
 }
 
 async function comecar() {
