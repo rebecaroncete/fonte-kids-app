@@ -1,116 +1,156 @@
 // =====================================================================
-// Fonte Kids – casca do app (Fase 10 · Etapa 4)
-// Barra do topo com logo, sino de notificações e menu.
-// O menu mostra só as telas que já existem, filtradas pelos papéis do
-// login. Para incluir uma tela nova: acrescente um item em ITENS_MENU
-// (com "papeis" quando for só para alguns papéis).
+// Fonte Kids – casca do app (Fase 10 · Etapa 7: navegação nova)
+// Topo enxuto (logo, departamento, foto) + barra de ícones embaixo, por
+// papel. No computador, a barra vira uma coluna à esquerda (só CSS).
+//
+// Abas por papel (4 ou 5):
+//   Responsável: Início · Família · Avisos · Perfil
+//   Recepção/voluntária: Início · Recepção · Pendências · Avisos · Mais
+//   Liderança/pastor/admin: Início · Cadastros · Pendências · Avisos · Mais
+// Quem tem papel de equipe E de responsável fica com a barra da equipe;
+// "Minha família" aparece no "Mais".
+// Fase 5: a aba "Recepção" passa a ser o check-in.
+//
+// Tela nova? Se for aba, acrescente em ABAS e em abasDo(); se não, em
+// ITENS_MAIS (com "papeis" quando for só para alguns papéis) e, para a
+// aba ficar marcada, em abaDaRota().
 // =====================================================================
 import { CONFIG } from "../config.js";
-import { el } from "./ui.js";
-import { meuPerfil } from "./supabase.js";
+import { el, iniciais } from "./ui.js";
+import { icone } from "./icones.js";
+import { meuPerfil, contarPendencias } from "./supabase.js";
 import { aoMudarContagem } from "./notificacoes.js";
+import { linkFoto } from "./foto.js";
 
-// papeis: admin | pastor | lider | recepcao | voluntaria | responsavel
-// (sem "papeis" = todos os logins)
-const ITENS_MENU = [
-  { rota: "/inicio", texto: "Início" },
-  { rota: "/minha-familia", texto: "Minha família", papeis: ["responsavel"] },
-  { rota: "/cadastros", texto: "Cadastros", papeis: ["admin", "pastor", "lider", "recepcao", "voluntaria"] },
-  { rota: "/pendencias", texto: "Pendências", papeis: ["admin", "pastor", "lider", "recepcao"] },
-  { rota: "/notificacoes", texto: "Notificações" },
-  { rota: "/perfil", texto: "Meu perfil" },
-  { rota: "/trocar-senha", texto: "Trocar senha" },
-  { rota: "/logins", texto: "Gestão de logins", papeis: ["admin", "pastor", "lider"] },
-];
+const LIDERANCA = ["admin", "pastor", "lider"];
+const EQUIPE = [...LIDERANCA, "recepcao", "voluntaria"];
 
-const SVG = "http://www.w3.org/2000/svg";
-const ICONES = {
-  sino: "M12 3a6 6 0 0 0-6 6v3.6l-1.6 2.7A1 1 0 0 0 5.3 17h13.4a1 1 0 0 0 .9-1.7L18 12.6V9a6 6 0 0 0-6-6zm-2.5 15.5a2.5 2.5 0 0 0 5 0z",
-  menu: "M4 6h16v2.2H4zm0 4.9h16v2.2H4zm0 4.9h16V18H4z",
+const ABAS = {
+  inicio:     { rota: "/inicio", texto: "Início", icone: "inicio" },
+  familia:    { rota: "/minha-familia", texto: "Família", icone: "familia" },
+  recepcao:   { rota: "/cadastros", texto: "Recepção", icone: "recepcao" },
+  cadastros:  { rota: "/cadastros", texto: "Cadastros", icone: "cadastros" },
+  pendencias: { rota: "/pendencias", texto: "Pendências", icone: "pendencias", contagem: "pendencias" },
+  avisos:     { rota: "/notificacoes", texto: "Avisos", icone: "avisos", contagem: "avisos" },
+  perfil:     { rota: "/perfil", texto: "Perfil", icone: "perfil" },
+  mais:       { rota: "/mais", texto: "Mais", icone: "mais" },
 };
 
-function icone(nome) {
-  const s = document.createElementNS(SVG, "svg");
-  s.setAttribute("viewBox", "0 0 24 24");
-  s.setAttribute("aria-hidden", "true");
-  s.setAttribute("class", "icone");
-  const p = document.createElementNS(SVG, "path");
-  p.setAttribute("d", ICONES[nome]);
-  s.append(p);
-  return s;
+// Itens da tela "Mais" (papeis: admin | pastor | lider | recepcao | voluntaria | responsavel)
+export const ITENS_MAIS = [
+  { rota: "/minha-familia", texto: "Minha família", icone: "familia", papeis: ["responsavel"] },
+  { rota: "/perfil", texto: "Meu perfil", icone: "perfil" },
+  { rota: "/trocar-senha", texto: "Trocar senha", icone: "senha" },
+  { rota: "/logins", texto: "Gestão de logins", icone: "logins", papeis: LIDERANCA },
+];
+
+/** "lideranca" | "equipe" | "responsavel" | "basico" */
+export function tipoDeBarra(perfil) {
+  if (!perfil?.ok) return "basico";
+  if (perfil.temPapel(...LIDERANCA)) return "lideranca";
+  if (perfil.temPapel("recepcao", "voluntaria")) return "equipe";
+  if (perfil.temPapel("responsavel")) return "responsavel";
+  return "basico";
 }
 
-let desligarContagem = null;
-let fecharMenuAberto = null;
+function abasDo(perfil) {
+  const tipo = tipoDeBarra(perfil);
+  if (tipo === "lideranca") return ["inicio", "cadastros", "pendencias", "avisos", "mais"];
+  if (tipo === "equipe") {
+    return perfil.temPapel("recepcao")
+      ? ["inicio", "recepcao", "pendencias", "avisos", "mais"]
+      : ["inicio", "recepcao", "avisos", "mais"];
+  }
+  if (tipo === "responsavel") return ["inicio", "familia", "avisos", "perfil"];
+  return ["inicio", "avisos", "perfil"];
+}
 
-/** Barra do topo. opcoes: { logado, rota, aoSair } */
-export function montarTopo({ logado, rota, aoSair }) {
-  if (desligarContagem) { desligarContagem(); desligarContagem = null; }
-  if (fecharMenuAberto) { fecharMenuAberto(); fecharMenuAberto = null; }
+/** Qual aba fica marcada em cada tela. */
+function abaDaRota(rota, abas) {
+  const temMais = abas.includes("mais");
+  const mapa = {
+    "/ficha": abas.includes("familia") ? "/minha-familia" : "/cadastros",
+    "/perfil": temMais ? "/mais" : "/perfil",
+    "/trocar-senha": temMais ? "/mais" : "/perfil",
+    "/logins": "/mais",
+    "/minha-familia": abas.includes("familia") ? "/minha-familia" : "/mais",
+  };
+  return mapa[rota] || rota;
+}
+
+/** Itens do "Mais" para o login atual. */
+export function itensMaisDo(perfil) {
+  const meus = perfil?.ok ? perfil.papeis.map((p) => p.papel) : [];
+  return ITENS_MAIS.filter((i) => !i.papeis || i.papeis.some((p) => meus.includes(p)));
+}
+
+let desligadores = [];
+function desligarTudo() { for (const f of desligadores) { try { f(); } catch { /* ignore */ } } desligadores = []; }
+
+/** Barra do topo. opcoes: { logado, rota } */
+export function montarTopo({ logado, rota }) {
+  desligarTudo();
 
   const marca = el("a", { class: "topo__marca", href: logado ? "#/inicio" : "#/entrar", "aria-label": `${CONFIG.nomeApp} – início` },
-    el("img", { class: "topo__logo", src: "img/logo.png", alt: "" }),
-    el("span", { class: "topo__nome", text: CONFIG.nomeApp }));
+    el("img", { class: "topo__logo", src: "img/logo.png", alt: "" }));
+  const departamento = el("span", { class: "topo__nome", text: CONFIG.nomeApp });
 
-  if (!logado) return el("header", { class: "topo" }, marca);
+  if (!logado) return el("header", { class: "topo" }, marca, departamento);
 
-  // ---------- Sino ----------
-  const contagem = el("span", { class: "sino__contagem", hidden: true, "aria-hidden": "true" });
-  const sino = el("a", { class: "botao-icone", href: "#/notificacoes", "aria-label": "Notificações" },
-    icone("sino"), contagem);
-  if (rota === "/notificacoes") sino.setAttribute("aria-current", "page");
-  desligarContagem = aoMudarContagem((n) => {
-    contagem.hidden = n < 1;
-    contagem.textContent = n > 9 ? "9+" : String(n);
-    sino.setAttribute("aria-label", n > 0 ? `Notificações, ${n} nova${n > 1 ? "s" : ""}` : "Notificações");
+  // Foto (ou iniciais) → abre o perfil
+  const avatar = el("a", { class: "avatar topo__avatar", href: "#/perfil", "aria-label": "Meu perfil" },
+    el("span", { "aria-hidden": "true", text: "" }));
+  if (rota === "/perfil") avatar.setAttribute("aria-current", "page");
+
+  meuPerfil().then(async (p) => {
+    if (!p.ok) return;
+    avatar.firstChild.textContent = iniciais(p.nome);
+    // Departamento: hoje todos são do Fonte Kids. O seletor (para quem serve
+    // em mais de um) entra junto com o app geral da igreja.
+    const deps = [...new Set(p.papeis.map((x) => x.departamento).filter(Boolean))];
+    if (deps.length === 1) departamento.textContent = deps[0];
+    if (p.pessoaId) {
+      const url = await linkFoto("pessoa", p.pessoaId);
+      if (!url || !avatar.isConnected) return;
+      const img = el("img", { src: url, alt: "", referrerpolicy: "no-referrer", decoding: "async" });
+      img.addEventListener("load", () => avatar.replaceChildren(img), { once: true });
+    }
   });
 
-  // ---------- Menu ----------
-  const lista = el("ul", { class: "menu__lista" });
-  const painel = el("nav", { class: "menu", id: "menu-principal", "aria-label": "Menu", hidden: true }, lista);
-  const botaoMenu = el("button", {
-    class: "botao-icone", type: "button", "aria-label": "Abrir menu",
-    "aria-expanded": "false", "aria-controls": "menu-principal",
-  }, icone("menu"));
+  return el("header", { class: "topo" }, marca, departamento, avatar);
+}
 
-  let preenchido = false;
-  async function preencher() {
-    if (preenchido) return;
-    preenchido = true;
-    const perfil = await meuPerfil();
-    const meusPapeis = perfil.ok ? perfil.papeis.map((p) => p.papel) : [];
-    const itens = ITENS_MENU.filter((i) => !i.papeis || i.papeis.some((p) => meusPapeis.includes(p)));
-    lista.replaceChildren(
-      ...itens.map((i) => el("li", {},
-        el("a", { class: "menu__item", href: `#${i.rota}`, "aria-current": i.rota === rota || (rota === "/ficha" && i.rota === "/cadastros") ? "page" : null, text: i.texto }))),
-      el("li", {}, el("button", { class: "menu__item menu__item--sair", type: "button", text: "Sair", onclick: () => { fechar(); aoSair(); } })));
+/** Barra de ícones (embaixo no celular; coluna à esquerda no computador). */
+export function montarBarra({ rota }) {
+  const nav = el("nav", { class: "barra", "aria-label": "Menu principal" });
+
+  function desenhar(perfil) {
+    const abas = abasDo(perfil);
+    const ativa = abaDaRota(rota, abas);
+    const contagens = {};
+    nav.replaceChildren(...abas.map((chave) => {
+      const a = ABAS[chave];
+      const num = el("span", { class: "barra__contagem", hidden: true, "aria-hidden": "true" });
+      if (a.contagem) contagens[a.contagem] = { num, link: null, texto: a.texto };
+      const link = el("a", { class: "barra__aba", href: `#${a.rota}`, "aria-current": a.rota === ativa ? "page" : null },
+        el("span", { class: "barra__icone" }, icone(a.icone), num),
+        el("span", { class: "barra__texto", text: a.texto }));
+      if (a.contagem) contagens[a.contagem].link = link;
+      return link;
+    }));
+
+    const mostrar = (chave, n) => {
+      const c = contagens[chave];
+      if (!c) return;
+      c.num.hidden = !(n > 0);
+      c.num.textContent = n > 9 ? "9+" : String(n);
+      c.link.setAttribute("aria-label", n > 0 ? `${c.texto}, ${n}` : c.texto);
+    };
+    desligadores.push(aoMudarContagem((n) => mostrar("avisos", n)));
+    if (contagens.pendencias) contarPendencias().then((r) => { if (r.ok) mostrar("pendencias", r.total); });
   }
 
-  function aoClicarFora(e) { if (!painel.contains(e.target) && !botaoMenu.contains(e.target)) fechar(); }
-  function aoTeclar(e) { if (e.key === "Escape") { fechar(); botaoMenu.focus(); } }
-
-  function fechar() {
-    painel.hidden = true;
-    botaoMenu.setAttribute("aria-expanded", "false");
-    botaoMenu.setAttribute("aria-label", "Abrir menu");
-    document.removeEventListener("click", aoClicarFora, true);
-    document.removeEventListener("keydown", aoTeclar);
-  }
-  async function abrir() {
-    await preencher();
-    painel.hidden = false;
-    botaoMenu.setAttribute("aria-expanded", "true");
-    botaoMenu.setAttribute("aria-label", "Fechar menu");
-    document.addEventListener("click", aoClicarFora, true);
-    document.addEventListener("keydown", aoTeclar);
-    painel.querySelector("a, button")?.focus();
-  }
-  botaoMenu.addEventListener("click", () => (painel.hidden ? abrir() : fechar()));
-  painel.addEventListener("click", (e) => { if (e.target.closest("a")) fechar(); });
-  fecharMenuAberto = fechar;
-
-  return el("header", { class: "topo" },
-    marca,
-    el("div", { class: "topo__acoes" }, sino, botaoMenu),
-    painel);
+  desenhar(null); // enquanto o perfil carrega (vem da memória depois da 1ª vez)
+  meuPerfil().then((p) => { if (nav.isConnected || !nav.parentNode) desenhar(p); });
+  return nav;
 }

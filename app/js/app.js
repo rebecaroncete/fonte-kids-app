@@ -15,7 +15,7 @@
 import { CONFIG } from "../config.js";
 import { el, montar, carregando, aviso, toast } from "./ui.js";
 import { sb, sessaoAtual, sair, estadoPrimeiroAcesso, limparPerfilGuardado } from "./supabase.js";
-import { montarTopo } from "./casca.js";
+import { montarTopo, montarBarra } from "./casca.js";
 import { iniciarNotificacoes, pararNotificacoes } from "./notificacoes.js";
 import { limparFotos } from "./foto.js";
 import { iniciarPWA, faixaInstalacao } from "./pwa.js";
@@ -34,6 +34,7 @@ const ROTAS = {
   "/ficha":         { publica: false, carregar: () => import("./telas/ficha.js") },
   "/minha-familia": { publica: false, carregar: () => import("./telas/minha-familia.js") },
   "/pendencias":    { publica: false, carregar: () => import("./telas/pendencias.js") },
+  "/mais":          { publica: false, carregar: () => import("./telas/mais.js") },
 };
 
 /** Endereço interno conhecido? (usado para abrir links de notificações) */
@@ -113,7 +114,10 @@ async function mostrar() {
   document.title = tela.titulo ? `${tela.titulo} · ${CONFIG.nomeApp}` : CONFIG.nomeApp;
   const principal = el("main", { class: tela.layout === "central" ? "tela-central" : "conteudo", id: "principal", tabindex: "-1" });
   if (sessao && tela.layout !== "central") iniciarNotificacoes(); // sino (só depois do 1º acesso)
-  const partes = tela.layout === "central" ? [principal] : [montarTopo({ logado: !!sessao, rota, aoSair: fazerSair }),
+  const comBarra = !!sessao && tela.layout !== "central" && rota !== ROTA_PRIMEIRO_ACESSO;
+  document.body.classList.toggle("com-barra", comBarra);
+  const partes = tela.layout === "central" ? [principal] : [montarTopo({ logado: !!sessao, rota }),
+    comBarra ? montarBarra({ rota }) : null,
     sessao ? faixaInstalacao() : null, principal,
     el("footer", { class: "rodape", text: `${CONFIG.nomeApp} · versão ${CONFIG.versao}` })];
   montar(raiz, partes);
