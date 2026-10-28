@@ -862,3 +862,72 @@ export function informarRelacoesDe(responsavelId, lista) {
 export function informarConjuge(responsavelId, sim) {
   return chamarEdicao("informar_conjuge", { p_responsavel: responsavelId, p_conjuge: !!sim });
 }
+
+// =====================================================================
+// Fase 5 · Etapa 5A – agenda de cultos, salas por culto e acessos da equipe.
+// Tudo passa por funções do banco (que conferem a permissão e registram
+// na auditoria). As mensagens de erro dessas funções foram escritas por
+// nós (código P0001) e podem ser mostradas como estão.
+// =====================================================================
+
+async function chamarRpc(funcao, args) {
+  try {
+    const { data, error } = await sb.rpc(funcao, args);
+    if (!error) return { ok: true, resultado: data };
+    if (error.code === "P0001" && error.message) return { ok: false, erro: error.message };
+    return { ok: false, erro: "Não foi possível concluir agora. Tente de novo." };
+  } catch {
+    return { ok: false, erro: SEM_CONEXAO };
+  }
+}
+
+/**
+ * Cultos dos próximos dias (criados sozinhos a partir da agenda).
+ * [{ id, data, horario, nome, cancelado, extra, personalizado,
+ *    salas: [{ sala_id, nome, idade_min, idade_max, salas: [ids], cancelada }] }]
+ */
+export async function cultosProximos(dias = 14) {
+  const r = await chamarRpc("cultos_proximos", { p_dias: dias });
+  return r.ok ? { ok: true, lista: r.resultado || [] } : r;
+}
+
+/** Agenda: [{ id, nome, dia_semana, horario, ativo, salas: [...] }] */
+export async function agendaCultos() {
+  const r = await chamarRpc("agenda_cultos", {});
+  return r.ok ? { ok: true, lista: r.resultado || [] } : r;
+}
+
+export function salvarCultoAgenda(id, nome, diaSemana, horario, ativo = true) {
+  return chamarRpc("salvar_culto_agenda", { p_id: id || null, p_nome: nome, p_dia_semana: diaSemana, p_horario: horario, p_ativo: ativo });
+}
+
+/** salas: [{ sala_id, cancelada, junto_com }] – só as exceções (sala aberta não entra). */
+export function definirSalasAgenda(recorrenteId, salas) {
+  return chamarRpc("definir_salas_agenda", { p_recorrente: recorrenteId, p_salas: salas });
+}
+
+/** salas = null → volta ao padrão da agenda. */
+export function definirSalasDia(cultoId, salas) {
+  return chamarRpc("definir_salas_dia", { p_culto: cultoId, p_salas: salas });
+}
+
+export function cancelarCulto(cultoId, cancelar = true) {
+  return chamarRpc("cancelar_culto", { p_culto: cultoId, p_cancelar: cancelar });
+}
+
+export function criarCultoExtra(data, horario, nome, salas = []) {
+  return chamarRpc("criar_culto_extra", { p_data: data, p_horario: horario, p_nome: nome, p_salas: salas });
+}
+
+/** Voluntárias com login e seus acessos: [{ perfil_id, nome, lider, recepcao, sou_eu }] */
+export async function papeisVoluntarias() {
+  const r = await chamarRpc("papeis_voluntarias", {});
+  return r.ok ? { ok: true, lista: r.resultado || [] } : r;
+}
+
+/** papel: "lider" | "recepcao"; ativo: dar (true) ou tirar (false). */
+export async function definirPapel(perfilId, papel, ativo) {
+  const r = await chamarRpc("definir_papel", { p_perfil: perfilId, p_papel: papel, p_ativo: !!ativo });
+  if (r.ok) limparPerfilGuardado();
+  return r;
+}

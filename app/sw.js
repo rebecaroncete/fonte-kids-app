@@ -11,7 +11,7 @@
 // O app mostra "Versão nova disponível – Atualizar"; a troca só acontece
 // quando a pessoa toca em Atualizar (nada muda no meio de um check-in).
 // =====================================================================
-const VERSAO = "0.13.1";
+const VERSAO = "0.14.0";
 const PREFIXO = "fonte-kids-app-";
 const CACHE = PREFIXO + VERSAO;
 
@@ -45,7 +45,9 @@ const ARQUIVOS = [
   "js/pwa.js",
   "js/supabase.js",
   "js/ui.js",
+  "js/telas/acessos.js",
   "js/telas/cadastros.js",
+  "js/telas/cultos.js",
   "js/telas/esqueci-senha.js",
   "js/telas/ficha.js",
   "js/telas/inicio.js",
