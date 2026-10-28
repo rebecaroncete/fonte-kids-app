@@ -1,5 +1,5 @@
 // =====================================================================
-// Tela: Check-in – Entrada (Fase 5 · Etapa 5B)
+// Tela: Check-in – Entrada (Fase 5 · 5B) e Presentes (Fase 5 · 5C)
 // Para a recepção (todas as voluntárias), liderança, pastores e admin.
 //   1) Culto de hoje (escolhido sozinho: o mais próximo do horário; dá para trocar)
 //   2) Busca por criança, responsável ou 4 últimos números do telefone
@@ -9,15 +9,18 @@
 //   4) "Fazer check-in (N)" → tela com o código de cada criança
 // Sem "quem trouxe" (decisão 75). Sem check-out aqui (decisão 80).
 // Tudo grava pelas funções do banco (fazer_checkin, desfazer_checkin…).
-// A aba "Presentes" entra na Etapa 5C.
-// Endereço: #/checkin
+// Presentes (5C): crianças por sala em tempo real, com código, 🎂, alergia,
+// "Chamar responsável" (aparece no telão), "Saiu" opcional e ⋯ Desfazer.
+// Os check-ins abertos fecham sozinhos 3 h depois do início do culto.
+// Endereço: #/checkin (Entrada) ou #/checkin?aba=presentes
 // =====================================================================
 import { el, montar, aviso, carregando, toast, menuAcoes } from "../ui.js";
 import { icone } from "../icones.js";
 import { abrirJanela, campo } from "../janela.js";
 import { avatarLista, preencherFotos } from "../foto.js";
 import { meuPerfil, cultosDeHoje, buscarParaCheckin, fazerCheckin, desfazerCheckin,
-  editarCrianca, nascimentoDe, confirmarPendencia, nomePendencia } from "../supabase.js";
+  editarCrianca, nascimentoDe, confirmarPendencia, nomePendencia,
+  presentesDoCulto, marcarSaida, desfazerSaida, chamarResponsavel, cancelarChamada, ouvirCulto } from "../supabase.js";
 
 export const layout = "padrao";
 export const titulo = "Check-in";
@@ -35,13 +38,36 @@ let termoAtual = "";
 let alvoTela = null;
 let cultos = [];
 let lideranca = false;
+let abaInterna = "entrada";   // "entrada" | "presentes"
+let filtroSala = null;        // Presentes: sala escolhida nos chips (null = todas)
+let linhaResumo = null;       // texto "N crianças com check-in" do cabeçalho
+let desligarTempoReal = null;
+let relogio = null;
+let esperaPresentes = null;
 
 const hojeIso = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
 const cultoAtual = () => cultos.find((c) => c.id === cultoEscolhido) || cultos[0];
 const salaCurta = (nome) => (nome ? nome.replace(/ anos$/, "") : "");
+const hora = (iso) => new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
+const textoPresentes = (n) => `${n} ${n === 1 ? "criança" : "crianças"} com check-in`;
+
+// Sair da tela (ou trocar de aba) desliga o tempo real e o relógio
+function pararPresentes() {
+  if (desligarTempoReal) desligarTempoReal();
+  desligarTempoReal = null;
+  clearInterval(relogio); relogio = null;
+  clearTimeout(esperaPresentes); esperaPresentes = null;
+}
+window.addEventListener("hashchange", pararPresentes);
+
+function redesenhar() {
+  if (abaInterna === "presentes") desenharPresentes(); else desenharBusca();
+}
 
 export async function render(alvo) {
   alvoTela = alvo;
+  pararPresentes();
+  abaInterna = new URLSearchParams(location.hash.split("?")[1] || "").get("aba") === "presentes" ? "presentes" : "entrada";
   montar(alvo, carregando());
   const [r, perfil] = await Promise.all([cultosDeHoje(), meuPerfil()]);
   lideranca = !!(perfil.ok && perfil.temPapel("admin", "pastor", "lider"));
@@ -58,7 +84,7 @@ export async function render(alvo) {
     return;
   }
   if (!cultos.some((c) => c.id === cultoEscolhido)) cultoEscolhido = (cultos.find((c) => c.sugerido) || cultos[0]).id;
-  desenharBusca();
+  redesenhar();
 }
 
 // ---------- Cabeçalho: culto do dia e salas ----------
@@ -69,25 +95,44 @@ function cabecalho() {
     ? el("div", { class: "chips mt-2", role: "group", "aria-label": "Culto" }, cultos.map((x) => el("button", {
         class: "chip", type: "button", "aria-pressed": x.id === c.id ? "true" : "false",
         text: `${x.horario} · ${x.nome}`,
-        onclick: () => { cultoEscolhido = x.id; termoAtual = ""; desenharBusca(); },
+        onclick: () => { cultoEscolhido = x.id; termoAtual = ""; filtroSala = null; redesenhar(); },
       })))
     : null;
   const salas = (c.salas || []).map((s) => el("span", {
     class: s.cancelada ? "etiqueta etiqueta--neutra" : "etiqueta etiqueta--azul",
     text: s.cancelada ? `${salaCurta(s.nome)} fechada` : salaCurta(s.nome),
   }));
+  linhaResumo = el("span", { text: textoPresentes(c.presentes) });
   return [
     el("div", { class: "saudacao" },
       el("h1", { text: "Check-in" }),
-      el("p", { class: "suave", text: `${c.nome} · ${c.horario} · ${c.presentes} ${c.presentes === 1 ? "criança" : "crianças"} com check-in` })),
+      el("p", { class: "suave" }, `${c.nome} · ${c.horario} · `, linhaResumo)),
     chips,
     salas.length ? el("div", { class: "linha mt-2", "aria-label": "Salas de hoje" }, salas) : null,
+    abasInternas(),
   ];
+}
+
+// Abas internas: Entrada · Presentes
+function abasInternas() {
+  const abas = [{ id: "entrada", texto: "Entrada" }, { id: "presentes", texto: "Presentes" }];
+  return el("div", { class: "abas", role: "tablist", "aria-label": "Check-in" }, abas.map((a) => el("button", {
+    class: "aba", type: "button", role: "tab", "aria-selected": a.id === abaInterna ? "true" : "false",
+    text: a.texto,
+    onclick: () => {
+      if (a.id === abaInterna) return;
+      abaInterna = a.id;
+      history.replaceState(null, "", a.id === "presentes" ? "#/checkin?aba=presentes" : "#/checkin");
+      redesenhar();
+    },
+  })));
 }
 
 // ---------- Busca ----------
 
 function desenharBusca() {
+  pararPresentes();
+  abaInterna = "entrada";
   const resultados = el("div", { class: "resultados-checkin", "aria-live": "polite" });
   const entrada = el("input", { type: "search", id: "busca-checkin", autocomplete: "off", inputmode: "search",
     placeholder: "Criança, responsável ou final do telefone", value: termoAtual });
@@ -245,6 +290,136 @@ function blocoPendencias(f, refazer) {
     })));
 }
 
+// ---------- Presentes (5C) ----------
+
+async function desenharPresentes() {
+  pararPresentes();
+  abaInterna = "presentes";
+  const c = cultoAtual();
+  const area = el("div", { class: "presentes", "aria-live": "polite" });
+  montar(alvoTela, ...cabecalho(), area);
+  montar(area, carregando());
+  await carregarPresentes(area, c.id);
+  if (!area.isConnected) return;
+  // tempo real: qualquer check-in, saída ou chamada deste culto atualiza a lista
+  desligarTempoReal = ouvirCulto(c.id, () => {
+    clearTimeout(esperaPresentes);
+    esperaPresentes = setTimeout(() => carregarPresentes(area, c.id), 500);
+  });
+  // a cada minuto: garante a lista certa mesmo se a conexão em tempo real cair
+  relogio = setInterval(() => carregarPresentes(area, c.id), 60000);
+}
+
+async function carregarPresentes(area, cultoId) {
+  if (!area.isConnected) { pararPresentes(); return; }
+  const r = await presentesDoCulto(cultoId);
+  if (!area.isConnected) return;
+  if (!r.ok) {
+    if (!area.querySelector(".presentes__sala")) montar(area, aviso("erro", r.erro));
+    else toast("erro", r.erro);
+    return;
+  }
+  desenharListaPresentes(area, r.dados, cultoId);
+}
+
+function desenharListaPresentes(area, d, cultoId) {
+  const todas = d.salas || [];
+  const abertos = todas.reduce((n, s) => n + s.criancas.filter((k) => !k.saiu).length, 0);
+  const total = todas.reduce((n, s) => n + s.criancas.length, 0);
+  const c = cultoAtual();
+  if (c) c.presentes = abertos;
+  if (linhaResumo) linhaResumo.textContent = textoPresentes(abertos);
+
+  const encerrado = !!d.culto?.encerrado;
+  const salas = todas.filter((s) => s.criancas.length || !s.cancelada);
+  if (filtroSala && !salas.some((s) => s.sala_id === filtroSala)) filtroSala = null;
+  const recarregar = () => carregarPresentes(area, cultoId);
+
+  if (!total) {
+    montar(area,
+      aviso("info", encerrado ? "Este culto já terminou e não teve check-in." : "Ainda não há check-in neste culto."),
+      encerrado ? null : el("button", { class: "botao botao--primario botao--largo mt-3", type: "button", text: "Fazer check-in",
+        onclick: () => { history.replaceState(null, "", "#/checkin"); desenharBusca(); } }));
+    return;
+  }
+
+  const contar = (s) => s.criancas.filter((k) => !k.saiu).length;
+  const chips = salas.length > 1
+    ? el("div", { class: "chips mt-3", role: "group", "aria-label": "Filtrar por sala" },
+        [{ sala_id: null, nome: "Todas", n: abertos }, ...salas.map((s) => ({ sala_id: s.sala_id, nome: salaCurta(s.nome), n: contar(s) }))]
+          .map((x) => el("button", { class: "chip", type: "button", "aria-pressed": x.sala_id === filtroSala ? "true" : "false",
+            text: `${x.nome} (${x.n})`,
+            onclick: () => { filtroSala = x.sala_id; recarregar(); } })))
+    : null;
+
+  const visiveis = salas.filter((s) => !filtroSala || s.sala_id === filtroSala);
+  montar(area,
+    encerrado ? aviso("info", "Este culto já terminou: os check-ins foram fechados sozinhos.") : null,
+    chips,
+    visiveis.map((s) => {
+      const n = contar(s);
+      const sairam = s.criancas.length - n;
+      return el("section", { class: "cartao presentes__sala mt-3" },
+        el("div", { class: "presentes__topo" },
+          el("h2", { class: "presentes__titulo", text: `Sala ${salaCurta(s.nome)}` }),
+          el("span", { class: "etiqueta etiqueta--azul", text: `${n} ${n === 1 ? "presente" : "presentes"}` }),
+          sairam ? el("span", { class: "etiqueta etiqueta--neutra", text: `${sairam} ${sairam === 1 ? "saiu" : "saíram"}` }) : null),
+        s.criancas.length
+          ? el("ul", { class: "lista-checkin" }, s.criancas.map((k) => linhaPresente(k, encerrado, recarregar)))
+          : el("p", { class: "suave sem-margem mt-2", text: "Nenhuma criança com check-in nesta sala." }));
+    }));
+  preencherFotos(area);
+}
+
+function linhaPresente(k, encerrado, recarregar) {
+  const ch = k.chamada;
+  const chamando = ch && ch.situacao === "aguardando";
+  const etiquetas = [];
+  if (k.aniversario) etiquetas.push(el("span", { class: "etiqueta etiqueta--laranja", text: "🎂 Aniversário" }));
+  if (chamando) etiquetas.push(el("span", { class: "etiqueta", text: `Chamando no telão · ${hora(ch.chamada_em)}` }));
+  else if (ch && ch.situacao === "anunciada") etiquetas.push(el("span", { class: "etiqueta etiqueta--azul" }, icone("check"), `Anunciado · ${hora(ch.anunciada_em)}`));
+  if (k.saiu) etiquetas.push(el("span", { class: "etiqueta etiqueta--neutra",
+    text: k.saida_automatica ? "Saída automática" : `Saiu · ${hora(k.saida_em)}` }));
+
+  const ativo = !k.saiu && !encerrado;
+  async function acao(botao, fn, ok) {
+    if (botao) botao.disabled = true;
+    const r = await fn();
+    if (!r.ok) { toast("erro", r.erro, 6000); if (botao) botao.disabled = false; return; }
+    if (ok) toast("sucesso", ok);
+    recarregar();
+  }
+
+  const menu = menuAcoes([
+    chamando ? { texto: "Cancelar chamada", acao: () => acao(null, () => cancelarChamada(ch.id), "Chamada cancelada.") } : null,
+    k.saiu && !k.saida_automatica && !encerrado ? { texto: "Desfazer saída", acao: () => acao(null, () => desfazerSaida(k.checkin_id), "Saída desfeita.") } : null,
+    k.pode_desfazer && !encerrado ? { texto: "Desfazer check-in", perigo: true, acao: () => janelaDesfazer(k.checkin_id, k.nome, recarregar) } : null,
+  ], `Mais ações para ${k.nome}`);
+
+  let botoes = null;
+  if (ativo) {
+    const chamar = chamando ? null : el("button", { class: "botao botao--secundario botao--pequeno", type: "button" },
+      icone("avisos"), ch && ch.situacao === "anunciada" ? "Chamar de novo" : "Chamar responsável");
+    if (chamar) chamar.addEventListener("click", () => acao(chamar, () => chamarResponsavel(k.checkin_id), "Responsável chamado no telão."));
+    const saiu = el("button", { class: "botao botao--secundario botao--pequeno", type: "button" }, icone("checkin"), "Saiu");
+    saiu.addEventListener("click", () => acao(saiu, () => marcarSaida(k.checkin_id), `Saída de ${k.nome} registrada.`));
+    botoes = el("div", { class: "linha mt-2 presentes__acoes" }, chamar, saiu);
+  }
+
+  return el("li", { class: k.saiu ? "checkin-crianca checkin-crianca--saiu" : "checkin-crianca" },
+    el("div", { class: "checkin-crianca__linha" },
+      avatarLista("crianca", k.crianca_id, k.nome),
+      el("span", { class: "item-compacto__texto" },
+        el("span", { class: "item-compacto__nome", text: k.nome }),
+        etiquetas.length ? el("span", { class: "linha mt-1" }, etiquetas) : null),
+      el("span", { class: "codigo-mini", "aria-label": `Código ${k.codigo.split("").join(" ")}`, text: k.codigo }),
+      menu),
+    botoes,
+    k.alergias && !k.saiu
+      ? el("div", { class: "checkin-alergia" }, icone("alergia"), el("span", {}, el("strong", { text: "Alergia/cuidados: " }), k.alergias))
+      : null);
+}
+
 // ---------- Janelinhas ----------
 
 async function janelaCorrigir(c, refazer) {
@@ -299,6 +474,7 @@ function mostrarCodigos(lista) {
   c.presentes += lista.filter((x) => !x.ja_tinha).length;
   const restantes = [...lista];
 
+  pararPresentes();
   function desenhar() {
     montar(alvoTela,
       el("div", { class: "saudacao" },
@@ -319,7 +495,9 @@ function mostrarCodigos(lista) {
               }) }], `Mais ações para ${x.nome}`))))
         : aviso("info", "Nenhum check-in nesta lista."),
       el("button", { class: "botao botao--primario botao--largo mt-5", type: "button", text: "Novo check-in",
-        onclick: () => { termoAtual = ""; desenharBusca(); } }));
+        onclick: () => { termoAtual = ""; desenharBusca(); } }),
+      el("button", { class: "botao botao--secundario botao--largo mt-3", type: "button", text: "Ver presentes",
+        onclick: () => { abaInterna = "presentes"; history.replaceState(null, "", "#/checkin?aba=presentes"); desenharPresentes(); } }));
   }
   desenhar();
   window.scrollTo(0, 0);

@@ -971,3 +971,73 @@ export async function meusCheckinsHoje() {
   const r = await chamarRpc("meus_checkins_hoje", {});
   return r.ok ? { ok: true, lista: r.resultado || [] } : r;
 }
+
+// =====================================================================
+// Fase 5 · Etapa 5C – Presentes, "Saiu", "Chamar responsável" e telão.
+// Tudo pelas funções do banco. O telão não tem login: usa só
+// telao_chamadas/telao_anunciar com o código secreto do link.
+// =====================================================================
+
+/**
+ * Presentes do culto (de hoje), por sala (salas juntas = um grupo).
+ * { culto: { id, nome, horario, encerrado },
+ *   salas: [{ sala_id, nome, cancelada,
+ *     criancas: [{ checkin_id, crianca_id, pessoa_id, nome, codigo, alergias, aniversario,
+ *                  entrada_em, saiu, saida_em, saida_automatica, pode_desfazer,
+ *                  chamada: { id, situacao, chamada_em, anunciada_em } | null }] }] }
+ */
+export async function presentesDoCulto(cultoId) {
+  const r = await chamarRpc("presentes_do_culto", { p_culto: cultoId });
+  return r.ok ? { ok: true, dados: r.resultado || { salas: [] } } : r;
+}
+
+export function marcarSaida(checkinId) { return chamarRpc("marcar_saida", { p_checkin: checkinId }); }
+export function desfazerSaida(checkinId) { return chamarRpc("desfazer_saida", { p_checkin: checkinId }); }
+export function chamarResponsavel(checkinId) { return chamarRpc("chamar_responsavel", { p_checkin: checkinId }); }
+export function cancelarChamada(chamadaId) { return chamarRpc("cancelar_chamada", { p_chamada: chamadaId }); }
+
+/**
+ * Escuta, em tempo real, as mudanças de check-ins e chamadas de um culto.
+ * fn() é chamada a cada mudança (o RLS só entrega o que a pessoa pode ver).
+ * Retorna a função para desligar.
+ */
+export function ouvirCulto(cultoId, fn) {
+  const canal = sb.channel(`culto-${cultoId}-${Date.now()}`)
+    .on("postgres_changes", { event: "*", schema: "public", table: "checkins", filter: `culto_id=eq.${cultoId}` }, () => fn())
+    .on("postgres_changes", { event: "*", schema: "public", table: "chamadas_responsavel", filter: `culto_id=eq.${cultoId}` }, () => fn())
+    .subscribe();
+  return () => { try { sb.removeChannel(canal); } catch { /* ignore */ } };
+}
+
+// ---------- Link do telão (liderança) ----------
+
+/** { ativo, criado_em, criado_por } */
+export async function situacaoTelao() {
+  const r = await chamarRpc("situacao_telao", {});
+  return r.ok ? { ok: true, ...(r.resultado || { ativo: false }) } : r;
+}
+
+/** Gera (ou troca) o código; devolve o código, que só aparece esta vez. */
+export async function gerarLinkTelao() {
+  const r = await chamarRpc("gerar_link_telao", {});
+  return r.ok ? { ok: true, codigo: r.resultado } : r;
+}
+
+export function desligarTelao() { return chamarRpc("desligar_telao", {}); }
+
+/** Endereço completo do telão para um código. */
+export function enderecoTelao(codigo) {
+  return `${location.origin}${location.pathname}#/telao?c=${encodeURIComponent(codigo)}`;
+}
+
+// ---------- Tela do telão (sem login) ----------
+
+/** [{ id, crianca, responsavel, codigo, sala, chamada_em }] */
+export async function telaoChamadas(codigo) {
+  const r = await chamarRpc("telao_chamadas", { p_codigo: codigo });
+  return r.ok ? { ok: true, lista: r.resultado || [] } : r;
+}
+
+export function telaoAnunciar(codigo, chamadaId) {
+  return chamarRpc("telao_anunciar", { p_codigo: codigo, p_chamada: chamadaId });
+}

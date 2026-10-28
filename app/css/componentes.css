@@ -544,3 +544,48 @@ a.item-compacto:hover { background: var(--fundo); }
 .codigos-hoje { list-style: none; margin: 0; padding: 0; }
 .codigos-hoje > li { display: flex; align-items: center; gap: var(--e3); padding: var(--e2) 0; }
 .codigos-hoje > li + li { border-top: 1px solid var(--borda-suave); }
+
+/* Check-in – Presentes (Fase 5 · 5C) */
+.presentes__sala { padding: var(--e4); }
+.presentes__topo { display: flex; flex-wrap: wrap; align-items: center; gap: var(--e2); padding-bottom: var(--e2); border-bottom: 1px solid var(--borda-suave); }
+.presentes__titulo { margin: 0; flex: 1; font: 800 1.1rem var(--fonte-titulo); }
+.presentes__acoes { padding-left: 56px; }
+.presentes__acoes .icone-linha { width: 16px; height: 16px; }
+.checkin-crianca--saiu { opacity: .6; }
+.checkin-crianca--saiu .codigo-mini { background: var(--fundo); color: var(--texto-suave); }
+
+/* Link do telão (5C) */
+.cartao--link-telao { padding: var(--e4); border-color: var(--amarelo-borda); }
+.lista-passos { margin: var(--e2) 0 0; padding-left: 1.3em; }
+.lista-passos li + li { margin-top: var(--e1); }
+
+/* Tela do telão (5C): tela cheia, letras grandes, fundo escuro para projetar */
+body.modo-telao { background: #14110f; }
+.telao { min-height: 100dvh; padding: 2vw 3vw; color: #fff; background: #14110f; }
+.telao__topo { display: flex; align-items: center; gap: 1.5vw; padding-bottom: 1.5vw; border-bottom: 2px solid #3a332e; }
+.telao__logo { width: clamp(48px, 5vw, 96px); height: auto; }
+.telao__titulo { flex: 1; margin: 0; font: 800 clamp(1.6rem, 3.2vw, 3.4rem)/1.1 var(--fonte-titulo); color: #fff; }
+.telao__relogio { font: 800 clamp(1.4rem, 2.6vw, 2.8rem) var(--fonte-titulo); color: var(--amarelo); }
+.telao__som { background: transparent; color: #fff; border-color: #6b625b; }
+.telao__situacao { min-height: 1.5em; margin: 1vw 0 0; color: var(--amarelo); font-size: clamp(1rem, 1.4vw, 1.5rem); }
+.telao__lista { display: grid; gap: 1.5vw; margin-top: 1vw; }
+.telao__vazio { margin: 8vh 0 0; text-align: center; color: #b9b0a8; font: 700 clamp(1.4rem, 2.6vw, 2.6rem) var(--fonte-titulo); }
+.telao__chamada { display: flex; align-items: center; gap: 2vw; padding: 1.6vw 2vw; background: #231e1a;
+  border: 3px solid var(--laranja); border-radius: 20px; }
+.telao__chamada--nova { animation: telao-pisca 1s ease-in-out 4; }
+@keyframes telao-pisca { 50% { background: #5a3216; } }
+@media (prefers-reduced-motion: reduce) { .telao__chamada--nova { animation: none; } }
+.telao__dados { flex: 1; min-width: 0; }
+.telao__dados p { margin: 0; overflow-wrap: anywhere; }
+.telao__crianca { font: 800 clamp(2rem, 4.4vw, 5rem)/1.05 var(--fonte-titulo); color: #fff; }
+.telao__dados .telao__responsavel { margin-top: .4vw; font-size: clamp(1.2rem, 2.2vw, 2.4rem); color: #e8e1db; }
+.telao__responsavel strong { color: #fff; }
+.telao__dados .telao__sala { margin-top: .3vw; font-size: clamp(1.1rem, 1.9vw, 2rem); color: var(--azul); font-weight: 800; }
+.telao__codigo-caixa { display: flex; flex-direction: column; align-items: center; padding: 1vw 1.6vw; border-radius: 16px; background: var(--amarelo); color: #1f1b18; }
+.telao__codigo-rotulo { font-weight: 800; font-size: clamp(.9rem, 1.2vw, 1.3rem); text-transform: uppercase; letter-spacing: .08em; }
+.telao__codigo { font: 800 clamp(2.4rem, 5vw, 5.6rem)/1 var(--fonte-titulo); letter-spacing: .15em; }
+.telao__anunciado { min-height: clamp(48px, 5vw, 80px); padding: 0 2vw; font-size: clamp(1rem, 1.6vw, 1.8rem); }
+@media (max-width: 700px) {
+  .telao__chamada { flex-wrap: wrap; }
+  .telao__anunciado { width: 100%; }
+}

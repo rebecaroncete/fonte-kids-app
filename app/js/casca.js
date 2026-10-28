@@ -48,6 +48,7 @@ export const ITENS_MAIS = [
   { rota: "/logins", texto: "Gestão de logins", icone: "logins", papeis: LIDERANCA },
   { rota: "/acessos", texto: "Acessos da equipe", icone: "autorizados", papeis: LIDERANCA },
   { rota: "/cultos", texto: "Cultos e salas", icone: "calendario", papeis: LIDERANCA },
+  { rota: "/telao-link", texto: "Link do telão", icone: "telao", papeis: LIDERANCA },
 ];
 
 /** "lideranca" | "equipe" | "responsavel" | "basico" */
@@ -83,6 +84,7 @@ function abaDaRota(rota, abas) {
     "/logins": "/mais",
     "/acessos": "/mais",
     "/cultos": "/mais",
+    "/telao-link": "/mais",
     "/minha-familia": abas.includes("familia") ? "/minha-familia" : "/mais",
   };
   return mapa[rota] || rota;

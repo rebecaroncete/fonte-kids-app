@@ -38,6 +38,9 @@ const ROTAS = {
   "/cultos":        { publica: false, carregar: () => import("./telas/cultos.js") },
   "/acessos":       { publica: false, carregar: () => import("./telas/acessos.js") },
   "/checkin":       { publica: false, carregar: () => import("./telas/checkin.js") },
+  "/telao-link":    { publica: false, carregar: () => import("./telas/telao-link.js") },
+  // Telão (5C): sem login, protegido pelo código secreto do link (#/telao?c=…)
+  "/telao":         { publica: true, carregar: () => import("./telas/telao.js") },
 };
 
 /** Endereço interno conhecido? (usado para abrir links de notificações) */
@@ -115,11 +118,15 @@ async function mostrar() {
   if (meu !== renderAtual) return; // usuário já navegou para outra tela
 
   document.title = tela.titulo ? `${tela.titulo} · ${CONFIG.nomeApp}` : CONFIG.nomeApp;
-  const principal = el("main", { class: tela.layout === "central" ? "tela-central" : "conteudo", id: "principal", tabindex: "-1" });
-  if (sessao && tela.layout !== "central") iniciarNotificacoes(); // sino (só depois do 1º acesso)
-  const comBarra = !!sessao && tela.layout !== "central" && rota !== ROTA_PRIMEIRO_ACESSO;
+  // "central" (login, 1º acesso) e "telao" (tela do telão) não têm topo nem barra
+  const semCasca = tela.layout === "central" || tela.layout === "telao";
+  const classe = tela.layout === "central" ? "tela-central" : tela.layout === "telao" ? "telao" : "conteudo";
+  const principal = el("main", { class: classe, id: "principal", tabindex: "-1" });
+  if (sessao && !semCasca) iniciarNotificacoes(); // sino (só depois do 1º acesso)
+  const comBarra = !!sessao && !semCasca && rota !== ROTA_PRIMEIRO_ACESSO;
   document.body.classList.toggle("com-barra", comBarra);
-  const partes = tela.layout === "central" ? [principal] : [montarTopo({ logado: !!sessao, rota }),
+  document.body.classList.toggle("modo-telao", tela.layout === "telao");
+  const partes = semCasca ? [principal] : [montarTopo({ logado: !!sessao, rota }),
     comBarra ? montarBarra({ rota }) : null,
     sessao ? faixaInstalacao() : null, principal,
     el("footer", { class: "rodape", text: `${CONFIG.nomeApp} · versão ${CONFIG.versao}` })];
