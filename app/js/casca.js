@@ -56,6 +56,7 @@ export const ITENS_MAIS = [
   { rota: "/telao-link", texto: "Link do telão", icone: "telao", papeis: LIDERANCA },
   { rota: "/grupos-whatsapp", texto: "Grupos de WhatsApp", icone: "conversa", papeis: LIDERANCA },
   { rota: "/voluntarias-novas", texto: "Voluntárias novas", icone: "voluntaria", papeis: LIDERANCA },
+  { rota: "/enquetes", texto: "Enquetes", icone: "check", papeis: LIDERANCA },
 ];
 
 /** "lideranca" | "equipe" | "responsavel" | "basico" */
@@ -97,6 +98,7 @@ function abaDaRota(rota, abas) {
     "/grupos-whatsapp": "/mais",
     "/escala": "/mais",
     "/lembretes-escala": "/mais",
+    "/enquetes": "/notificacoes", // Enquetes é uma aba dentro de Avisos
     "/minha-escala": abas.includes("escala") ? "/minha-escala" : "/mais",
     "/minha-familia": abas.includes("familia") ? "/minha-familia" : "/mais",
   };

@@ -597,3 +597,15 @@ body.modo-telao { background: #14110f; }
 .cartao-topo { display: flex; align-items: flex-start; gap: var(--e2); }
 .cartao-topo > .flex-1 { min-width: 0; }
 .cartao-topo > .mais-acoes { flex: none; margin-top: -8px; }
+
+/* Fase 7 – enquetes e avisos */
+.enquete-opcoes { border: 0; padding: 0; margin: 0 0 var(--e2); min-width: 0; }
+.enquete-opcoes .marcar { margin-bottom: var(--e3); font-weight: 600; }
+.resultado-enquete { list-style: none; padding: 0; margin: var(--e3) 0 0; }
+.resultado-enquete li { margin-bottom: var(--e3); }
+.barra-voto { display: block; width: 100%; height: 10px; margin-top: var(--e1); border: 0; border-radius: 999px;
+  background: var(--borda-suave); overflow: hidden; -webkit-appearance: none; appearance: none; }
+.barra-voto::-webkit-progress-bar { background: var(--borda-suave); border-radius: 999px; }
+.barra-voto::-webkit-progress-value { background: var(--destaque); border-radius: 999px; }
+.barra-voto::-moz-progress-bar { background: var(--destaque); border-radius: 999px; }
+a.cartao.item-compacto { text-decoration: none; color: inherit; }

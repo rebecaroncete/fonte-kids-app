@@ -1,5 +1,5 @@
 // =====================================================================
-// Fonte Kids – service worker (Fase 10 · Etapa 6)
+// Fonte Kids – service worker (Fase 10 · Etapa 6; push na Fase 7)
 // Guarda no aparelho SÓ os arquivos do próprio app (lista ARQUIVOS).
 // Nunca guarda dados do Supabase, fotos do Cloudinary nem o captcha:
 // pedidos para outros endereços não passam por aqui.
@@ -10,8 +10,10 @@
 //   Conferência automática: node ferramentas/conferir-pwa.mjs
 // O app mostra "Versão nova disponível – Atualizar"; a troca só acontece
 // quando a pessoa toca em Atualizar (nada muda no meio de um check-in).
+// Push (Fase 7): mostra a notificação que a Edge Function "enviar-push"
+// manda (título, texto e link interno) e, ao tocar, abre o app nela.
 // =====================================================================
-const VERSAO = "0.22.0";
+const VERSAO = "0.23.0";
 const PREFIXO = "fonte-kids-app-";
 const CACHE = PREFIXO + VERSAO;
 
@@ -43,6 +45,7 @@ const ARQUIVOS = [
   "js/janela.js",
   "js/notificacoes.js",
   "js/pwa.js",
+  "js/push.js",
   "js/supabase.js",
   "js/ui.js",
   "js/telas/acessos.js",
@@ -74,6 +77,7 @@ const ARQUIVOS = [
   "js/telas/cadastro-voluntaria.js",
   "js/telas/voluntarias-novas.js",
   "js/telas/trocar-senha.js",
+  "js/telas/enquetes.js",
   "js/telas/vitrine.js",
 ];
 
@@ -122,5 +126,39 @@ self.addEventListener("fetch", (evento) => {
     const guardado = await cache.match(url.origin + url.pathname);
     if (guardado) return guardado;
     return fetch(pedido); // arquivo fora da lista: vai à internet e não é guardado
+  })());
+});
+
+// ---------- Push (Fase 7) ----------
+// Conteúdo: { titulo, corpo, link: "#/rota", tag }. As notificações
+// automáticas chegam sem nomes ("Abra o app para ver."); o texto completo
+// fica dentro do app, em Avisos.
+self.addEventListener("push", (evento) => {
+  let d = {};
+  try { d = evento.data ? evento.data.json() : {}; } catch { d = {}; }
+  const link = /^#\/[a-z0-9-]+(\?[a-z0-9=&_-]*)?$/i.test(d.link || "") ? d.link : "#/notificacoes";
+  evento.waitUntil(self.registration.showNotification(String(d.titulo || "Fonte Kids").slice(0, 80), {
+    body: String(d.corpo || "Abra o app para ver.").slice(0, 300),
+    icon: endereco("img/icones/icone-192.png"),
+    badge: endereco("img/icones/favicon-32.png"),
+    tag: d.tag ? String(d.tag) : undefined,
+    data: { link },
+  }));
+});
+
+// Toque na notificação: abre (ou traz para frente) o app na tela do link.
+self.addEventListener("notificationclick", (evento) => {
+  evento.notification.close();
+  const alvo = BASE + (evento.notification.data?.link || "#/notificacoes");
+  evento.waitUntil((async () => {
+    const abertas = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    for (const c of abertas) {
+      if (c.url.startsWith(BASE)) {
+        await c.focus();
+        try { await c.navigate(alvo); } catch { /* algumas plataformas não deixam: já está focado */ }
+        return;
+      }
+    }
+    await self.clients.openWindow(alvo);
   })());
 });

@@ -101,3 +101,12 @@ Ordem: **trocar a senha → aceitar o termo LGPD → informar a relação com ca
 - Segredos no painel: `TURNSTILE_SECRET_KEY` (obrigatório); `ORIGENS_PERMITIDAS` (opcional; na virada, acrescentar o endereço do Netlify).
 - Captcha também ligado no Supabase Auth (Attack Protection → Turnstile): o login exige o token.
 - Marcar como atendido ao redefinir: Etapa 5 (gestão de logins).
+
+## Comunicação e push (Fase 7)
+
+- **Avisos da liderança:** `enviar_aviso(publico, titulo, texto)` com público `todos`, `equipe`, `lideres` ou `responsaveis`; o banco monta a lista de quem recebe (logins ativos do Fonte Kids, sem quem envia). `avisos_enviados()` mostra quantas pessoas receberam e leram. **Ninguém grava direto em `notificacoes`** (só as funções do banco).
+- **Enquetes:** `criar_enquete`, `votar_enquete` (muda o voto até encerrar), `encerrar_enquete`, `apagar_enquete`, `enquetes_lista`, `enquetes_pendentes`. A liderança vê quem votou; quem vota vê só os totais depois de votar ou quando encerra.
+- **Push:** o app grava o aparelho por `salvar_push` / `remover_push` (só quando a pessoa toca em "Ativar"; ao sair, desliga). Toda notificação nova de quem tem aparelho chama a Edge Function `enviar-push` pelo `pg_net` (gatilho `notificacoes_push`). A função pede ao banco o que mostrar (`push_preparar`, só chave de serviço): cada notificação vai **uma vez**, só nos primeiros 15 min; as automáticas vão **só com o título + "Abra o app para ver."** (sem nomes); avisos e enquetes vão com o texto. Aparelhos recusados (404/410) são apagados.
+- `functions/enviar-push/`: Web Push sem biblioteca (Web Crypto: `aes128gcm` + VAPID). Publicar com **verify_jwt = false** (quem chama é o banco).
+
+**Segredos** (Supabase → Edge Functions → Secrets): `VAPID_PUBLIC_KEY` (a mesma de `app/config.js`), `VAPID_PRIVATE_KEY` (**nunca** no código), `VAPID_SUBJECT` opcional.

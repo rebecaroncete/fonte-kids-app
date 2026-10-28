@@ -2,10 +2,12 @@
 // Fonte Kids – sino de notificações (Fase 10 · Etapa 4)
 // Guarda a contagem de não lidas e escuta, em tempo real (Realtime),
 // as notificações do próprio login. O RLS do banco garante que cada
-// pessoa só recebe as suas. O push no celular chega na Fase 7.
+// pessoa só recebe as suas. Push no celular (Fase 7): js/push.js; ao
+// entrar, o aparelho que já tinha push ligado é regravado para o login.
 // =====================================================================
 import { sb, sessaoAtual, contarNaoLidas } from "./supabase.js";
 import { toast } from "./ui.js";
+import { renovarPush } from "./push.js";
 
 let canal = null;
 let uidAtual = null;
@@ -53,6 +55,7 @@ export async function iniciarNotificacoes() {
         for (const f of ouvintesMudanca) { try { f(); } catch { /* ignore */ } }
       })
     .subscribe();
+  renovarPush();
 }
 
 /** Desliga o sino (ao sair). */

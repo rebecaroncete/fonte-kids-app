@@ -19,6 +19,7 @@ import { montarTopo, montarBarra } from "./casca.js";
 import { iniciarNotificacoes, pararNotificacoes } from "./notificacoes.js";
 import { limparFotos } from "./foto.js";
 import { iniciarPWA, faixaInstalacao } from "./pwa.js";
+import { desativarPush } from "./push.js";
 
 const ROTAS = {
   "/entrar":        { publica: true, soDeslogado: true, carregar: () => import("./telas/login.js") },
@@ -50,6 +51,7 @@ const ROTAS = {
   "/historico":     { publica: false, carregar: () => import("./telas/historico.js") },
   "/cadastro-voluntaria": { publica: true, carregar: () => import("./telas/cadastro-voluntaria.js") },
   "/voluntarias-novas": { publica: false, carregar: () => import("./telas/voluntarias-novas.js") },
+  "/enquetes":      { publica: false, carregar: () => import("./telas/enquetes.js") },
 };
 
 /** Endereço interno conhecido? (usado para abrir links de notificações) */
@@ -91,6 +93,7 @@ export function irPara(rota) {
 }
 
 export async function fazerSair() {
+  await desativarPush(); // este aparelho para de receber os avisos deste login
   await pararNotificacoes();
   await sair();
   toast("info", "Você saiu.");
@@ -154,7 +157,7 @@ async function mostrar() {
 // Sessão encerrada (sair em outra aba, sessão expirada): volta para "Entrar".
 sb.auth.onAuthStateChange((evento) => {
   if (evento === "SIGNED_IN") etapaGuardada = null;
-  if (evento === "SIGNED_OUT") { etapaGuardada = null; relacoesAdiadas = false; limparPerfilGuardado(); limparFotos(); pararNotificacoes(); }
+  if (evento === "SIGNED_OUT") { etapaGuardada = null; relacoesAdiadas = false; limparPerfilGuardado(); limparFotos(); pararNotificacoes(); desativarPush(); }
   if (evento === "SIGNED_OUT") {
     const def = ROTAS[rotaAtual()];
     if (!def || !def.publica) setTimeout(() => irPara("/entrar"), 0);

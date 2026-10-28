@@ -1209,3 +1209,39 @@ export function minhaIndisponibilidade(mes) { return chamarRpc("minha_indisponib
 /** teto: vezes que pode servir no mês (0 = não pode no mês; null = o de sempre). */
 export function salvarIndisponibilidade(mes, cultos, teto = null) { return chamarRpc("salvar_indisponibilidade", { p_mes: mes, p_cultos: cultos, p_teto: teto }); }
 export function lembretesEscala(de, ate) { return chamarRpc("lembretes_escala", { p_de: de, p_ate: ate }); }
+
+// =====================================================================
+// Fase 7 – Comunicação (avisos, push e enquetes). O banco confere quem
+// pode o quê; o app não grava direto em nenhuma tabela.
+// =====================================================================
+
+/** publico: "todos" | "equipe" | "lideres" | "responsaveis" → { id, destinatarios } */
+export function enviarAviso(publico, titulo, texto) {
+  return chamarRpc("enviar_aviso", { p_publico: publico, p_titulo: titulo, p_texto: texto });
+}
+/** Avisos enviados pela liderança: [{ id, publico, titulo, texto, criado_em, autor, destinatarios, lidas }] */
+export function avisosEnviados(limite = 30) { return chamarRpc("avisos_enviados", { p_limite: limite }); }
+
+/** Push deste aparelho (js/push.js) */
+export function salvarPush(endpoint, p256dh, auth, aparelho) {
+  return chamarRpc("salvar_push", { p_endpoint: endpoint, p_p256dh: p256dh, p_auth: auth, p_aparelho: aparelho });
+}
+export function removerPush(endpoint) { return chamarRpc("remover_push", { p_endpoint: endpoint }); }
+
+/** Enquetes que a pessoa pode ver (liderança: todas do Fonte Kids). */
+export function enquetesLista() { return chamarRpc("enquetes_lista", {}); }
+/** Quantas enquetes abertas a pessoa ainda não respondeu. */
+export function enquetesPendentes() { return chamarRpc("enquetes_pendentes", {}); }
+/** publico: "equipe" | "familias" | "todos"; ate: "YYYY-MM-DD" ou null → { id, destinatarios } */
+export function criarEnquete(pergunta, publico, opcoes, multipla, ate) {
+  return chamarRpc("criar_enquete", { p_pergunta: pergunta, p_publico: publico, p_opcoes: opcoes, p_multipla: multipla, p_ate: ate || null });
+}
+/** opcoes: lista de ids (vazia = tirar o voto) */
+export function votarEnquete(enquete, opcoes) { return chamarRpc("votar_enquete", { p_enquete: enquete, p_opcoes: opcoes }); }
+export function encerrarEnquete(enquete) { return chamarRpc("encerrar_enquete", { p_enquete: enquete }); }
+export function apagarEnquete(enquete) { return chamarRpc("apagar_enquete", { p_enquete: enquete }); }
+
+/** Endereço do app (para mandar no WhatsApp junto com avisos e enquetes). */
+export function enderecoApp(rota = "/notificacoes") {
+  return `${location.origin}${location.pathname}#${rota}`;
+}
