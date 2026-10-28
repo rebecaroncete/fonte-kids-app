@@ -609,3 +609,7 @@ body.modo-telao { background: #14110f; }
 .barra-voto::-webkit-progress-value { background: var(--destaque); border-radius: 999px; }
 .barra-voto::-moz-progress-bar { background: var(--destaque); border-radius: 999px; }
 a.cartao.item-compacto { text-decoration: none; color: inherit; }
+
+/* Fase 8 – eventos */
+.texto-livre { white-space: pre-wrap; overflow-wrap: anywhere; margin-bottom: 0; }
+.acoes-crianca { padding: 0 var(--e3) var(--e3); }

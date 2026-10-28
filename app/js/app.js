@@ -52,6 +52,7 @@ const ROTAS = {
   "/cadastro-voluntaria": { publica: true, carregar: () => import("./telas/cadastro-voluntaria.js") },
   "/voluntarias-novas": { publica: false, carregar: () => import("./telas/voluntarias-novas.js") },
   "/enquetes":      { publica: false, carregar: () => import("./telas/enquetes.js") },
+  "/eventos":       { publica: false, carregar: () => import("./telas/eventos.js") },
 };
 
 /** Endereço interno conhecido? (usado para abrir links de notificações) */

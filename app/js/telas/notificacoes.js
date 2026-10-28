@@ -41,10 +41,10 @@ export function quando(iso) {
   return d.toLocaleString("pt-BR", { timeZone: FUSO, day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 }
 
-/** "#/logins" → "/logins" se for uma tela que já existe; senão null. */
+/** "#/logins" → "/logins" (ou "#/eventos?id=…" → "/eventos?id=…") se for uma tela que já existe; senão null. */
 function rotaDoLink(link) {
-  const m = /^#(\/[a-z0-9-]+)$/.exec(String(link || ""));
-  return m && rotaExiste(m[1]) ? m[1] : null;
+  const m = /^#(\/[a-z0-9-]+)(\?[a-z0-9=&_-]*)?$/i.exec(String(link || ""));
+  return m && rotaExiste(m[1]) ? m[1] + (m[2] || "") : null;
 }
 
 /** Abas internas de Avisos (também usadas em #/enquetes). atual: recebidos | enviados | enquetes */
