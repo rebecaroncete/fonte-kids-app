@@ -189,6 +189,7 @@ body.com-barra:has(.faixa-fixa--versao) .toasts { bottom: calc(150px + env(safe-
 @keyframes girar { to { transform: rotate(360deg); } }
 
 .grade { display: grid; gap: var(--e3); grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+.grade--tres { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--e2); }
 .linha { display: flex; flex-wrap: wrap; gap: var(--e2); align-items: center; }
 .amostra { height: 56px; border: var(--traco); color: var(--texto); border-radius: var(--raio-p); display: flex; align-items: flex-end;
   padding: var(--e1) var(--e2); font-size: .75rem; font-weight: 800; }

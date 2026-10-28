@@ -1175,3 +1175,34 @@ export async function decidirPedidoVoluntaria(pedidoId, decisao, pessoaId = null
 export function enderecoCadastroVoluntaria() {
   return `${location.origin}${location.pathname}#/cadastro-voluntaria`;
 }
+
+// =====================================================================
+// Fase 6 – Escala (motor no banco; aqui só as chamadas).
+// mes: "YYYY-MM-01". O banco confere quem pode o quê.
+// =====================================================================
+
+/** Escala do mês (cultos, salas, vagas, resumo). */
+export function escalaDoMes(mes) { return chamarRpc("escala_do_mes", { p_mes: mes }); }
+/** vagas: [{ sala_id, juntas, professora, auxiliar, reserva }] ou null (copia o mês anterior). */
+export function configurarEscala(mes, vagas = null) { return chamarRpc("configurar_escala", { p_mes: mes, p_vagas: vagas }); }
+/** vagas: { professora, auxiliar, reserva } ou null (volta ao padrão do mês). */
+export function definirVagasCulto(culto, sala, vagas) { return chamarRpc("definir_vagas_culto", { p_culto: culto, p_sala: sala, p_vagas: vagas }); }
+export function gerarRascunho(mes) { return chamarRpc("gerar_rascunho", { p_mes: mes }); }
+export function simularEscala(mes, ordem) { return chamarRpc("simular_escala", { p_mes: mes, p_ordem: ordem }); }
+export function candidatasVaga(item) { return chamarRpc("candidatas_vaga", { p_item: item }); }
+export function trocarVaga(item, voluntaria, nomeLivre = null) { return chamarRpc("trocar_vaga", { p_item: item, p_voluntaria: voluntaria, p_nome_livre: nomeLivre }); }
+export function adicionarVaga(culto, sala, funcao) { return chamarRpc("adicionar_vaga", { p_culto: culto, p_sala: sala, p_funcao: funcao }); }
+export function removerVaga(item) { return chamarRpc("remover_vaga", { p_item: item }); }
+export function publicarEscala(mes) { return chamarRpc("publicar_escala", { p_mes: mes }); }
+export function regrasEscalaAtuais() { return chamarRpc("regras_escala_atuais", {}); }
+export function definirRegrasEscala(regras) { return chamarRpc("definir_regras_escala", { p_regras: regras }); }
+export function voluntariasEscala() { return chamarRpc("voluntarias_escala", {}); }
+export function definirTetoVoluntaria(voluntaria, teto) { return chamarRpc("definir_teto_voluntaria", { p_voluntaria: voluntaria, p_teto: teto }); }
+export function indisponibilidadeDoMes(mes) { return chamarRpc("indisponibilidade_do_mes", { p_mes: mes }); }
+export function minhaEscala() { return chamarRpc("minha_escala", {}); }
+/** resposta: "ciente" | "recusado" */
+export function responderEscala(item, resposta) { return chamarRpc("responder_escala", { p_item: item, p_resposta: resposta }); }
+export function pegarVaga(item) { return chamarRpc("pegar_vaga", { p_item: item }); }
+export function minhaIndisponibilidade(mes) { return chamarRpc("minha_indisponibilidade", { p_mes: mes }); }
+export function salvarIndisponibilidade(mes, cultos) { return chamarRpc("salvar_indisponibilidade", { p_mes: mes, p_cultos: cultos }); }
+export function lembretesEscala(de, ate) { return chamarRpc("lembretes_escala", { p_de: de, p_ate: ate }); }

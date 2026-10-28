@@ -8,11 +8,12 @@
 //   Responsável: números da própria família.
 // Fase 5 · 5B: em dia de culto, recepção/liderança ganham o cartão "Check-in"
 // no topo; o responsável vê o check-in de hoje dos filhos (sala e código).
+// Fase 6: quem serve na escala vê a próxima vaga e a indisponibilidade a marcar.
 // =====================================================================
 import { el, montar, aviso, carregando } from "../ui.js";
 import { icone } from "../icones.js";
 import { estadoPrimeiroAcesso, meuPerfil, contarNaoLidas, contarPendencias, contarCadastros, listarNotificacoes,
-  cultosDeHoje, meusCheckinsHoje } from "../supabase.js";
+  cultosDeHoje, meusCheckinsHoje, minhaEscala } from "../supabase.js";
 import { tipoDeBarra } from "../casca.js";
 
 export const layout = "padrao";
@@ -79,8 +80,9 @@ export async function render(alvo) {
   // Check-in (Fase 5 · 5B)
   const fazCheckin = perfil.ok && perfil.temPapel("admin", "pastor", "lider", "recepcao");
   const ehResponsavel = perfil.ok && perfil.temPapel("responsavel");
-  const [hojeCultos, meusHoje] = await Promise.all([
-    fazCheckin ? cultosDeHoje() : null, ehResponsavel ? meusCheckinsHoje() : null]);
+  const serve = perfil.ok && perfil.temPapel("voluntaria");
+  const [hojeCultos, meusHoje, escala] = await Promise.all([
+    fazCheckin ? cultosDeHoje() : null, ehResponsavel ? meusCheckinsHoje() : null, serve ? minhaEscala() : null]);
   if (hojeCultos?.ok && hojeCultos.lista.length) {
     const c = hojeCultos.lista.find((x) => x.sugerido) || hojeCultos.lista[0];
     partes.push(el("section", { class: "cartao cartao--checkin-hoje" },
@@ -99,6 +101,25 @@ export async function render(alvo) {
         el("span", { class: "codigo-mini", "aria-label": `Código ${k.codigo}`, text: k.codigo }))))
       ,
       el("p", { class: "suave sem-margem mt-2", text: "Mostre o código na porta da sala na hora de buscar." })));
+  }
+
+  // Escala (Fase 6)
+  if (escala?.ok) {
+    const { minhas = [], indisponibilidade: ind } = escala.resultado || {};
+    const prox = minhas.find((m) => !m.cancelado);
+    if (prox) {
+      const dia = new Date(`${prox.data}T12:00:00`).toLocaleDateString("pt-BR", { timeZone: FUSO, weekday: "short", day: "2-digit", month: "2-digit" });
+      const ciente = prox.resposta === "ciente";
+      partes.push(el("section", { class: ciente ? "cartao cartao--compacto" : "cartao cartao--atencao cartao--compacto" },
+        el("span", { class: "numero__icone" }, icone("calendario")),
+        el("div", { class: "flex-1" }, el("strong", { text: "Sua próxima escala" }), el("br"),
+          el("span", { class: "suave", text: `${dia} · ${prox.hora} · ${prox.sala}` })),
+        el("a", { class: ciente ? "botao botao--secundario botao--pequeno" : "botao botao--primario botao--pequeno",
+          href: "#/minha-escala", text: ciente ? "Ver" : "Confirmar" })));
+    }
+    if (ind?.aberta && !ind.respondeu) {
+      partes.push(completar(`Indisponibilidade de ${ind.nome_mes}`, "Marque os cultos em que não pode servir", "#/minha-escala", "Marcar"));
+    }
   }
 
   // Algo a completar (amarelo, com a ação principal da tela)
@@ -123,7 +144,7 @@ export async function render(alvo) {
   // Atalhos
   const atalhos = lideranca
     ? [atalho("crianca", "Crianças", "#/cadastros?aba=criancas"), atalho("inicio", "Famílias", "#/cadastros?aba=familias"),
-       atalho("familia", "Voluntárias", "#/cadastros?aba=voluntarias"), atalho("logins", "Logins", "#/logins")]
+       atalho("familia", "Voluntárias", "#/cadastros?aba=voluntarias"), atalho("calendario", "Escala", "#/escala")]
     : equipe
       ? [atalho("crianca", "Crianças", "#/cadastros?aba=criancas"),
          perfil.temPapel("recepcao") ? atalho("inicio", "Famílias", "#/cadastros?aba=familias") : null,

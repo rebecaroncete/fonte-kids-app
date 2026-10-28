@@ -33,6 +33,7 @@ const ABAS = {
   checkin:    { rota: "/checkin", texto: "Check-in", icone: "checkin" },
   cadastros:  { rota: "/cadastros", texto: "Cadastros", icone: "cadastros" },
   pendencias: { rota: "/pendencias", texto: "Pendências", icone: "pendencias", contagem: "pendencias" },
+  escala:     { rota: "/minha-escala", texto: "Escala", icone: "calendario" },
   avisos:     { rota: "/notificacoes", texto: "Avisos", icone: "avisos", contagem: "avisos" },
   perfil:     { rota: "/perfil", texto: "Perfil", icone: "perfil" },
   mais:       { rota: "/mais", texto: "Mais", icone: "mais" },
@@ -43,6 +44,9 @@ export const ITENS_MAIS = [
   { rota: "/checkin", texto: "Check-in", icone: "checkin", papeis: [...LIDERANCA, "recepcao"] },
   { rota: "/cadastros", texto: "Crianças e famílias", icone: "cadastros", papeis: [...LIDERANCA, "recepcao"] },
   { rota: "/historico", texto: "Histórico", icone: "historico", papeis: [...LIDERANCA, "recepcao"] },
+  { rota: "/escala", texto: "Escala do mês", icone: "calendario", papeis: EQUIPE },
+  { rota: "/minha-escala", texto: "Minha escala", icone: "voluntaria", papeis: EQUIPE },
+  { rota: "/lembretes-escala", texto: "Lembretes da escala", icone: "conversa", papeis: LIDERANCA },
   { rota: "/minha-familia", texto: "Minha família", icone: "familia", papeis: ["responsavel"] },
   { rota: "/perfil", texto: "Meu perfil", icone: "perfil" },
   { rota: "/trocar-senha", texto: "Trocar senha", icone: "senha" },
@@ -69,7 +73,7 @@ function abasDo(perfil) {
   if (tipo === "equipe") {
     return perfil.temPapel("recepcao")
       ? ["inicio", "checkin", "pendencias", "avisos", "mais"]
-      : ["inicio", "avisos", "mais"];
+      : ["inicio", "escala", "avisos", "mais"];
   }
   if (tipo === "responsavel") return ["inicio", "familia", "avisos", "perfil"];
   return ["inicio", "avisos", "perfil"];
@@ -91,6 +95,9 @@ function abaDaRota(rota, abas) {
     "/historico": "/mais",
     "/voluntarias-novas": "/mais",
     "/grupos-whatsapp": "/mais",
+    "/escala": "/mais",
+    "/lembretes-escala": "/mais",
+    "/minha-escala": abas.includes("escala") ? "/minha-escala" : "/mais",
     "/minha-familia": abas.includes("familia") ? "/minha-familia" : "/mais",
   };
   return mapa[rota] || rota;
