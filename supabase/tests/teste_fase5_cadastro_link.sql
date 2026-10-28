@@ -16,11 +16,12 @@ declare
   tel1 text := '5519' || '9' || lpad((floor(random() * 1e8))::bigint::text, 8, '0');
   tel2 text := '5518' || '9' || lpad((floor(random() * 1e8))::bigint::text, 8, '0');
   tel3 text := '5517' || '9' || lpad((floor(random() * 1e8))::bigint::text, 8, '0');
-  dados jsonb; j jsonb; x jsonb; n bigint; txt text; ok boolean;
+  dados jsonb; j jsonb; x jsonb; n bigint; txt text; ok boolean; d13 text;
   r text := ''; falhas int := 0; total int := 0;
 begin
   select id, igreja_id into v_kids, v_igreja from public.departamentos where slug = 'kids';
   select versao into v_termo from public.termos_lgpd_versoes where vigente;
+  d13 := (private.hoje() - interval '13 years')::date::text;
 
   -- ---------- Montagem (fictícia) ----------
   insert into public.pessoas (igreja_id, nome) values (v_igreja, 'Qwzteste Lider') returning id into p_lider;
@@ -107,7 +108,7 @@ begin
     r := r || format(E'\n%s recusa termo desatualizado', case when sqlerrm = 'termo_desatualizado' then '✅' else '❌ (' || sqlerrm || ')' end);
     falhas := falhas + (sqlerrm <> 'termo_desatualizado')::int;
   end;
-  begin j := public.cadastrar_familia_link(jsonb_set(dados, '{criancas,0,nascimento}', to_jsonb((private.hoje() - interval '13 years')::date::text)));
+  begin j := public.cadastrar_familia_link(jsonb_set(dados, '{criancas,0,nascimento}', to_jsonb(d13)));
     r := r || E'\n❌ aceitou criança de 13 anos'; falhas := falhas + 1;
   exception when others then
     r := r || format(E'\n%s recusa criança acima de 12 anos', case when sqlerrm = 'nascimento_crianca_1' then '✅' else '❌ (' || sqlerrm || ')' end);
@@ -153,7 +154,9 @@ begin
   r := r || format(E'\n%s aceite do termo registrado (ainda sem login): %s', case when n = 1 then '✅' else '❌' end, n); falhas := falhas + (n <> 1)::int;
   select count(*) into n from public.notificacoes where tipo = 'familia_nova' and link like '%' || v_fam || '%';
   r := r || format(E'\n%s liderança avisada (família nova): %s avisos', case when n > 0 then '✅' else '❌' end, n); falhas := falhas + (n = 0)::int;
+  perform set_config('role', 'postgres', true);
   select count(*) into n from private.cadastros_link where familia_id = v_fam;
+  perform set_config('role', 'service_role', true);
   r := r || format(E'\n%s cadastro contado para o limite diário', case when n = 1 then '✅' else '❌' end); falhas := falhas + (n <> 1)::int;
 
   -- mesmo telefone de novo
