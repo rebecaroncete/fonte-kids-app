@@ -4,13 +4,17 @@
 //                               autorizados, irmãos, histórico – Fase 5 · 5E)
 //   #/ficha?tipo=familia&id=…   família (responsáveis, autorizados, crianças)
 //   #/ficha?tipo=voluntaria&id=… voluntária (só liderança ou ela mesma)
+//                               Fase 8: a liderança edita (função, contato,
+//                               faixas e cultos) e desativa/reativa.
 // O banco (RLS) decide o que cada login pode ver. Foto pela Edge Function
 // foto-assinada (link de 5 min). Telefones com botão de WhatsApp (wa.me).
 // Foto dos responsáveis (Etapa 5C) para conferir quem retira a criança.
 // =====================================================================
-import { el, montar, aviso, carregando, mascararTelefone, iniciais } from "../ui.js";
+import { el, montar, aviso, carregando, mascararTelefone, iniciais, menuAcoes, toast } from "../ui.js";
 import { icone } from "../icones.js";
-import { fichaCrianca, fichaFamilia, fichaVoluntaria, listarSalas, meuPerfil } from "../supabase.js";
+import { fichaCrianca, fichaFamilia, fichaVoluntaria, listarSalas, meuPerfil, definirStatusVoluntaria } from "../supabase.js";
+import { abrirJanela } from "../janela.js";
+import { janelaPreferencias } from "../preferencias-voluntaria.js";
 import { janelaNovaCrianca } from "../nova-crianca.js";
 import { avatarComFoto, avatarLista, preencherFotos } from "../foto.js";
 import { idade, textoIdade, salaDaCrianca } from "./cadastros.js";
@@ -215,7 +219,7 @@ function linhasDaFamilia(r) {
 
 // ---------------- Voluntária ----------------
 async function desenharVoluntaria(alvo, id) {
-  const [r, rs] = await Promise.all([fichaVoluntaria(id), listarSalas()]);
+  const [r, rs, perfil] = await Promise.all([fichaVoluntaria(id), listarSalas(), meuPerfil()]);
   if (!r.ok) { montar(alvo, voltar("voluntarias"), aviso(r.naoEncontrada ? "atencao" : "erro", r.erro)); return; }
   const v = r.voluntaria;
   const nome = v.pessoa?.nome || "Sem nome";
@@ -224,8 +228,21 @@ async function desenharVoluntaria(alvo, id) {
   const nomeSala = new Map((rs.ok ? rs.lista : []).map((s) => [s.id, s.nome]));
   const salas = (v.salas_preferidas || []).map((s) => nomeSala.get(s)).filter(Boolean);
 
+  const lider = perfil.ok && perfil.temPapel("admin", "pastor", "lider");
+  const redesenhar = () => desenharVoluntaria(alvo, id);
+  const acoes = lider ? el("div", { class: "cartao-topo mt-3" },
+    el("div", { class: "flex-1 linha" },
+      el("button", { class: "botao botao--secundario botao--pequeno", type: "button", onclick: () => janelaPreferencias(v.id, redesenhar) },
+        icone("editar"), "Editar")),
+    menuAcoes([
+      v.status === "ativa"
+        ? { texto: "Desativar voluntária", perigo: true, acao: () => confirmarStatus(v, nome, false, redesenhar) }
+        : { texto: "Reativar voluntária", acao: () => confirmarStatus(v, nome, true, redesenhar) },
+    ], `Mais ações para ${nome}`)) : null;
+
   montar(alvo,
     voltar("voluntarias"),
+    acoes,
     cabecalho(avatarComFoto("voluntaria", v.id, nome), nome,
       [NOMES_FUNCAO[v.funcao] || null, `${textoIdade(anos)} · nasc. ${dataBr(v.pessoa?.data_nascimento)}`],
       [el("span", { class: v.status === "ativa" ? "etiqueta etiqueta--sucesso" : "etiqueta etiqueta--laranja", text: NOMES_STATUS[v.status] || v.status }),
@@ -237,6 +254,27 @@ async function desenharVoluntaria(alvo, id) {
       el("dt", { text: "Cultos preferidos" }), el("dd", { text: r.cultos.length ? r.cultos.join(", ") : "—" }),
       el("dt", { text: "Máximo de escalas por mês" }), el("dd", { text: v.teto_mensal ? String(v.teto_mensal) : "Padrão do departamento" }),
       el("dt", { text: "Aprovada em" }), el("dd", { text: v.aprovada_em ? dataBr(v.aprovada_em) : "—" }))));
+}
+
+/** Desativar (sai dos rascunhos de escala e perde os papéis) ou reativar. */
+function confirmarStatus(v, nome, ativar, redesenhar) {
+  abrirJanela({
+    titulo: ativar ? "Reativar voluntária?" : "Desativar voluntária?",
+    conteudo: [el("p", { text: ativar
+      ? `${nome} volta a entrar nas próximas escalas e recebe de volta o acesso de voluntária e recepção.`
+      : `${nome} sai das vagas dos meses ainda em rascunho, das ajudas em eventos e perde o acesso de voluntária e recepção. As escalas já publicadas não mudam (troque as vagas dela em "Escala do mês"). O login continua.` })],
+    textoSalvar: ativar ? "Reativar" : "Desativar",
+    perigo: !ativar,
+    aoSalvar: async () => {
+      const r = await definirStatusVoluntaria(v.id, ativar);
+      if (!r.ok) return r.erro;
+      const vagas = r.resultado?.vagas || 0;
+      const extra = !ativar && vagas ? ` ${vagas === 1 ? "1 vaga ficou aberta" : `${vagas} vagas ficaram abertas`} no rascunho.` : "";
+      toast("sucesso", `${ativar ? "Voluntária reativada." : "Voluntária desativada."}${extra}`);
+      await redesenhar();
+      return null;
+    },
+  });
 }
 
 const TIPOS = { crianca: desenharCrianca, familia: desenharFamilia, voluntaria: desenharVoluntaria };

@@ -9,11 +9,12 @@
 // Fase 5 · 5B: em dia de culto, recepção/liderança ganham o cartão "Check-in"
 // no topo; o responsável vê o check-in de hoje dos filhos (sala e código).
 // Fase 6: quem serve na escala vê a próxima vaga e a indisponibilidade a marcar.
+// Fase 8: cartão "Próximos eventos" para todos (até 3, com link para o evento).
 // =====================================================================
 import { el, montar, aviso, carregando } from "../ui.js";
 import { icone } from "../icones.js";
 import { estadoPrimeiroAcesso, meuPerfil, contarNaoLidas, contarPendencias, contarCadastros, listarNotificacoes,
-  cultosDeHoje, meusCheckinsHoje, minhaEscala } from "../supabase.js";
+  cultosDeHoje, meusCheckinsHoje, minhaEscala, proximosEventos } from "../supabase.js";
 import { tipoDeBarra } from "../casca.js";
 
 export const layout = "padrao";
@@ -30,6 +31,12 @@ const quando = (iso) => {
   return dia === new Date().toLocaleDateString("pt-BR", { timeZone: FUSO })
     ? `Hoje, ${d.toLocaleTimeString("pt-BR", { timeZone: FUSO, hour: "2-digit", minute: "2-digit" })}`
     : d.toLocaleDateString("pt-BR", { timeZone: FUSO, day: "numeric", month: "short" });
+};
+
+const quandoEvento = (iso) => {
+  const d = new Date(iso);
+  const t = d.toLocaleDateString("pt-BR", { timeZone: FUSO, weekday: "short", day: "2-digit", month: "2-digit" }).replace(".", "");
+  return `${t.charAt(0).toUpperCase()}${t.slice(1)} · ${d.toLocaleTimeString("pt-BR", { timeZone: FUSO, hour: "2-digit", minute: "2-digit" })}`;
 };
 
 function numero(nomeIcone, valor, rotulo, href, variante) {
@@ -81,8 +88,9 @@ export async function render(alvo) {
   const fazCheckin = perfil.ok && perfil.temPapel("admin", "pastor", "lider", "recepcao");
   const ehResponsavel = perfil.ok && perfil.temPapel("responsavel");
   const serve = perfil.ok && perfil.temPapel("voluntaria");
-  const [hojeCultos, meusHoje, escala] = await Promise.all([
-    fazCheckin ? cultosDeHoje() : null, ehResponsavel ? meusCheckinsHoje() : null, serve ? minhaEscala() : null]);
+  const [hojeCultos, meusHoje, escala, eventos] = await Promise.all([
+    fazCheckin ? cultosDeHoje() : null, ehResponsavel ? meusCheckinsHoje() : null, serve ? minhaEscala() : null,
+    proximosEventos()]);
   if (hojeCultos?.ok && hojeCultos.lista.length) {
     const c = hojeCultos.lista.find((x) => x.sugerido) || hojeCultos.lista[0];
     partes.push(el("section", { class: "cartao cartao--checkin-hoje" },
@@ -128,6 +136,20 @@ export async function render(alvo) {
     partes.push(completar("Relação com as crianças", "Falta informar", "#/primeiro-acesso", "Informar"));
   } else if (!equipe && nPend > 0) {
     partes.push(completar(`${nPend} ${nPend > 1 ? "itens" : "item"} para completar`, "No cadastro da família", "#/minha-familia", "Completar"));
+  }
+
+  // Próximos eventos (Fase 8)
+  const proximos = eventos?.ok ? eventos.resultado || [] : [];
+  if (proximos.length) {
+    partes.push(
+      el("div", { class: "secao-titulo" }, el("h2", { text: "Próximos eventos" }), el("a", { href: "#/eventos", text: "Ver todos" })),
+      el("ul", { class: "lista-compacta" }, proximos.map((e) => el("li", {},
+        el("a", { class: "item-compacto", href: `#/eventos?id=${encodeURIComponent(e.id)}` },
+          el("span", { class: "numero__icone" }, icone("calendario")),
+          el("span", { class: "item-compacto__texto" },
+            el("span", { class: "item-compacto__nome", text: e.titulo }),
+            el("span", { class: "item-compacto__linha", text: [quandoEvento(e.inicio), e.local, e.aberta ? "Inscrições abertas" : null].filter(Boolean).join(" · ") })),
+          icone("seta", null, "item-compacto__seta"))))));
   }
 
   // Números

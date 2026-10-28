@@ -7,11 +7,13 @@
 //   • Vagas abertas da escala publicada: "Quero esta vaga".
 //   • Indisponibilidade dos meses em que a liderança pediu (até publicar):
 //     só os cultos preferidos dela e quantas vezes pode servir no mês.
+//   • Fase 8: "Minhas preferências" (faixas de idade e cultos preferidos).
 // =====================================================================
 import { el, montar, aviso, carregando, menuAcoes, toast } from "../ui.js";
 import { icone } from "../icones.js";
 import { abrirJanela, campo } from "../janela.js";
 import { minhaEscala, responderEscala, pegarVaga, minhaIndisponibilidade, salvarIndisponibilidade } from "../supabase.js";
+import { janelaPreferencias } from "../preferencias-voluntaria.js";
 
 export const layout = "padrao";
 export const titulo = "Minha escala";
@@ -69,6 +71,14 @@ async function desenhar() {
       el("p", { class: "resumo-lista", text: "Quer ajudar? Pegue uma vaga e ela já fica sua." }),
       el("ul", { class: "lista-compacta" }, abertas.map(itemAberto)));
   }
+
+  // Preferências (Fase 8): valem para as próximas escalas
+  partes.push(el("section", { class: "cartao cartao--compacto mt-3" },
+    el("span", { class: "numero__icone" }, icone("voluntaria")),
+    el("div", { class: "flex-1" }, el("strong", { text: "Minhas preferências" }), el("br"),
+      el("span", { class: "suave", text: "Faixas de idade e cultos em que prefere servir" })),
+    el("button", { class: "botao botao--secundario botao--pequeno", type: "button", text: "Mudar",
+      onclick: () => janelaPreferencias(null, desenhar) })));
   montar(alvoTela, partes);
 }
 

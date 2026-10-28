@@ -1245,3 +1245,43 @@ export function apagarEnquete(enquete) { return chamarRpc("apagar_enquete", { p_
 export function enderecoApp(rota = "/notificacoes") {
   return `${location.origin}${location.pathname}#${rota}`;
 }
+
+// =====================================================================
+// Fase 8 – Eventos, voluntariado e convites. O banco confere quem pode
+// o quê (liderança, responsável da própria família, voluntária ativa).
+// =====================================================================
+
+/** Eventos que o login pode ver (liderança: rascunhos e passados também). */
+export function eventosLista() { return chamarRpc("eventos_lista", {}); }
+/** Até 3 próximos eventos publicados (cartão do Início). */
+export function proximosEventos() { return chamarRpc("proximos_eventos", {}); }
+/** evento nulo = novo (fica em rascunho). dados: { titulo, descricao, inicio, fim, local, idade_min, idade_max,
+ *  vagas, inscricoes_ate, autorizacao, inscricoes_abertas, aceita_ajuda, vagas_ajuda } → id */
+export function salvarEvento(evento, dados) { return chamarRpc("salvar_evento", { p_evento: evento || null, p_dados: dados }); }
+/** publico: "todos" | "equipe" | "lideres" | "responsaveis" → { destinatarios } */
+export function publicarEvento(evento, publico) { return chamarRpc("publicar_evento", { p_evento: evento, p_publico: publico }); }
+export function cancelarEvento(evento) { return chamarRpc("cancelar_evento", { p_evento: evento }); }
+export function apagarEvento(evento) { return chamarRpc("apagar_evento", { p_evento: evento }); }
+/** Lembrete (notificação + push) para os responsáveis dos inscritos → quantas pessoas */
+export function avisarInscritos(evento, texto) { return chamarRpc("avisar_inscritos", { p_evento: evento, p_texto: texto || null }); }
+export function inscreverCrianca(evento, crianca, autorizo = false, observacao = null) {
+  return chamarRpc("inscrever_crianca", { p_evento: evento, p_crianca: crianca, p_autorizo: !!autorizo, p_observacao: observacao || null });
+}
+export function cancelarInscricao(inscricao) { return chamarRpc("cancelar_inscricao", { p_inscricao: inscricao }); }
+/** presente: true | false | null (desmarcar) */
+export function marcarPresencaEvento(inscricao, presente) { return chamarRpc("marcar_presenca_evento", { p_inscricao: inscricao, p_presente: presente }); }
+export function ajudarEvento(evento, sim) { return chamarRpc("ajudar_evento", { p_evento: evento, p_sim: !!sim }); }
+/** Liderança: { inscritos: [...], ajudantes: [...] } */
+export function eventoInscritos(evento) { return chamarRpc("evento_inscritos", { p_evento: evento }); }
+
+/** Preferências da voluntária + opções de salas e cultos (sem id = a própria). */
+export function voluntariaPreferencias(voluntaria = null) { return chamarRpc("voluntaria_preferencias", { p_voluntaria: voluntaria }); }
+/** dados: { salas, cultos } (a própria) ou também { funcao, email, profissao } (liderança) */
+export function salvarVoluntaria(voluntaria, dados) { return chamarRpc("salvar_voluntaria", { p_voluntaria: voluntaria, p_dados: dados }); }
+/** ativa: true (reativar) | false (desativar) → { vagas, ajudas } */
+export function definirStatusVoluntaria(voluntaria, ativa) { return chamarRpc("definir_status_voluntaria", { p_voluntaria: voluntaria, p_ativa: !!ativa }); }
+
+/** Link do cadastro de família (o mesmo endereço do app, onde ele estiver publicado). */
+export function enderecoCadastroFamilia() {
+  return `${location.origin}${location.pathname}#/cadastro`;
+}
