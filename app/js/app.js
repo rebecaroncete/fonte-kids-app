@@ -37,6 +37,7 @@ const ROTAS = {
   "/mais":          { publica: false, carregar: () => import("./telas/mais.js") },
   "/cultos":        { publica: false, carregar: () => import("./telas/cultos.js") },
   "/acessos":       { publica: false, carregar: () => import("./telas/acessos.js") },
+  "/checkin":       { publica: false, carregar: () => import("./telas/checkin.js") },
 };
 
 /** Endereço interno conhecido? (usado para abrir links de notificações) */

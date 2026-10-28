@@ -224,7 +224,7 @@ export async function render(alvo) {
   }
 
   montar(alvo,
-    el("h1", { text: lideranca ? "Cadastros" : "Recepção" }),
+    el("h1", { text: lideranca ? "Cadastros" : "Crianças e famílias" }),
     abas.length > 1 ? el("div", { class: "abas", role: "tablist", "aria-label": "Cadastros" }, botoes) : null,
     area);
   abrir(parametro("aba"), false);

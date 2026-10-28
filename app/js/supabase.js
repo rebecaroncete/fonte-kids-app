@@ -931,3 +931,43 @@ export async function definirPapel(perfilId, papel, ativo) {
   if (r.ok) limparPerfilGuardado();
   return r;
 }
+
+// =====================================================================
+// Fase 5 · Etapa 5B – Entrada do check-in. Tudo pelas funções do banco
+// (a gravação direta na tabela checkins foi fechada). A sala vem do banco
+// (faixa de idade na data do culto, respeitando as salas juntas do dia).
+// =====================================================================
+
+/** Cultos de hoje: [{ id, nome, horario, extra, sugerido, presentes, salas }] */
+export async function cultosDeHoje() {
+  const r = await chamarRpc("cultos_de_hoje", {});
+  return r.ok ? { ok: true, lista: r.resultado || [] } : r;
+}
+
+/**
+ * Busca para o check-in (nome da criança/responsável ou 4 últimos números do telefone).
+ * [{ familia_id, responsaveis: [{ nome, principal }],
+ *    criancas: [{ id, pessoa_id, nome, alergias, aniversario, sala_id, sala_nome, sem_sala,
+ *                 checkin: { id, codigo, sala_nome, entrada_em, saiu } | null }],
+ *    pendencias: [{ id, tipo, mensagem, automatica, crianca_id }] }]
+ */
+export async function buscarParaCheckin(cultoId, texto) {
+  const r = await chamarRpc("buscar_para_checkin", { p_culto: cultoId, p_texto: texto });
+  return r.ok ? { ok: true, lista: r.resultado || [] } : r;
+}
+
+/** → [{ crianca_id, nome, checkin_id, codigo, sala_nome, ja_tinha }] */
+export async function fazerCheckin(cultoId, criancaIds) {
+  const r = await chamarRpc("fazer_checkin", { p_culto: cultoId, p_criancas: criancaIds });
+  return r.ok ? { ok: true, lista: r.resultado || [] } : r;
+}
+
+export function desfazerCheckin(checkinId) {
+  return chamarRpc("desfazer_checkin", { p_checkin: checkinId });
+}
+
+/** Responsável: check-ins de hoje dos filhos [{ nome, culto, horario, sala_nome, codigo, entrada_em, saiu }] */
+export async function meusCheckinsHoje() {
+  const r = await chamarRpc("meus_checkins_hoje", {});
+  return r.ok ? { ok: true, lista: r.resultado || [] } : r;
+}

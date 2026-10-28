@@ -6,11 +6,13 @@
 // cartões de número, atalhos em grade e os avisos mais recentes.
 //   Liderança/pastor/admin e recepção: números do departamento.
 //   Responsável: números da própria família.
-// Fase 5: em dia de culto, a recepção ganha o cartão "Check-in" no topo.
+// Fase 5 · 5B: em dia de culto, recepção/liderança ganham o cartão "Check-in"
+// no topo; o responsável vê o check-in de hoje dos filhos (sala e código).
 // =====================================================================
 import { el, montar, aviso, carregando } from "../ui.js";
 import { icone } from "../icones.js";
-import { estadoPrimeiroAcesso, meuPerfil, contarNaoLidas, contarPendencias, contarCadastros, listarNotificacoes } from "../supabase.js";
+import { estadoPrimeiroAcesso, meuPerfil, contarNaoLidas, contarPendencias, contarCadastros, listarNotificacoes,
+  cultosDeHoje, meusCheckinsHoje } from "../supabase.js";
 import { tipoDeBarra } from "../casca.js";
 
 export const layout = "padrao";
@@ -73,6 +75,31 @@ export async function render(alvo) {
       el("h1", { text: primeiroNome ? `Olá, ${primeiroNome}` : "Olá" }),
       el("p", { class: "suave", text: hoje() })),
   ];
+
+  // Check-in (Fase 5 · 5B)
+  const fazCheckin = perfil.ok && perfil.temPapel("admin", "pastor", "lider", "recepcao");
+  const ehResponsavel = perfil.ok && perfil.temPapel("responsavel");
+  const [hojeCultos, meusHoje] = await Promise.all([
+    fazCheckin ? cultosDeHoje() : null, ehResponsavel ? meusCheckinsHoje() : null]);
+  if (hojeCultos?.ok && hojeCultos.lista.length) {
+    const c = hojeCultos.lista.find((x) => x.sugerido) || hojeCultos.lista[0];
+    partes.push(el("section", { class: "cartao cartao--checkin-hoje" },
+      el("span", { class: "numero__icone" }, icone("checkin")),
+      el("div", { class: "flex-1" }, el("strong", { text: "Check-in" }), el("br"),
+        el("span", { class: "suave", text: `${c.nome} · ${c.horario} · ${c.presentes} com check-in` })),
+      el("a", { class: "botao botao--primario", href: "#/checkin", text: "Abrir" })));
+  }
+  if (meusHoje?.ok && meusHoje.lista.length) {
+    partes.push(el("section", { class: "cartao" },
+      el("div", { class: "secao-titulo sem-margem" }, el("h2", { text: "Check-in de hoje" })),
+      el("ul", { class: "codigos-hoje mt-2" }, meusHoje.lista.map((k) => el("li", {},
+        el("span", { class: "item-compacto__texto" },
+          el("span", { class: "item-compacto__nome", text: k.nome }),
+          el("span", { class: "item-compacto__linha", text: [`Sala ${String(k.sala_nome || "").replace(/ anos$/, "")}`, `${k.culto} ${k.horario}`, k.saiu ? "Saiu" : null].filter(Boolean).join(" · ") })),
+        el("span", { class: "codigo-mini", "aria-label": `Código ${k.codigo}`, text: k.codigo }))))
+      ,
+      el("p", { class: "suave sem-margem mt-2", text: "Mostre o código na porta da sala na hora de buscar." })));
+  }
 
   // Algo a completar (amarelo, com a ação principal da tela)
   if (est.etapa === "informar_relacoes") {

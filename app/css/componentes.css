@@ -507,3 +507,40 @@ a.item-compacto:hover { background: var(--fundo); }
 .pendencia__linha { display: flex; align-items: flex-start; gap: var(--e3); }
 .pendencia .notif__corpo { margin: var(--e1) 0 0; font-size: .95rem; }
 .pendencia .linha a { font-size: .95rem; }
+
+/* Check-in – Entrada (Fase 5 · 5B) */
+.resultados-checkin { margin-top: var(--e2); }
+.cartao--familia-checkin { padding: var(--e4); }
+.familia-checkin__topo { display: flex; flex-direction: column; gap: 2px; padding-bottom: var(--e2); border-bottom: 1px solid var(--borda-suave); }
+.familia-checkin__nome { font: 800 1.05rem var(--fonte-titulo); }
+.lista-checkin { list-style: none; margin: 0; padding: 0; }
+.checkin-crianca { padding: var(--e3) 0; }
+.checkin-crianca + .checkin-crianca { border-top: 1px solid var(--borda-suave); }
+.checkin-crianca__linha { display: flex; align-items: center; gap: var(--e3); }
+.checkin-crianca__linha--marcavel { cursor: pointer; }
+.checkin-crianca__linha .item-compacto__nome { white-space: normal; }
+.checkin-crianca__caixa { width: 24px; height: 24px; flex: none; accent-color: var(--destaque); }
+.checkin-alergia { display: flex; gap: var(--e2); align-items: flex-start; margin-top: var(--e2); padding: var(--e2) var(--e3);
+  background: var(--erro-claro); border: 1px solid var(--erro-borda); border-radius: var(--raio-p); color: var(--erro); font-size: .9rem; overflow-wrap: anywhere; }
+.checkin-alergia .icone-linha { width: 18px; height: 18px; flex: none; margin-top: 2px; }
+.checkin-alergia span { color: var(--texto); }
+.checkin-alergia strong { color: var(--erro); }
+.checkin-pendencias { margin-top: var(--e3); padding: var(--e3); background: var(--amarelo-claro);
+  border: 1px solid var(--amarelo-borda); border-radius: var(--raio-p); }
+.checkin-pendencias .lista-pendencias > .pendencia { padding: var(--e2) 0 0; }
+.checkin-pendencias .icone-linha { width: 18px; height: 18px; }
+.codigo-mini { flex: none; padding: 4px 10px; border-radius: var(--raio-p); background: var(--sucesso-claro); color: #17663a;
+  font: 800 1rem/1.2 var(--fonte-titulo); letter-spacing: .12em; }
+.lista-codigos { list-style: none; margin: var(--e4) 0 0; padding: 0; }
+.cartao--codigo { display: flex; align-items: center; gap: var(--e3); padding: var(--e4); }
+.cartao-codigo__nome { display: block; font: 800 1.1rem var(--fonte-titulo); overflow-wrap: anywhere; }
+.codigo-grande { flex: none; padding: var(--e2) var(--e3); border: 2px solid var(--destaque); border-radius: var(--raio-p);
+  background: var(--destaque-claro); font: 800 2rem/1 var(--fonte-titulo); letter-spacing: .15em; }
+
+/* Início: cartão "Check-in" em dia de culto e códigos do responsável (5B) */
+.cartao--checkin-hoje { display: flex; align-items: center; gap: var(--e3); padding: var(--e4); background: var(--destaque-claro); border-color: #f9cfb2; }
+.cartao--checkin-hoje .numero__icone { background: var(--destaque); color: var(--texto); }
+.cartao--checkin-hoje strong { font: 800 1.15rem var(--fonte-titulo); }
+.codigos-hoje { list-style: none; margin: 0; padding: 0; }
+.codigos-hoje > li { display: flex; align-items: center; gap: var(--e3); padding: var(--e2) 0; }
+.codigos-hoje > li + li { border-top: 1px solid var(--borda-suave); }

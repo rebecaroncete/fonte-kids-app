@@ -5,11 +5,13 @@
 //
 // Abas por papel (4 ou 5):
 //   Responsável: Início · Família · Avisos · Perfil
-//   Recepção/voluntária: Início · Recepção · Pendências · Avisos · Mais
+//   Recepção/voluntária: Início · Check-in · Pendências · Avisos · Mais
 //   Liderança/pastor/admin: Início · Cadastros · Pendências · Avisos · Mais
 // Quem tem papel de equipe E de responsável fica com a barra da equipe;
 // "Minha família" aparece no "Mais".
-// Fase 5: a aba "Recepção" passa a ser o check-in.
+// Fase 5 · 5B: a aba "Recepção" virou "Check-in"; a lista de crianças e
+// famílias da recepção foi para o "Mais". A liderança acha o Check-in no
+// "Mais" e no cartão do Início em dia de culto.
 //
 // Tela nova? Se for aba, acrescente em ABAS e em abasDo(); se não, em
 // ITENS_MAIS (com "papeis" quando for só para alguns papéis) e, para a
@@ -28,7 +30,7 @@ const EQUIPE = [...LIDERANCA, "recepcao", "voluntaria"];
 const ABAS = {
   inicio:     { rota: "/inicio", texto: "Início", icone: "inicio" },
   familia:    { rota: "/minha-familia", texto: "Família", icone: "familia" },
-  recepcao:   { rota: "/cadastros", texto: "Recepção", icone: "recepcao" },
+  checkin:    { rota: "/checkin", texto: "Check-in", icone: "checkin" },
   cadastros:  { rota: "/cadastros", texto: "Cadastros", icone: "cadastros" },
   pendencias: { rota: "/pendencias", texto: "Pendências", icone: "pendencias", contagem: "pendencias" },
   avisos:     { rota: "/notificacoes", texto: "Avisos", icone: "avisos", contagem: "avisos" },
@@ -38,6 +40,8 @@ const ABAS = {
 
 // Itens da tela "Mais" (papeis: admin | pastor | lider | recepcao | voluntaria | responsavel)
 export const ITENS_MAIS = [
+  { rota: "/checkin", texto: "Check-in", icone: "checkin", papeis: [...LIDERANCA, "recepcao"] },
+  { rota: "/cadastros", texto: "Crianças e famílias", icone: "cadastros", papeis: [...LIDERANCA, "recepcao"] },
   { rota: "/minha-familia", texto: "Minha família", icone: "familia", papeis: ["responsavel"] },
   { rota: "/perfil", texto: "Meu perfil", icone: "perfil" },
   { rota: "/trocar-senha", texto: "Trocar senha", icone: "senha" },
@@ -60,8 +64,8 @@ function abasDo(perfil) {
   if (tipo === "lideranca") return ["inicio", "cadastros", "pendencias", "avisos", "mais"];
   if (tipo === "equipe") {
     return perfil.temPapel("recepcao")
-      ? ["inicio", "recepcao", "pendencias", "avisos", "mais"]
-      : ["inicio", "recepcao", "avisos", "mais"];
+      ? ["inicio", "checkin", "pendencias", "avisos", "mais"]
+      : ["inicio", "avisos", "mais"];
   }
   if (tipo === "responsavel") return ["inicio", "familia", "avisos", "perfil"];
   return ["inicio", "avisos", "perfil"];
@@ -71,7 +75,9 @@ function abasDo(perfil) {
 function abaDaRota(rota, abas) {
   const temMais = abas.includes("mais");
   const mapa = {
-    "/ficha": abas.includes("familia") ? "/minha-familia" : "/cadastros",
+    "/ficha": abas.includes("familia") ? "/minha-familia" : abas.includes("cadastros") ? "/cadastros" : "/mais",
+    "/cadastros": abas.includes("cadastros") ? "/cadastros" : "/mais",
+    "/checkin": abas.includes("checkin") ? "/checkin" : "/mais",
     "/perfil": temMais ? "/mais" : "/perfil",
     "/trocar-senha": temMais ? "/mais" : "/perfil",
     "/logins": "/mais",
@@ -85,7 +91,8 @@ function abaDaRota(rota, abas) {
 /** Itens do "Mais" para o login atual. */
 export function itensMaisDo(perfil) {
   const meus = perfil?.ok ? perfil.papeis.map((p) => p.papel) : [];
-  return ITENS_MAIS.filter((i) => !i.papeis || i.papeis.some((p) => meus.includes(p)));
+  const naBarra = abasDo(perfil).map((a) => ABAS[a].rota); // o que já está na barra não se repete
+  return ITENS_MAIS.filter((i) => (!i.papeis || i.papeis.some((p) => meus.includes(p))) && !naBarra.includes(i.rota));
 }
 
 let desligadores = [];
