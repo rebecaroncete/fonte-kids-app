@@ -83,7 +83,7 @@ begin
 
   -- Líder cria um culto extra que começou há 7 minutos (10–12 junto com 7–9)
   perform set_config('request.jwt.claims', json_build_object('sub', u_lider, 'role', 'authenticated')::text, true);
-  culto := public.criar_culto_extra(private.hoje(), to_char(v_agora - interval '7 minutes', 'HH24:MI'), 'Culto Teste 5C',
+  culto := public.criar_culto_extra(private.hoje(), to_char(v_agora - interval '7 minutes', 'HH24:MI')::time, 'Culto Teste 5C',
     jsonb_build_array(jsonb_build_object('sala_id', s10, 'cancelada', false, 'junto_com', s7)));
 
   -- Voluntária faz o check-in de 3 crianças (2 famílias)
