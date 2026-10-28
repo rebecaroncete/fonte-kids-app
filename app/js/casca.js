@@ -49,6 +49,7 @@ export const ITENS_MAIS = [
   { rota: "/acessos", texto: "Acessos da equipe", icone: "autorizados", papeis: LIDERANCA },
   { rota: "/cultos", texto: "Cultos e salas", icone: "calendario", papeis: LIDERANCA },
   { rota: "/telao-link", texto: "Link do telão", icone: "telao", papeis: LIDERANCA },
+  { rota: "/grupos-whatsapp", texto: "Grupos de WhatsApp", icone: "conversa", papeis: LIDERANCA },
 ];
 
 /** "lideranca" | "equipe" | "responsavel" | "basico" */

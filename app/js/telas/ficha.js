@@ -10,7 +10,8 @@
 // =====================================================================
 import { el, montar, aviso, carregando, mascararTelefone, iniciais } from "../ui.js";
 import { icone } from "../icones.js";
-import { fichaCrianca, fichaFamilia, fichaVoluntaria, listarSalas } from "../supabase.js";
+import { fichaCrianca, fichaFamilia, fichaVoluntaria, listarSalas, meuPerfil } from "../supabase.js";
+import { janelaNovaCrianca } from "../nova-crianca.js";
 import { avatarComFoto, avatarLista, preencherFotos } from "../foto.js";
 import { idade, textoIdade, salaDaCrianca } from "./cadastros.js";
 
@@ -65,7 +66,10 @@ function secao(tituloSecao, ...conteudo) {
 }
 /** Seção de lista (título + lista compacta, sem cartão em volta) */
 function secaoLista(tituloSecao, ...conteudo) {
-  return el("section", { class: "secao-lista" }, el("div", { class: "secao-titulo" }, el("h2", { text: tituloSecao })), ...conteudo);
+  // 1º item pode ser uma ação (botão) para ficar ao lado do título
+  const acao = conteudo[0] instanceof HTMLButtonElement ? conteudo.shift() : null;
+  if (conteudo[0] === null) conteudo.shift();
+  return el("section", { class: "secao-lista" }, el("div", { class: "secao-titulo" }, el("h2", { text: tituloSecao }), acao), ...conteudo);
 }
 
 /** Cabeçalho da ficha: foto, nome, etiquetas (alergia sempre primeiro, em vermelho). */
@@ -161,11 +165,17 @@ async function desenharFamilia(alvo, id) {
   const nome = principal?.pessoa?.nome ? `Família de ${principal.pessoa.nome}` : "Família";
   document.title = `${nome} · Fonte Kids`;
   const criancas = [...r.criancas].sort((a, b) => Number(b.ativo) - Number(a.ativo));
+  const perfil = await meuPerfil();
+  const podeIncluir = perfil.ok && perfil.temPapel("admin", "pastor", "lider", "recepcao");
+  const podeFoto = perfil.ok && perfil.temPapel("admin", "pastor", "lider");
 
   montar(alvo,
     voltar("familias"),
     el("h1", { text: nome }),
-    secaoLista("Crianças", criancas.length
+    secaoLista("Crianças", podeIncluir ? el("button", {
+        class: "botao botao--secundario botao--pequeno", type: "button",
+        onclick: () => janelaNovaCrianca({ familiaId: id, comRelacao: false, comFoto: podeFoto, aoIncluir: () => desenharFamilia(alvo, id) }),
+      }, icone("adicionar"), "Adicionar") : null, criancas.length
       ? el("ul", { class: "lista-compacta" }, criancas.map((c) => {
           const anos = idade(c.pessoa?.data_nascimento);
           const sala = salaDaCrianca(c.sala_fixa_id, anos, salas);

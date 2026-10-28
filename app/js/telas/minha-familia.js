@@ -10,6 +10,7 @@
 //   • criança: nome, data de nascimento, alergias/cuidados e foto;
 //   • relação com cada criança (informar_relacao);
 //   • autorizados a retirar: incluir e remover.
+//   • (5D) Adicionar criança (incluir_crianca), com a relação e a foto.
 // Pendências (Etapa 5D): quadro "Para completar" no topo de cada família.
 //   • relação não informada → botão para informar (some sozinha quando
 //     todos os responsáveis informarem);
@@ -31,6 +32,7 @@ import { abrirJanela, janelaFoto, campo } from "../janela.js";
 import { idade, textoIdade, salaDaCrianca } from "./cadastros.js";
 import { TIPOS_RELACAO } from "./primeiro-acesso.js";
 import { definirEtapaAcesso } from "../app.js";
+import { janelaNovaCrianca } from "../nova-crianca.js";
 
 export const layout = "padrao";
 export const titulo = "Minha família";
@@ -81,9 +83,13 @@ function blocoFamilia(f, salas, mostrarTitulo, pendencias = []) {
   return el("div", {},
     mostrarTitulo ? el("h2", { text: principal?.pessoa?.nome ? `Família de ${principal.pessoa.nome}` : "Família" }) : null,
     pendencias.length ? quadroPendencias(pendencias, f) : null,
-    criancas.length
-      ? criancas.map((c) => cartaoCrianca(c, f, salas))
-      : el("p", { class: "suave", text: "Nenhuma criança nesta família." }),
+    secao("Crianças", el("button", {
+        class: "botao botao--secundario botao--pequeno", type: "button",
+        onclick: () => janelaNovaCrianca({ familiaId: f.id, comRelacao: true, comFoto: true, aoIncluir: () => desenhar() }),
+      }, icone("adicionar"), "Adicionar"),
+      criancas.length
+        ? criancas.map((c) => cartaoCrianca(c, f, salas))
+        : el("p", { class: "suave", text: "Nenhuma criança nesta família." })),
     secao("Responsáveis", null, listaResponsaveis(f)),
     secao("Autorizados a retirar", el("button", {
         class: "botao botao--secundario botao--pequeno", type: "button", onclick: () => janelaIncluirAutorizado(f.id),

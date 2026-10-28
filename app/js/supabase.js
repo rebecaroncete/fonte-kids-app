@@ -1041,3 +1041,54 @@ export async function telaoChamadas(codigo) {
 export function telaoAnunciar(codigo, chamadaId) {
   return chamarRpc("telao_anunciar", { p_codigo: codigo, p_chamada: chamadaId });
 }
+
+// =====================================================================
+// Fase 5 · 5D – Cadastro pelo link público (sem login), "Adicionar
+// criança" e grupos de WhatsApp.
+// O cadastro sem login passa só pela Edge Function "cadastro-publico"
+// (captcha conferido no servidor). Nenhum dado do banco volta para a tela.
+// =====================================================================
+
+async function chamarCadastroPublico(corpo) {
+  try {
+    const r = await fetch(`${CONFIG.supabaseUrl}/functions/v1/cadastro-publico`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", apikey: CONFIG.supabaseChavePublica },
+      body: JSON.stringify(corpo),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (r.ok && j.ok) return { ok: true, ...j };
+    return { ok: false, codigo: j.erro || (r.status === 413 ? "grande" : "interno"), campo: j.campo || null };
+  } catch {
+    return { ok: false, codigo: "conexao" };
+  }
+}
+
+/** Passo 1: { ok, existe, ticket, termo: { versao, texto } } ou { ok: false, codigo } */
+export function cadastroVerificarTelefone(telefone55, captchaToken) {
+  return chamarCadastroPublico({ acao: "verificar", telefone: telefone55, captchaToken });
+}
+
+/** Passo 2: { ok, links: [{grupo, link}], segundo_login, logins_falharam, fotos_falharam } ou { ok: false, codigo, campo } */
+export function cadastroEnviar(ticket, dados, fotos) {
+  return chamarCadastroPublico({ acao: "cadastrar", ticket, dados, fotos });
+}
+
+/** Adicionar criança (responsável da família ou recepção/liderança). Devolve { ok, resultado: id }. */
+export function incluirCrianca(familiaId, { nome, nascimento, alergias, perfil, relacao, detalhe }) {
+  return chamarRpc("incluir_crianca", {
+    p_familia: familiaId, p_nome: nome, p_nascimento: nascimento || null, p_alergias: alergias || null,
+    p_perfil: perfil || "membro", p_relacao: relacao || null, p_detalhe: detalhe || null,
+  });
+}
+
+/** Grupos de WhatsApp (liderança): { ok, responsaveis: [...], links: { "0_9", "10_12" } } */
+export async function gruposWhatsapp() {
+  const r = await chamarRpc("grupos_whatsapp", {});
+  if (!r.ok) return r;
+  return { ok: true, responsaveis: r.resultado?.responsaveis || [], links: r.resultado?.links || {} };
+}
+
+export function marcarGrupoWhatsapp(pessoaId, grupo, noGrupo) {
+  return chamarRpc("marcar_grupo_whatsapp", { p_pessoa: pessoaId, p_grupo: grupo, p_no_grupo: noGrupo });
+}

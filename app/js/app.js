@@ -41,6 +41,9 @@ const ROTAS = {
   "/telao-link":    { publica: false, carregar: () => import("./telas/telao-link.js") },
   // Telão (5C): sem login, protegido pelo código secreto do link (#/telao?c=…)
   "/telao":         { publica: true, carregar: () => import("./telas/telao.js") },
+  // Cadastro de família nova (5D): sem login; só esta tela (#/cadastro)
+  "/cadastro":      { publica: true, carregar: () => import("./telas/cadastro.js") },
+  "/grupos-whatsapp": { publica: false, carregar: () => import("./telas/grupos-whatsapp.js") },
 };
 
 /** Endereço interno conhecido? (usado para abrir links de notificações) */
@@ -151,6 +154,11 @@ sb.auth.onAuthStateChange((evento) => {
     if (!def || !def.publica) setTimeout(() => irPara("/entrar"), 0);
   }
 });
+
+// Link antigo do QR code da igreja (…/?tela=cadastro) → tela nova de cadastro
+if (!location.hash && new URLSearchParams(location.search).get("tela") === "cadastro") {
+  history.replaceState(null, "", `${location.pathname}#/cadastro`);
+}
 
 window.addEventListener("hashchange", mostrar);
 iniciarPWA();
