@@ -5,7 +5,7 @@
 //     liderança), "Adicionar à agenda" (.ics feito aqui no aparelho) e
 //     quem serve junto.
 //   • Vagas abertas da escala publicada: "Quero esta vaga".
-//   • Indisponibilidade do próximo mês (até a escala ser publicada).
+//   • Indisponibilidade dos meses em que a liderança pediu (até publicar).
 // =====================================================================
 import { el, montar, aviso, carregando, menuAcoes, toast } from "../ui.js";
 import { icone } from "../icones.js";
@@ -41,21 +41,20 @@ async function desenhar() {
       aviso("atencao", r.erro === "Sem permissão" ? "Esta tela é para quem serve na escala do Fonte Kids." : r.erro));
     return;
   }
-  const { minhas = [], abertas = [], indisponibilidade: ind } = r.resultado || {};
+  const { minhas = [], abertas = [], pedidos = [] } = r.resultado || {};
   const partes = [el("h1", { text: titulo })];
 
-  if (ind?.aberta) {
-    partes.push(ind.respondeu
-      ? el("section", { class: "cartao cartao--compacto" },
-          el("span", { class: "numero__icone" }, icone("calendario")),
-          el("div", { class: "flex-1" }, el("strong", { text: `Indisponibilidade de ${ind.nome_mes}` }), el("br"),
-            el("span", { class: "suave", text: "Respondida. Dá para mudar até a escala sair." })),
-          el("button", { class: "botao botao--secundario botao--pequeno", type: "button", onclick: () => janelaIndisponibilidade(ind.mes) }, "Mudar"))
-      : el("section", { class: "cartao cartao--atencao cartao--compacto" },
-          el("span", { class: "numero__icone" }, icone("calendario")),
-          el("div", { class: "flex-1" }, el("strong", { text: `Indisponibilidade de ${ind.nome_mes}` }), el("br"),
-            el("span", { class: "suave", text: ind.dia_limite ? `Responda até o dia ${ind.dia_limite}.` : "Responda antes de a escala sair." })),
-          el("button", { class: "botao botao--primario botao--pequeno", type: "button", onclick: () => janelaIndisponibilidade(ind.mes) }, "Marcar")));
+  // indisponibilidade pedida pela liderança (só responde quem tiver culto em que não pode)
+  for (const p of pedidos) {
+    const prazo = p.prazo ? `${p.prazo.slice(8, 10)}/${p.prazo.slice(5, 7)}` : null;
+    partes.push(el("section", { class: p.respondeu ? "cartao cartao--compacto" : "cartao cartao--atencao cartao--compacto" },
+      el("span", { class: "numero__icone" }, icone("calendario")),
+      el("div", { class: "flex-1" }, el("strong", { text: `Indisponibilidade de ${p.nome_mes}` }), el("br"),
+        el("span", { class: "suave", text: p.respondeu
+          ? "Respondida. Dá para mudar até a escala sair."
+          : `Tem algum culto em que não pode servir? Marque${prazo ? ` até ${prazo}` : ""}.` })),
+      el("button", { class: p.respondeu ? "botao botao--secundario botao--pequeno" : "botao botao--primario botao--pequeno",
+        type: "button", onclick: () => janelaIndisponibilidade(p.mes) }, p.respondeu ? "Mudar" : "Marcar")));
   }
 
   partes.push(el("div", { class: "secao-titulo" }, el("h2", { text: "Minhas próximas vagas" }),
@@ -160,7 +159,7 @@ async function janelaIndisponibilidade(mes) {
     sucesso: "Indisponibilidade salva. Obrigada!",
     conteudo: [
       el("p", { text: "Marque os cultos em que você NÃO pode servir." }),
-      el("p", { class: "suave", text: "Se puder em todos, salve sem marcar nada." }),
+      el("p", { class: "suave", text: "Se puder em todos, não precisa fazer nada (ou salve sem marcar)." }),
       caixas.length ? el("div", { class: "mt-2" }, caixas) : el("p", { class: "suave", text: "Nenhum culto neste mês." }),
     ],
     aoSalvar: async () => {

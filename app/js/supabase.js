@@ -1199,6 +1199,8 @@ export function definirRegrasEscala(regras) { return chamarRpc("definir_regras_e
 export function voluntariasEscala() { return chamarRpc("voluntarias_escala", {}); }
 export function definirTetoVoluntaria(voluntaria, teto) { return chamarRpc("definir_teto_voluntaria", { p_voluntaria: voluntaria, p_teto: teto }); }
 export function indisponibilidadeDoMes(mes) { return chamarRpc("indisponibilidade_do_mes", { p_mes: mes }); }
+/** Define o prazo do mês e (avisar) avisa as voluntárias; resultado = quantas foram avisadas. */
+export function pedirIndisponibilidade(mes, prazo, avisar = true) { return chamarRpc("pedir_indisponibilidade", { p_mes: mes, p_prazo: prazo, p_avisar: avisar }); }
 export function minhaEscala() { return chamarRpc("minha_escala", {}); }
 /** resposta: "ciente" | "recusado" */
 export function responderEscala(item, resposta) { return chamarRpc("responder_escala", { p_item: item, p_resposta: resposta }); }

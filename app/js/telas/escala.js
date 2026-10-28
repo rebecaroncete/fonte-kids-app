@@ -2,6 +2,8 @@
 // Tela: Escala do mês (Fase 6 · 6B)   #/escala?mes=YYYY-MM
 // Liderança (o banco confere tudo):
 //   • Começar o mês, vagas por sala (inclusive salas juntas) e por culto.
+//   • Pedir a indisponibilidade com prazo do mês (avisa as voluntárias;
+//     só responde quem tiver culto em que não pode). Passado o prazo, gerar.
 //   • Gerar o rascunho (motor no banco), trocar/esvaziar/remover/adicionar
 //     vagas, líder do culto e publicar (avisa cada voluntária).
 //   • Regras da escala, teto por voluntária e quem já respondeu a
@@ -15,7 +17,7 @@ import { abrirJanela, campo } from "../janela.js";
 import {
   meuPerfil, escalaDoMes, configurarEscala, definirVagasCulto, gerarRascunho, candidatasVaga, trocarVaga,
   adicionarVaga, removerVaga, publicarEscala, regrasEscalaAtuais, definirRegrasEscala, voluntariasEscala,
-  definirTetoVoluntaria, indisponibilidadeDoMes,
+  definirTetoVoluntaria, indisponibilidadeDoMes, pedirIndisponibilidade,
 } from "../supabase.js";
 
 export const layout = "padrao";
@@ -34,7 +36,9 @@ let dados = null;      // resultado de escala_do_mes
 let soVazias = false;
 
 const param = (nome) => new URLSearchParams(location.hash.split("?")[1] || "").get(nome);
-const mesHoje = () => new Date().toLocaleDateString("en-CA", { timeZone: FUSO }).slice(0, 7);
+const isoHoje = () => new Date().toLocaleDateString("en-CA", { timeZone: FUSO });
+const mesHoje = () => isoHoje().slice(0, 7);
+const ddmm = (iso) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
 
 function somarMes(aaaamm, n) {
   const [a, m] = aaaamm.split("-").map(Number);
@@ -127,22 +131,32 @@ function resumo(lider) {
   const rs = dados.resumo || {};
   const rascunho = esc.status === "rascunho";
   const temItens = (dados.cultos || []).some((c) => c.itens.length);
+  const prazo = esc.prazo_indisponibilidade;
+  const pedida = !!esc.indisponibilidade_pedida_em;
+  const prazoAberto = pedida && prazo && prazo >= isoHoje();
+  const ind = dados.indisponibilidade;
   const linhas = [
     `${rs.vagas || 0} vagas · ${rs.vazias || 0} vazias${rascunho ? "" : ` · ${rs.cientes || 0} cientes`}`,
     rs.lider_culto_vazias ? `${rs.lider_culto_vazias} culto(s) sem líder do culto` : null,
-    lider && dados.indisponibilidade
-      ? `Indisponibilidade: ${dados.indisponibilidade.responderam} de ${dados.indisponibilidade.ativas} responderam` : null,
+    lider && rascunho
+      ? (pedida
+          ? `Indisponibilidade: prazo ${prazo ? ddmm(prazo) : "–"}${prazoAberto ? "" : " (encerrado)"} · ${ind?.marcaram ?? 0} marcaram`
+          : "Indisponibilidade ainda não pedida")
+      : null,
   ].filter(Boolean);
 
   const acoes = lider ? [
     rascunho ? el("button", { class: "botao botao--secundario botao--pequeno", type: "button", onclick: janelaVagasMes }, "Vagas por sala") : null,
-    rascunho ? el("button", { class: temItens ? "botao botao--secundario botao--pequeno" : "botao botao--primario botao--pequeno",
+    rascunho && !pedida ? el("button", { class: "botao botao--primario botao--pequeno", type: "button", onclick: () => janelaPedir(false) },
+      "Pedir indisponibilidade") : null,
+    rascunho ? el("button", { class: temItens || !pedida || prazoAberto ? "botao botao--secundario botao--pequeno" : "botao botao--primario botao--pequeno",
       type: "button", onclick: () => gerar(temItens) }, temItens ? "Gerar de novo" : "Gerar escala") : null,
     rascunho && temItens ? el("button", { class: "botao botao--primario botao--pequeno", type: "button", onclick: publicar }, "Publicar") : null,
     !rascunho ? el("a", { class: "botao botao--secundario botao--pequeno", href: "#/lembretes-escala" }, icone("conversa"), "Lembretes") : null,
   ].filter(Boolean) : [];
   // o ⋯ fica no canto direito do cartão, para o menu abrir dentro da tela
   const menu = lider ? menuAcoes([
+    rascunho && pedida ? { texto: "Mudar prazo da indisponibilidade", acao: () => janelaPedir(true) } : null,
     { texto: "Regras da escala", acao: janelaRegras },
     { texto: "Teto por voluntária", acao: janelaTetos },
     { texto: "Indisponibilidade do mês", acao: janelaIndisponibilidade },
@@ -208,7 +222,36 @@ async function comecar() {
   const r = await configurarEscala(mes, null);
   if (!r.ok) { toast("erro", r.erro); return; }
   await desenhar();
-  janelaVagasMes();
+  // primeiro as vagas; ao salvar, já oferece pedir a indisponibilidade
+  janelaVagasMes(() => { if (!dados.escala?.indisponibilidade_pedida_em) janelaPedir(false); });
+}
+
+/** Prazo da indisponibilidade do mês + aviso às voluntárias. */
+function janelaPedir(mudar) {
+  const fimMes = `${somarMes(mes.slice(0, 7), 1)}-01`;
+  const ultimo = new Date(`${fimMes}T12:00:00Z`); ultimo.setUTCDate(0);
+  const max = ultimo.toISOString().slice(0, 10);
+  const sugestao = new Date(`${isoHoje()}T12:00:00Z`); sugestao.setUTCDate(sugestao.getUTCDate() + 7);
+  const data = el("input", { class: "entrada", type: "date", min: isoHoje(), max });
+  data.value = dados.escala?.prazo_indisponibilidade || [sugestao.toISOString().slice(0, 10), max].sort()[0];
+  const avisar = el("input", { type: "checkbox" }); avisar.checked = true;
+  abrirJanela({
+    titulo: mudar ? "Mudar prazo da indisponibilidade" : "Pedir indisponibilidade",
+    textoSalvar: mudar ? "Salvar" : "Pedir",
+    conteudo: [
+      el("p", { text: `Cada voluntária recebe um aviso no app para marcar os cultos de ${dados.nome_mes} em que não pode servir. Quem pode em todos não precisa fazer nada.` }),
+      campo("Prazo", data, "O mesmo prazo que você combinar no grupo do WhatsApp."),
+      mudar ? el("label", { class: "marcar" }, avisar, "Avisar as voluntárias de novo") : null,
+    ].filter(Boolean),
+    aoSalvar: async () => {
+      if (!data.value) return "Escolha o prazo.";
+      const r = await pedirIndisponibilidade(mes, data.value, mudar ? avisar.checked : true);
+      if (!r.ok) return r.erro;
+      toast("sucesso", r.resultado ? `Pedido enviado a ${r.resultado} voluntárias. Prazo: ${ddmm(data.value)}.` : `Prazo mudado para ${ddmm(data.value)}.`, 6000);
+      await desenhar();
+      return null;
+    },
+  });
 }
 
 function confirmar(texto, rotulo, acao, sucesso, perigo = false) {
@@ -228,8 +271,13 @@ function gerar(deNovo) {
       el("p", { text: deNovo
         ? `Isso apaga o rascunho de ${dados.nome_mes} (inclusive as trocas feitas à mão) e monta tudo de novo.`
         : `Montar a escala de ${dados.nome_mes} com as vagas por sala, as preferências, o teto e a indisponibilidade de cada voluntária.` }),
+      dados.escala.prazo_indisponibilidade && dados.escala.prazo_indisponibilidade >= isoHoje()
+        ? aviso("atencao", `O prazo da indisponibilidade vai até ${ddmm(dados.escala.prazo_indisponibilidade)}. Quem marcar depois de gerar fica de fora (dá para gerar de novo).`)
+        : !dados.escala.indisponibilidade_pedida_em
+          ? aviso("atencao", "A indisponibilidade deste mês ainda não foi pedida às voluntárias.")
+          : null,
       el("p", { class: "suave", text: "Nada é enviado às voluntárias até você publicar." }),
-    ],
+    ].filter(Boolean),
     aoSalvar: async () => {
       const r = await gerarRascunho(mes);
       if (!r.ok) return r.erro;
@@ -280,7 +328,7 @@ function trioVagas(rotulo, v) {
   return { bloco, ler: () => ({ professora: Number(prof.value), auxiliar: Number(aux.value), reserva: Number(res.value) }) };
 }
 
-function janelaVagasMes() {
+function janelaVagasMes(depois) {
   const config = dados.config || [];
   const trios = config.map((s) => ({ s, t: trioVagas(s.sala, s) }));
   abrirJanela({
@@ -298,6 +346,7 @@ function janelaVagasMes() {
       const r = await configurarEscala(mes, lista);
       if (!r.ok) return r.erro;
       await desenhar();
+      if (typeof depois === "function") setTimeout(depois, 0);
       return null;
     },
   });
@@ -426,9 +475,6 @@ async function janelaRegras() {
   const femAtivo = el("input", { type: "checkbox" }); femAtivo.checked = fem.ativo !== false;
   const femIdade = el("select", { class: "entrada" }, [0, 3, 7, 10].map((n) => el("option", { value: String(n), text: n ? `Salas a partir de ${n} anos` : "Todas as salas" })));
   femIdade.value = String(fem.idade_min_sala ?? 10);
-  const limite = el("select", { class: "entrada" }, el("option", { value: "", text: "Até publicar" }),
-    Array.from({ length: 28 }, (_, n) => el("option", { value: String(n + 1), text: `Até o dia ${n + 1} do mês anterior` })));
-  limite.value = g.dia_limite_indisponibilidade ? String(g.dia_limite_indisponibilidade) : "";
   const ordem = el("select", { class: "entrada" },
     el("option", { value: "dificeis", text: "Vagas mais difíceis primeiro (recomendado)" }),
     el("option", { value: "datas", text: "Pela ordem das datas (como antes)" }));
@@ -445,7 +491,6 @@ async function janelaRegras() {
       campo("Idade mínima para ser professora(o)", idade),
       el("label", { class: "marcar" }, femAtivo, "Professor homem: auxiliares mulheres"),
       campo("Onde vale essa regra", femIdade),
-      campo("Prazo para marcar indisponibilidade", limite),
       campo("Ordem de preenchimento", ordem),
       campo("Mensagem do lembrete (WhatsApp)", msg,
         "Use {nome_voluntaria}, {data_culto}, {horario_culto}, {sala} e {papel}."),
@@ -456,7 +501,6 @@ async function janelaRegras() {
         uma_vaga_por_dia: umaPorDia.checked,
         idade_minima_lider: Number(idade.value),
         auxiliar_feminina_lider_masculino: { ativo: femAtivo.checked, idade_min_sala: Number(femIdade.value) },
-        dia_limite_indisponibilidade: limite.value ? Number(limite.value) : null,
         ordem_preenchimento: ordem.value,
         mensagem_lembrete: msg.value.trim(),
       });
@@ -505,21 +549,26 @@ async function janelaIndisponibilidade() {
   const r = await indisponibilidadeDoMes(mes);
   if (!r.ok) { toast("erro", r.erro); return; }
   const lista = r.resultado || [];
-  const faltam = lista.filter((v) => !v.respondeu);
-  const responderam = lista.filter((v) => v.respondeu);
-  const item = (v) => el("li", {}, el("div", { class: "item-compacto" },
+  const marcaram = lista.filter((v) => v.cultos > 0);
+  const semNada = lista.filter((v) => v.respondeu && !v.cultos);
+  const prazo = dados.escala?.prazo_indisponibilidade;
+  const item = (v, linha) => el("li", {}, el("div", { class: "item-compacto" },
     el("span", { class: "item-compacto__texto" },
       el("span", { class: "item-compacto__nome", text: v.nome }),
-      v.respondeu ? el("span", { class: "item-compacto__linha", text: v.cultos ? `${v.cultos} culto(s) indisponível` : "Disponível em todos" }) : null)));
+      linha ? el("span", { class: "item-compacto__linha", text: linha }) : null)));
   abrirJanela({
     titulo: `Indisponibilidade – ${dados.nome_mes}`,
     textoSalvar: "Fechar",
     conteudo: [
-      el("p", { class: "suave", text: `${responderam.length} de ${lista.length} responderam. Cada voluntária marca em "Minha escala".` }),
-      faltam.length ? el("strong", { text: "Ainda não responderam" }) : null,
-      faltam.length ? el("ul", { class: "lista-compacta" }, faltam.map(item)) : null,
-      responderam.length ? el("strong", { class: "mt-3", text: "Responderam" }) : null,
-      responderam.length ? el("ul", { class: "lista-compacta" }, responderam.map(item)) : null,
+      el("p", { class: "suave", text: dados.escala?.indisponibilidade_pedida_em
+        ? `Prazo: ${prazo ? ddmm(prazo) : "–"}. Quem não marcou nada pode servir em todos os cultos.`
+        : "A indisponibilidade deste mês ainda não foi pedida. Use \"Pedir indisponibilidade\" no cartão do mês." }),
+      el("strong", { text: `Marcaram indisponibilidade (${marcaram.length})` }),
+      marcaram.length
+        ? el("ul", { class: "lista-compacta" }, marcaram.map((v) => item(v, `${v.cultos} culto(s) em que não pode`)))
+        : el("p", { class: "suave", text: "Ninguém ainda." }),
+      semNada.length ? el("strong", { text: `Responderam que podem em todos (${semNada.length})` }) : null,
+      semNada.length ? el("ul", { class: "lista-compacta" }, semNada.map((v) => item(v))) : null,
     ].filter(Boolean),
     aoSalvar: async () => null,
   });

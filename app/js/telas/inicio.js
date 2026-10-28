@@ -105,7 +105,7 @@ export async function render(alvo) {
 
   // Escala (Fase 6)
   if (escala?.ok) {
-    const { minhas = [], indisponibilidade: ind } = escala.resultado || {};
+    const { minhas = [], pedidos = [] } = escala.resultado || {};
     const prox = minhas.find((m) => !m.cancelado);
     if (prox) {
       const dia = new Date(`${prox.data}T12:00:00`).toLocaleDateString("pt-BR", { timeZone: FUSO, weekday: "short", day: "2-digit", month: "2-digit" });
@@ -117,8 +117,9 @@ export async function render(alvo) {
         el("a", { class: ciente ? "botao botao--secundario botao--pequeno" : "botao botao--primario botao--pequeno",
           href: "#/minha-escala", text: ciente ? "Ver" : "Confirmar" })));
     }
-    if (ind?.aberta && !ind.respondeu) {
-      partes.push(completar(`Indisponibilidade de ${ind.nome_mes}`, "Marque os cultos em que não pode servir", "#/minha-escala", "Marcar"));
+    for (const p of pedidos.filter((x) => !x.respondeu && (!x.prazo || x.prazo >= new Date().toLocaleDateString("en-CA", { timeZone: FUSO })))) {
+      const prazo = p.prazo ? ` até ${p.prazo.slice(8, 10)}/${p.prazo.slice(5, 7)}` : "";
+      partes.push(completar(`Indisponibilidade de ${p.nome_mes}`, `Só se tiver culto em que não pode${prazo}`, "#/minha-escala", "Marcar"));
     }
   }
 
