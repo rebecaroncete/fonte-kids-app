@@ -53,6 +53,9 @@ const DESENHOS = {
   voluntaria:  [C(9, 8, 4), P("M2 21c0-4 3.1-7 7-7s7 3 7 7"), P("M19 8v6"), P("M16 11h6")],
   historico:   [C(12, 12, 9), P("M12 7v5l3 2")],
   telao:       [["rect", { x: 2, y: 3, width: 20, height: 14, rx: 2 }], P("M8 21h8"), P("M12 17v4")],
+  grafico:     [P("M3 3v18h18"), P("M18 17V9"), P("M13 17V5"), P("M8 17v-3")],
+  imagem:      [["rect", { x: 3, y: 3, width: 18, height: 18, rx: 2 }], C(9, 9, 2), P("m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21")],
+  imprimir:    [P("M6 9V2h12v7"), P("M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"), ["rect", { x: 6, y: 14, width: 12, height: 8 }]],
 };
 
 export const NOMES_ICONES = Object.keys(DESENHOS);

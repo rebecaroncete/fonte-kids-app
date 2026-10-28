@@ -1285,3 +1285,19 @@ export function definirStatusVoluntaria(voluntaria, ativa) { return chamarRpc("d
 export function enderecoCadastroFamilia() {
   return `${location.origin}${location.pathname}#/cadastro`;
 }
+
+// =====================================================================
+// Fase 9 – Indicadores e relatórios (só liderança; o banco confere).
+// indicadores_mes traz SÓ NÚMEROS: é a base do relatório para fora.
+// =====================================================================
+
+/** Semana (domingo a sábado) do dia "YYYY-MM-DD" + semana anterior. */
+export function indicadoresSemana(dia) { return chamarRpc("indicadores_semana", { p_dia: dia || null }); }
+/** Mês ("YYYY-MM-01") + mês anterior, sem nomes. */
+export function indicadoresMes(mes) { return chamarRpc("indicadores_mes", { p_mes: mes || null }); }
+/** Cartão do Início da liderança (nulo para os outros papéis). */
+export function ultimoCulto() { return chamarRpc("ultimo_culto", {}); }
+/** Crianças que vinham e não aparecem há 4 semanas (com responsáveis). */
+export function sentimosFalta() { return chamarRpc("sentimos_falta", {}); }
+/** Voluntárias ativas sem escala há 2 meses. */
+export function voluntariasSemEscala() { return chamarRpc("voluntarias_sem_escala", {}); }

@@ -613,3 +613,42 @@ a.cartao.item-compacto { text-decoration: none; color: inherit; }
 /* Fase 8 – eventos */
 .texto-livre { white-space: pre-wrap; overflow-wrap: anywhere; margin-bottom: 0; }
 .acoes-crianca { padding: 0 var(--e3) var(--e3); }
+
+/* Fase 9 – indicadores e relatórios */
+.ind-nav { display: flex; align-items: center; justify-content: space-between; gap: var(--e2); margin: var(--e3) 0;
+  padding: var(--e1); background: var(--superficie); border: 1px solid var(--borda); border-radius: var(--raio-p); }
+.ind-nav__texto { flex: 1; text-align: center; font: 800 1.05rem var(--fonte-titulo); }
+.ind-nav__vazio { visibility: hidden; }
+.ind-var { display: block; margin-top: 2px; font-size: .78rem; font-weight: 700; color: var(--texto-suave); }
+.ind-var--sobe { color: var(--sucesso); }
+.ind-var--desce { color: var(--erro); }
+.ind-nota { font-size: .85rem; margin: var(--e2) 0 0; }
+.ind-lista { list-style: none; margin: 0; padding: var(--e3) var(--e4); }
+.cartao .ind-lista, .ind-lista.mt-2 { padding: 0; }
+.ind-linha { display: grid; grid-template-columns: minmax(0, 8.5rem) minmax(60px, 1fr); gap: 2px var(--e3); align-items: center; padding: 6px 0; }
+.ind-linha + .ind-linha { border-top: 1px solid var(--borda-suave); }
+.ind-linha__rotulo { font-weight: 700; font-size: .9rem; overflow-wrap: anywhere; }
+.ind-linha__barra { margin-top: 0; }
+.ind-linha__valor { grid-column: 1 / -1; font-size: .82rem; color: var(--texto-suave); }
+@media (min-width: 560px) {
+  .ind-linha { grid-template-columns: minmax(0, 9rem) minmax(80px, 1fr) minmax(0, auto); }
+  .ind-linha__valor { grid-column: auto; text-align: right; }
+}
+.relatorio__topo { display: flex; align-items: center; gap: var(--e3); margin: var(--e4) 0; }
+.relatorio__logo { width: 56px; height: 56px; object-fit: contain; }
+.relatorio h2 { margin-top: var(--e5); }
+.tabela-relatorio { width: 100%; border-collapse: collapse; background: var(--superficie); font-size: .92rem; }
+.tabela-relatorio th, .tabela-relatorio td { padding: 8px 10px; border-bottom: 1px solid var(--borda-suave); text-align: left; }
+.tabela-relatorio thead th { font-size: .8rem; color: var(--texto-suave); border-bottom-color: var(--borda); }
+.tabela-relatorio tbody th { font-weight: 600; }
+.tabela-relatorio .numero-celula { text-align: right; white-space: nowrap; }
+.previa-escala { display: block; width: 100%; height: auto; max-height: 55vh; object-fit: contain; border: 1px solid var(--borda); border-radius: var(--raio-p); background: #eef2f7; }
+
+@media print {
+  .topo, .barra, .rodape, .faixa-fixa, .toasts, .instalar, .nao-imprimir { display: none !important; }
+  body, body.com-barra { padding: 0; background: #fff; }
+  .conteudo { max-width: none; padding: 0; }
+  .relatorio h2 { break-after: avoid; }
+  .tabela-relatorio { break-inside: avoid; }
+}
+.cartao--indicador > .numero__icone { background: var(--azul-claro); color: var(--azul-texto); }

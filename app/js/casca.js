@@ -9,6 +9,7 @@
 //   Liderança/pastor/admin: Início · Cadastros · Pendências · Avisos · Mais
 // Quem tem papel de equipe E de responsável fica com a barra da equipe;
 // "Minha família" aparece no "Mais".
+// Fase 9: "Indicadores" no Mais da liderança (semana, mês, relatório, cuidado).
 // Fase 5 · 5B: a aba "Recepção" virou "Check-in"; a lista de crianças e
 // famílias da recepção foi para o "Mais". A liderança acha o Check-in no
 // "Mais" e no cartão do Início em dia de culto.
@@ -44,6 +45,7 @@ export const ITENS_MAIS = [
   { rota: "/checkin", texto: "Check-in", icone: "checkin", papeis: [...LIDERANCA, "recepcao"] },
   { rota: "/cadastros", texto: "Crianças e famílias", icone: "cadastros", papeis: [...LIDERANCA, "recepcao"] },
   { rota: "/historico", texto: "Histórico", icone: "historico", papeis: [...LIDERANCA, "recepcao"] },
+  { rota: "/indicadores", texto: "Indicadores", icone: "grafico", papeis: LIDERANCA },
   { rota: "/escala", texto: "Escala do mês", icone: "calendario", papeis: EQUIPE },
   { rota: "/minha-escala", texto: "Minha escala", icone: "voluntaria", papeis: EQUIPE },
   { rota: "/lembretes-escala", texto: "Lembretes da escala", icone: "conversa", papeis: LIDERANCA },
@@ -95,6 +97,7 @@ function abaDaRota(rota, abas) {
     "/cultos": "/mais",
     "/telao-link": "/mais",
     "/historico": "/mais",
+    "/indicadores": "/mais",
     "/voluntarias-novas": "/mais",
     "/grupos-whatsapp": "/mais",
     "/escala": "/mais",
