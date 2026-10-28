@@ -592,3 +592,8 @@ body.modo-telao { background: #14110f; }
 }
 /* Avisos no telão (ex.: link trocado): texto escuro, legível no fundo claro do aviso */
 .telao .aviso { color: var(--texto); font-size: clamp(1rem, 1.6vw, 1.6rem); }
+
+/* Fase 6: topo de cartão com ⋯ sempre no canto direito (o menu abre para a esquerda) */
+.cartao-topo { display: flex; align-items: flex-start; gap: var(--e2); }
+.cartao-topo > .flex-1 { min-width: 0; }
+.cartao-topo > .mais-acoes { flex: none; margin-top: -8px; }

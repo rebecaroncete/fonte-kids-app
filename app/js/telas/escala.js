@@ -145,15 +145,15 @@ function resumo(lider) {
   const menu = lider ? menuAcoes([
     { texto: "Regras da escala", acao: janelaRegras },
     { texto: "Teto por voluntária", acao: janelaTetos },
-    { texto: "Quem respondeu a indisponibilidade", acao: janelaIndisponibilidade },
+    { texto: "Indisponibilidade do mês", acao: janelaIndisponibilidade },
   ], "Mais ações da escala") : null;
 
   return el("section", { class: "cartao mt-3" },
-    el("div", { class: "linha linha--entre" },
-      el("strong", { text: `Escala de ${dados.nome_mes}` }),
-      el("span", { class: "linha" },
-        el("span", { class: rascunho ? "etiqueta etiqueta--laranja" : "etiqueta etiqueta--sucesso", text: rascunho ? "Rascunho" : "Publicada" }),
-        menu)),
+    el("div", { class: "cartao-topo" },
+      el("div", { class: "flex-1" },
+        el("strong", { text: `Escala de ${dados.nome_mes}` }), " ",
+        el("span", { class: rascunho ? "etiqueta etiqueta--laranja" : "etiqueta etiqueta--sucesso", text: rascunho ? "Rascunho" : "Publicada" })),
+      menu),
     linhas.map((t) => el("p", { class: "suave sem-margem mt-1", text: t })),
     acoes.length ? el("div", { class: "linha acoes-cartao" }, acoes) : null);
 }
