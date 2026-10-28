@@ -589,3 +589,5 @@ body.modo-telao { background: #14110f; }
   .telao__chamada { flex-wrap: wrap; }
   .telao__anunciado { width: 100%; }
 }
+/* Avisos no telão (ex.: link trocado): texto escuro, legível no fundo claro do aviso */
+.telao .aviso { color: var(--texto); font-size: clamp(1rem, 1.6vw, 1.6rem); }
