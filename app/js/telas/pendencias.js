@@ -11,6 +11,7 @@
 // O banco (listar_pendencias / confirmar_pendencia) decide o que aparece
 // e quem pode resolver; a tela só organiza.
 // =====================================================================
+import { icone } from "../icones.js";
 import { el, montar, aviso, carregando } from "../ui.js";
 import { meuPerfil, listarPendencias, confirmarPendencia, nomePendencia } from "../supabase.js";
 import { abrirJanela } from "../janela.js";
@@ -55,8 +56,7 @@ async function desenhar(situacao) {
   area.setAttribute("aria-labelledby", `aba-${situacao}`);
 
   montar(alvoTela,
-    el("h1", { text: "Pendências de cadastro" }),
-    el("p", { class: "suave", text: "Avisos sobre dados que faltam ou precisam ser conferidos. A família também vê as próprias pendências em \"Minha família\"." }),
+    el("h1", { text: "Pendências" }),
     el("div", { class: "abas", role: "tablist", "aria-label": "Situação" }, abas),
     area);
 
@@ -80,21 +80,24 @@ function desenharLista(area, situacao, todas) {
   const porTipo = new Map();
   for (const p of itens) porTipo.set(p.tipo, (porTipo.get(p.tipo) || 0) + 1);
   if (escolhas.tipo !== "todos" && !porTipo.has(escolhas.tipo)) escolhas.tipo = "todos";
-  const selTipo = el("select", { class: "entrada", id: "filtro-tipo" },
-    el("option", { value: "todos", text: `Todos os tipos (${itens.length})` }),
-    [...porTipo.entries()].sort((a, b) => b[1] - a[1])
-      .map(([t, n]) => el("option", { value: t, text: `${nomePendencia(t)} (${n})` })));
-  selTipo.value = escolhas.tipo;
+  // Filtros em chips: tipo (com contagem) e forma de mostrar
+  const tipos = [["todos", `Todos (${itens.length})`],
+    ...[...porTipo.entries()].sort((a, b) => b[1] - a[1]).map(([t, n]) => [t, `${nomePendencia(t)} (${n})`])];
+  const chipsTipo = tipos.map(([valor, texto]) => el("button", { class: "chip", type: "button", text: texto,
+    "aria-pressed": String(escolhas.tipo === valor), onclick: () => { escolhas.tipo = valor; marcar(); atualizar(); } }));
+  const formas = [["familia", "Por família"], ["lista", "Lista"]];
+  const chipsForma = formas.map(([valor, texto]) => el("button", { class: "chip", type: "button", text: texto,
+    "aria-pressed": String(escolhas.agrupar === valor), onclick: () => { escolhas.agrupar = valor; marcar(); atualizar(); } }));
+  function marcar() {
+    chipsTipo.forEach((c, k) => c.setAttribute("aria-pressed", String(tipos[k][0] === escolhas.tipo)));
+    chipsForma.forEach((c, k) => c.setAttribute("aria-pressed", String(formas[k][0] === escolhas.agrupar)));
+  }
+  if (!tipos.some(([v]) => v === escolhas.tipo)) { escolhas.tipo = "todos"; marcar(); }
 
-  const selAgrupar = el("select", { class: "entrada", id: "filtro-agrupar" },
-    el("option", { value: "familia", text: "Agrupado por família" }),
-    el("option", { value: "lista", text: "Lista simples" }));
-  selAgrupar.value = escolhas.agrupar;
+  const busca = el("input", { type: "search", id: "busca-pendencias",
+    placeholder: "Buscar responsável ou criança", autocomplete: "off", value: escolhas.busca });
 
-  const busca = el("input", { class: "entrada", type: "search", id: "busca-pendencias",
-    placeholder: "Digite parte do nome", autocomplete: "off", value: escolhas.busca });
-
-  const resumo = el("p", { class: "suave", role: "status" });
+  const resumo = el("p", { class: "resumo-lista", role: "status" });
   const lista = el("div", { class: "pendencias" });
   const mais = el("button", { class: "botao botao--pequeno", type: "button", text: "Mostrar mais", hidden: true });
 
@@ -109,8 +112,6 @@ function desenharLista(area, situacao, todas) {
   }
 
   function atualizar() {
-    escolhas.tipo = selTipo.value;
-    escolhas.agrupar = selAgrupar.value;
     escolhas.busca = busca.value;
     const termo = normalizar(busca.value);
     const achados = itens.filter((p) => (escolhas.tipo === "todos" || p.tipo === escolhas.tipo) && (!termo || p.busca.includes(termo)));
@@ -128,7 +129,7 @@ function desenharLista(area, situacao, todas) {
         ? `${achados.length} pendência${achados.length > 1 ? "s" : ""} em ${grupos.size} família${grupos.size > 1 ? "s" : ""}`
         : "";
     } else {
-      blocos = achados.map((p) => () => el("ul", { class: "lista" }, itemPendencia(p, situacao, true)));
+      blocos = achados.map((p) => () => el("ul", { class: "lista-pendencias cartao cartao--pendencias" }, itemPendencia(p, situacao, true)));
       resumo.textContent = achados.length ? `${achados.length} pendência${achados.length > 1 ? "s" : ""}` : "";
     }
 
@@ -140,16 +141,14 @@ function desenharLista(area, situacao, todas) {
 
   let espera = null;
   busca.addEventListener("input", () => { clearTimeout(espera); espera = setTimeout(atualizar, 200); });
-  selTipo.addEventListener("change", atualizar);
-  selAgrupar.addEventListener("change", atualizar);
   mais.addEventListener("click", desenharMais);
 
   montar(area,
-    el("div", { class: "campo" }, el("label", { class: "campo__rotulo", for: "busca-pendencias", text: "Buscar pelo nome de um responsável ou de uma criança" }), busca),
-    el("div", { class: "grade" },
-      el("div", { class: "campo" }, el("label", { class: "campo__rotulo", for: "filtro-tipo", text: "Tipo" }), selTipo),
-      el("div", { class: "campo" }, el("label", { class: "campo__rotulo", for: "filtro-agrupar", text: "Mostrar" }), selAgrupar)),
-    resumo, lista, el("div", { class: "linha" }, mais));
+    el("div", { class: "busca" },
+      el("label", { class: "busca__campo" }, icone("busca"), el("span", { class: "so-leitor", text: "Buscar responsável ou criança" }), busca),
+      el("div", { class: "chips mt-3", role: "group", "aria-label": "Tipo" }, chipsTipo),
+      el("div", { class: "chips mt-2", role: "group", "aria-label": "Mostrar" }, chipsForma)),
+    resumo, lista, el("p", { class: "centro mt-3" }, mais));
   atualizar();
 }
 
@@ -159,37 +158,32 @@ function nomeFamilia(p) {
 
 function cartaoFamilia(grupo, situacao) {
   const p0 = grupo[0];
-  return el("section", { class: "cartao" },
-    el("div", { class: "linha pendencia__topo" },
-      el("h2", { class: "pendencia__familia", text: nomeFamilia(p0) }),
-      el("a", { class: "botao botao--pequeno", href: `#/ficha?tipo=familia&id=${encodeURIComponent(p0.familia_id)}`, text: "Ver família" })),
-    el("ul", { class: "lista" }, grupo.map((p) => itemPendencia(p, situacao, false))));
+  return el("section", { class: "cartao cartao--pendencias" },
+    el("a", { class: "pendencia__familia-link", href: `#/ficha?tipo=familia&id=${encodeURIComponent(p0.familia_id)}` },
+      el("span", { class: "pendencia__familia", text: nomeFamilia(p0) }), icone("seta", null, "item-compacto__seta")),
+    el("ul", { class: "lista-pendencias" }, grupo.map((p) => itemPendencia(p, situacao, false))));
 }
 
 function itemPendencia(p, situacao, mostrarFamilia) {
-  const acoes = [];
-  if (p.crianca_id) {
-    acoes.push(el("a", { class: "botao botao--pequeno", href: `#/ficha?tipo=crianca&id=${encodeURIComponent(p.crianca_id)}`,
-      text: p.crianca_nome ? `Ver ${p.crianca_nome.trim().split(/\s+/)[0]}` : "Ver criança" }));
-  }
-  if (mostrarFamilia) {
-    acoes.push(el("a", { class: "botao botao--pequeno", href: `#/ficha?tipo=familia&id=${encodeURIComponent(p.familia_id)}`, text: "Ver família" }));
-  }
-  if (situacao === "abertas" && !p.automatica) {
-    acoes.push(el("button", { class: "botao botao--pequeno botao--secundario", type: "button", text: "Marcar como resolvida",
-      onclick: () => janelaResolver(p) }));
-  }
+  const resolver = situacao === "abertas" && !p.automatica
+    ? el("button", { class: "botao botao--pequeno botao--secundario", type: "button", text: "Resolver", onclick: () => janelaResolver(p) })
+    : null;
+  const nome = p.crianca_id
+    ? el("a", { href: `#/ficha?tipo=crianca&id=${encodeURIComponent(p.crianca_id)}`, text: p.crianca_nome || "Criança" })
+    : null;
 
-  return el("li", { class: "notif pendencia" },
-    el("div", { class: "linha" },
-      el("span", { class: p.automatica ? "etiqueta etiqueta--azul" : "etiqueta etiqueta--laranja", text: nomePendencia(p.tipo) }),
-      p.crianca_nome ? el("span", { class: "notif__titulo", text: p.crianca_nome }) : null),
-    mostrarFamilia ? el("p", { class: "notif__quando", text: nomeFamilia(p) }) : null,
-    el("p", { class: "notif__corpo", text: p.mensagem }),
-    el("p", { class: "notif__quando", text: situacao === "resolvidas"
-      ? `Resolvida em ${dataBr(p.resolvida_em)}${p.resolvida_por_nome ? ` por ${p.resolvida_por_nome}` : " (automaticamente)"}`
-      : `Aberta em ${dataBr(p.criado_em)}${p.automatica ? " · some sozinha quando o dado for preenchido" : ""}` }),
-    acoes.length ? el("div", { class: "linha acoes-cartao" }, acoes) : null);
+  return el("li", { class: "pendencia" },
+    el("div", { class: "pendencia__linha" },
+      el("div", { class: "flex-1" },
+        el("div", { class: "linha" },
+          el("span", { class: p.automatica ? "etiqueta etiqueta--azul" : "etiqueta", text: nomePendencia(p.tipo) }), nome),
+        mostrarFamilia ? el("p", { class: "item-compacto__linha" },
+          el("a", { href: `#/ficha?tipo=familia&id=${encodeURIComponent(p.familia_id)}`, text: nomeFamilia(p) })) : null,
+        el("p", { class: "notif__corpo", text: p.mensagem }),
+        el("p", { class: "notif__quando", text: situacao === "resolvidas"
+          ? `Resolvida em ${dataBr(p.resolvida_em)}${p.resolvida_por_nome ? ` por ${p.resolvida_por_nome}` : " (automática)"}`
+          : `Aberta em ${dataBr(p.criado_em)}${p.automatica ? " · some sozinha" : ""}` })),
+      resolver));
 }
 
 function janelaResolver(p) {

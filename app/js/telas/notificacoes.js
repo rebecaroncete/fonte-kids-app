@@ -34,7 +34,7 @@ let desligar = null;
 export async function render(alvo) {
   if (desligar) { desligar(); desligar = null; }
   const area = el("div", {});
-  const botaoTodas = el("button", { class: "botao botao--pequeno", type: "button", text: "Marcar todas como lidas", hidden: true });
+  const botaoTodas = el("button", { class: "botao botao--pequeno", type: "button", text: "Ler todas", hidden: true });
 
   async function carregar() {
     const r = await listarNotificacoes();
@@ -55,7 +55,7 @@ export async function render(alvo) {
         onclick: async () => { if (nova) await marcarLida(n.id); atualizarContagem(); irPara(rota); } }));
     }
     if (nova) {
-      acoes.append(el("button", { class: "botao botao--pequeno", type: "button", text: "Marcar como lida",
+      acoes.append(el("button", { class: "botao botao--pequeno botao--texto", type: "button", text: "Marcar lida",
         onclick: async (e) => {
           const b = e.currentTarget;
           b.disabled = true;
@@ -67,7 +67,7 @@ export async function render(alvo) {
     return el("li", { class: nova ? "notif notif--nova" : "notif" },
       el("div", { class: "notif__topo" },
         el("p", { class: "notif__titulo", text: n.titulo || "Aviso" }),
-        nova ? el("span", { class: "etiqueta etiqueta--laranja", text: "Nova" }) : null),
+        nova ? el("span", { class: "etiqueta etiqueta--laranja", text: "Novo" }) : null),
       n.corpo ? el("p", { class: "notif__corpo", text: n.corpo }) : null,
       el("p", { class: "notif__quando", text: quando(n.criado_em) }),
       acoes.childElementCount ? acoes : null);
@@ -82,7 +82,7 @@ export async function render(alvo) {
   });
 
   montar(alvo,
-    el("div", { class: "cabecalho-tela" }, el("h1", { text: "Notificações" }), botaoTodas),
+    el("div", { class: "cabecalho-tela" }, el("h1", { text: "Avisos" }), botaoTodas),
     area);
   montar(area, carregando());
   await carregar();

@@ -8,10 +8,11 @@
 // foto-assinada (link de 5 min). Telefones com botão de WhatsApp (wa.me).
 // Foto dos responsáveis (Etapa 5C) para conferir quem retira a criança.
 // =====================================================================
-import { el, montar, aviso, carregando, mascararTelefone } from "../ui.js";
+import { el, montar, aviso, carregando, mascararTelefone, iniciais } from "../ui.js";
+import { icone } from "../icones.js";
 import { fichaCrianca, fichaFamilia, fichaVoluntaria, listarSalas } from "../supabase.js";
 import { avatarComFoto, avatarLista, preencherFotos } from "../foto.js";
-import { idade, textoIdade, salaDaCrianca, textoSala } from "./cadastros.js";
+import { idade, textoIdade, salaDaCrianca } from "./cadastros.js";
 
 export const layout = "padrao";
 export const titulo = "Ficha";
@@ -37,47 +38,48 @@ const quandoBr = (iso) => new Date(iso).toLocaleString("pt-BR", {
   timeZone: FUSO, day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
 });
 
-/** Link do WhatsApp só para telefone no padrão 55 + DDD + número. */
+/** Botão redondo do WhatsApp, só para telefone no padrão 55 + DDD + número. */
 function botaoWhatsapp(telefone, nome) {
   const d = String(telefone || "").replace(/\D/g, "");
   if (!/^55[1-9][0-9]9?[0-9]{8}$/.test(d)) return null;
   return el("a", {
-    class: "botao botao--pequeno botao--whatsapp", href: `https://wa.me/${d}`,
-    target: "_blank", rel: "noopener noreferrer", "aria-label": `Chamar ${nome} no WhatsApp`,
-    text: "Chamar no WhatsApp",
-  });
+    class: "botao-icone botao-icone--whatsapp", href: `https://wa.me/${d}`,
+    target: "_blank", rel: "noopener noreferrer", "aria-label": `Chamar ${nome || "contato"} no WhatsApp`,
+  }, icone("conversa"));
 }
 
-/** Cartão de uma pessoa de contato (responsável ou autorizada). */
+/** Linha de uma pessoa de contato (responsável ou autorizada): foto, nome, 1 linha, WhatsApp. */
 function contato(nome, detalhes, telefone, etiquetas = [], avatar = null) {
-  const texto = [
-    el("p", { class: "notif__titulo", text: nome || "Sem nome" }),
-    ...detalhes.filter(Boolean).map((t) => el("p", { class: "notif__quando", text: t })),
-    etiquetas.length ? el("div", { class: "linha" }, etiquetas) : null,
-    el("p", { class: "notif__corpo", text: telefone ? mascararTelefone(telefone) : "Sem telefone no cadastro" }),
-  ];
-  return el("li", { class: "notif" },
-    avatar ? el("div", { class: "linha" }, avatar, el("div", {}, ...texto)) : texto,
-    telefone ? el("div", { class: "linha" }, botaoWhatsapp(telefone, nome)) : null);
+  return el("li", {}, el("div", { class: "item-compacto" },
+    avatar || el("div", { class: "avatar", "aria-hidden": "true", text: iniciais(nome) }),
+    el("span", { class: "item-compacto__texto" },
+      el("span", { class: "item-compacto__nome", text: nome || "Sem nome" }),
+      el("span", { class: "item-compacto__linha", text: [...detalhes.filter(Boolean), telefone ? mascararTelefone(telefone) : "Sem telefone"].join(" · ") })),
+    etiquetas.length ? el("span", { class: "item-compacto__etiquetas" }, etiquetas) : null,
+    telefone ? botaoWhatsapp(telefone, nome) : null));
 }
 
+/** Seção em cartão (dados) */
 function secao(tituloSecao, ...conteudo) {
   return el("section", { class: "cartao" }, el("h2", { text: tituloSecao }), ...conteudo);
 }
+/** Seção de lista (título + lista compacta, sem cartão em volta) */
+function secaoLista(tituloSecao, ...conteudo) {
+  return el("section", { class: "secao-lista" }, el("div", { class: "secao-titulo" }, el("h2", { text: tituloSecao })), ...conteudo);
+}
 
+/** Cabeçalho da ficha: foto, nome, etiquetas (alergia sempre primeiro, em vermelho). */
 function cabecalho(avatar, nome, linhas, etiquetas = []) {
-  return el("section", { class: "cartao" },
-    el("div", { class: "perfil-cabecalho" }, avatar,
-      el("div", {},
-        el("h1", { class: "perfil-cabecalho__nome", text: nome || "Sem nome" }),
-        ...linhas.filter(Boolean).map((t) => el("p", { class: "notif__quando", text: t })),
-        etiquetas.length ? el("div", { class: "linha" }, etiquetas) : null)));
+  return el("section", { class: "ficha-cabecalho" }, avatar,
+    el("div", { class: "flex-1" },
+      el("h1", { class: "perfil-cabecalho__nome", text: nome || "Sem nome" }),
+      ...linhas.filter(Boolean).map((t) => el("p", { class: "item-compacto__linha", text: t })),
+      etiquetas.length ? el("div", { class: "linha mt-2" }, etiquetas) : null));
 }
 
 function voltar(aba) {
-  return el("p", {}, el("a", {
-    class: "botao botao--pequeno", href: `#/cadastros?aba=${aba}`, text: "← Voltar à lista",
-  }));
+  return el("p", { class: "voltar" }, el("a", { class: "botao botao--texto botao--pequeno", href: `#/cadastros?aba=${aba}` },
+    icone("voltar"), "Voltar"));
 }
 
 const nomeRelacao = (rel) => (rel.tipo === "outro" && rel.detalhe ? rel.detalhe : RELACOES[rel.tipo] || rel.tipo);
@@ -86,10 +88,10 @@ const nomeRelacao = (rel) => (rel.tipo === "outro" && rel.detalhe ? rel.detalhe 
 function listaResponsaveis(responsaveis, relacoes, extras = null) {
   if (!responsaveis.length) return el("p", { class: "suave", text: "Nenhum responsável visível." });
   const ordenados = [...responsaveis].sort((a, b) => Number(b.principal) - Number(a.principal));
-  return el("ul", { class: "lista" }, ordenados.map((r) => {
+  return el("ul", { class: "lista-compacta" }, ordenados.map((r) => {
     const rel = relacoes?.get(r.pessoa?.id);
     const textoRel = rel ? nomeRelacao(rel) : null;
-    return contato(r.pessoa?.nome, [textoRel ? `Relação: ${textoRel}` : null, ...(extras?.get(r.pessoa?.id) || [])], r.pessoa?.telefone,
+    return contato(r.pessoa?.nome, [textoRel, ...(extras?.get(r.pessoa?.id) || [])], r.pessoa?.telefone,
       r.principal ? [el("span", { class: "etiqueta etiqueta--azul", text: "Principal" })] : [],
       r.pessoa?.id ? avatarLista("pessoa", r.pessoa.id, r.pessoa?.nome) : null);
   }));
@@ -97,7 +99,7 @@ function listaResponsaveis(responsaveis, relacoes, extras = null) {
 
 function listaAutorizadas(autorizadas) {
   if (!autorizadas.length) return el("p", { class: "suave", text: "Nenhuma pessoa autorizada além dos responsáveis." });
-  return el("ul", { class: "lista" }, autorizadas.map((a) => contato(a.pessoa?.nome, [a.observacao], a.pessoa?.telefone)));
+  return el("ul", { class: "lista-compacta" }, autorizadas.map((a) => contato(a.pessoa?.nome, [a.observacao], a.pessoa?.telefone)));
 }
 
 // ---------------- Criança ----------------
@@ -114,30 +116,39 @@ async function desenharCrianca(alvo, id) {
   const outros = r.responsaveis.filter((x) => !ligados.includes(x));
   const mostrar = ligados.length ? ligados : r.responsaveis;
 
+  const anos = idade(c.pessoa?.data_nascimento);
+  const sala = salaDaCrianca(c.sala_fixa_id, anos, salas);
   const etiquetas = [
-    c.perfil === "visitante" ? el("span", { class: "etiqueta etiqueta--azul", text: "Visitante" }) : null,
-    !c.ativo ? el("span", { class: "etiqueta", text: "Inativa" }) : null,
+    c.alergias_observacoes ? el("span", { class: "etiqueta etiqueta--alergia" }, icone("alergia"), "Alergia / cuidados") : null,
+    el("span", { class: sala.sala ? "etiqueta etiqueta--azul" : "etiqueta", text: sala.sala ? `Sala ${sala.sala.nome}` : "Sem sala" }),
+    c.perfil === "visitante" ? el("span", { class: "etiqueta etiqueta--laranja", text: "Visitante" }) : null,
+    !c.ativo ? el("span", { class: "etiqueta etiqueta--neutra", text: "Inativa" }) : null,
   ].filter(Boolean);
 
   const uc = r.ultimoCheckin;
   montar(alvo,
     voltar("criancas"),
     cabecalho(avatarComFoto("crianca", c.id, nome), nome,
-      [`${textoIdade(idade(c.pessoa?.data_nascimento))} · nasc. ${dataBr(c.pessoa?.data_nascimento)}`,
-       textoSala(salaDaCrianca(c.sala_fixa_id, idade(c.pessoa?.data_nascimento), salas))], etiquetas),
+      [`${textoIdade(anos)} · nasc. ${dataBr(c.pessoa?.data_nascimento)}`,
+       sala.sala && !sala.porIdade ? "Sala definida pela liderança" : (sala.sala ? null : sala.motivo)], etiquetas),
     c.alergias_observacoes
-      ? aviso("atencao", `Alergias e cuidados: ${c.alergias_observacoes}`)
-      : el("p", { class: "suave", text: "Nenhuma alergia ou cuidado especial informado." }),
-    secao("Responsáveis", listaResponsaveis(mostrar, r.relacoes),
-      ligados.length && outros.length ? el("p", { class: "suave", text: `Outros responsáveis da família: ${outros.map((o) => o.pessoa?.nome).filter(Boolean).join(", ")}.` }) : null),
-    secao("Autorizados a retirar", listaAutorizadas(r.autorizadas)),
-    r.irmaos.length ? secao("Irmãos no Fonte Kids", el("ul", { class: "lista-simples" }, r.irmaos.map((i) =>
-      el("li", {}, el("a", { href: `#/ficha?tipo=crianca&id=${encodeURIComponent(i.id)}`, text: i.pessoa?.nome || "Sem nome" }),
-        i.ativo ? null : " (inativa)")))) : null,
-    secao("Último check-in", el("p", { text: uc
+      ? el("div", { class: "cuidados", role: "note" },
+          icone("alergia"), el("div", {}, el("strong", { text: "Alergias e cuidados" }), el("p", { text: c.alergias_observacoes })))
+      : null,
+    secaoLista("Responsáveis", listaResponsaveis(mostrar, r.relacoes),
+      ligados.length && outros.length ? el("p", { class: "suave mt-2", text: `Outros da família: ${outros.map((o) => o.pessoa?.nome).filter(Boolean).join(", ")}` }) : null),
+    secaoLista("Autorizados a retirar", listaAutorizadas(r.autorizadas)),
+    r.irmaos.length ? secaoLista("Irmãos", el("ul", { class: "lista-compacta" }, r.irmaos.map((i) => el("li", {},
+      el("a", { class: "item-compacto", href: `#/ficha?tipo=crianca&id=${encodeURIComponent(i.id)}` },
+        avatarLista("crianca", i.id, i.pessoa?.nome),
+        el("span", { class: "item-compacto__texto" },
+          el("span", { class: "item-compacto__nome", text: i.pessoa?.nome || "Sem nome" }),
+          i.ativo ? null : el("span", { class: "item-compacto__linha", text: "Inativa" })),
+        icone("seta", null, "item-compacto__seta")))))) : null,
+    secao("Último check-in", el("p", { class: "sem-margem", text: uc
       ? `${quandoBr(uc.entrada_em)}${uc.sala?.nome ? ` · ${uc.sala.nome}` : ""}${uc.saida_em ? " · já saiu" : " · ainda sem check-out"}`
       : "Nenhum check-in registrado." })),
-    el("p", {}, el("a", { class: "botao botao--secundario", href: `#/ficha?tipo=familia&id=${encodeURIComponent(c.familia_id)}`, text: "Ver a família" })));
+    el("p", { class: "mt-5" }, el("a", { class: "botao botao--secundario", href: `#/ficha?tipo=familia&id=${encodeURIComponent(c.familia_id)}`, text: "Ver família" })));
   preencherFotos(alvo);
 }
 
@@ -154,15 +165,20 @@ async function desenharFamilia(alvo, id) {
   montar(alvo,
     voltar("familias"),
     el("h1", { text: nome }),
-    secao("Crianças", criancas.length
-      ? el("ul", { class: "lista" }, criancas.map((c) => el("li", {},
-          el("a", { class: "lista__item lista__item--link", href: `#/ficha?tipo=crianca&id=${encodeURIComponent(c.id)}` },
-            el("div", { class: "lista__texto" },
-              el("p", { class: "notif__titulo", text: c.pessoa?.nome || "Sem nome" }),
-              el("p", { class: "notif__quando", text: `${textoIdade(idade(c.pessoa?.data_nascimento))} · ${textoSala(salaDaCrianca(c.sala_fixa_id, idade(c.pessoa?.data_nascimento), salas))}${c.ativo ? "" : " · inativa"}` }))))))
+    secaoLista("Crianças", criancas.length
+      ? el("ul", { class: "lista-compacta" }, criancas.map((c) => {
+          const anos = idade(c.pessoa?.data_nascimento);
+          const sala = salaDaCrianca(c.sala_fixa_id, anos, salas);
+          return el("li", {}, el("a", { class: "item-compacto", href: `#/ficha?tipo=crianca&id=${encodeURIComponent(c.id)}` },
+            avatarLista("crianca", c.id, c.pessoa?.nome),
+            el("span", { class: "item-compacto__texto" },
+              el("span", { class: "item-compacto__nome", text: c.pessoa?.nome || "Sem nome" }),
+              el("span", { class: "item-compacto__linha", text: [textoIdade(anos), sala.sala ? `Sala ${sala.sala.nome}` : "Sem sala", c.ativo ? null : "Inativa"].filter(Boolean).join(" · ") })),
+            icone("seta", null, "item-compacto__seta")));
+        }))
       : el("p", { class: "suave", text: "Nenhuma criança visível." })),
-    secao("Responsáveis", listaResponsaveis(r.responsaveis, null, linhasDaFamilia(r))),
-    secao("Autorizados a retirar", listaAutorizadas(r.autorizadas)),
+    secaoLista("Responsáveis", listaResponsaveis(r.responsaveis, null, linhasDaFamilia(r))),
+    secaoLista("Autorizados a retirar", listaAutorizadas(r.autorizadas)),
     r.familia.observacoes ? secao("Observações", el("p", { text: r.familia.observacoes })) : null);
   preencherFotos(alvo);
 }
@@ -185,8 +201,8 @@ function linhasDaFamilia(r) {
     const conjuges = (r.relacoes || []).filter((y) => y.tipo === "conjuge" && (y.pessoa_id === pid || y.relacionada_id === pid))
       .map((y) => nomePorPessoa.get(y.pessoa_id === pid ? y.relacionada_id : y.pessoa_id)).filter(Boolean);
     mapa.set(pid, [
-      comCriancas.length ? `Relação: ${comCriancas.join(" · ")}` : "Relação com as crianças: não informada",
-      conjuges.length ? `Cônjuge/parceiro(a) de ${conjuges.join(", ")}` : null,
+      comCriancas.length ? comCriancas.join(" · ") : "Relação não informada",
+      conjuges.length ? `Cônjuge de ${conjuges.map(primeiro).join(", ")}` : null,
     ]);
   }
   return mapa;
@@ -207,9 +223,9 @@ async function desenharVoluntaria(alvo, id) {
     voltar("voluntarias"),
     cabecalho(avatarComFoto("voluntaria", v.id, nome), nome,
       [NOMES_FUNCAO[v.funcao] || null, `${textoIdade(anos)} · nasc. ${dataBr(v.pessoa?.data_nascimento)}`],
-      [el("span", { class: v.status === "ativa" ? "etiqueta etiqueta--azul" : "etiqueta etiqueta--laranja", text: NOMES_STATUS[v.status] || v.status }),
+      [el("span", { class: v.status === "ativa" ? "etiqueta etiqueta--sucesso" : "etiqueta etiqueta--laranja", text: NOMES_STATUS[v.status] || v.status }),
        anos !== null && anos < 18 ? el("span", { class: "etiqueta", text: "Menor de idade" }) : null].filter(Boolean)),
-    secao("Contato", el("ul", { class: "lista" }, contato(nome, [v.email ? `E-mail: ${v.email}` : null], v.pessoa?.telefone))),
+    secaoLista("Contato", el("ul", { class: "lista-compacta" }, contato(nome, [v.email || null], v.pessoa?.telefone))),
     secao("Dados", el("dl", { class: "dados" },
       el("dt", { text: "Profissão" }), el("dd", { text: v.profissao || "—" }),
       el("dt", { text: "Salas preferidas" }), el("dd", { text: salas.length ? salas.join(", ") : "—" }),

@@ -59,13 +59,13 @@ async function desenhar() {
         el("dt", { text: "Neste aparelho" }),
         el("dd", { text: manterConectadoAtual() ? "Fica conectado até você sair." : "Sai ao fechar o navegador." })),
       p.pessoaId ? el("div", { class: "linha acoes-cartao" },
-        el("button", { class: "botao botao--pequeno", type: "button", text: "Editar dados", onclick: () => janelaEditar(p.nome, nascimento) }),
-        el("button", { class: "botao botao--pequeno", type: "button", text: "Trocar foto",
+        el("button", { class: "botao botao--pequeno botao--secundario", type: "button", text: "Editar", onclick: () => janelaEditar(p.nome, nascimento) }),
+        el("button", { class: "botao botao--pequeno", type: "button", text: "Foto",
           onclick: () => janelaFoto({ tipo: "eu", id: null, nome: p.nome, tipoFoto: "pessoa", idFoto: p.pessoaId, aoTrocar: desenhar }) })) : null),
     aviso("info", "O telefone é o seu login. Para trocá-lo, fale com a liderança do Fonte Kids."),
     el("div", { class: "linha" },
-      el("a", { class: "botao botao--secundario", href: "#/trocar-senha", text: "Trocar senha" }),
-      el("button", { class: "botao", type: "button", text: "Sair", onclick: fazerSair })));
+      el("a", { class: "botao", href: "#/trocar-senha", text: "Trocar senha" }),
+      el("button", { class: "botao botao--texto", type: "button", text: "Sair", onclick: fazerSair })));
 }
 
 function janelaEditar(nomeAtual, nascAtual) {

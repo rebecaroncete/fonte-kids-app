@@ -81,3 +81,52 @@ export function telefoneParaLogin(valor) {
   if (d[0] === "0") return null;
   return "55" + d;
 }
+
+// ---------- Menu ⋯ (ações secundárias de um cartão) – Etapa 7 ----------
+const SVG_NS = "http://www.w3.org/2000/svg";
+function iconeMais() {
+  const s = document.createElementNS(SVG_NS, "svg");
+  s.setAttribute("viewBox", "0 0 24 24"); s.setAttribute("class", "icone-linha"); s.setAttribute("aria-hidden", "true");
+  for (const cx of [5, 12, 19]) {
+    const c = document.createElementNS(SVG_NS, "circle");
+    c.setAttribute("cx", cx); c.setAttribute("cy", 12); c.setAttribute("r", 1);
+    s.append(c);
+  }
+  return s;
+}
+let fecharMenuAcoes = null;
+
+/**
+ * Botão ⋯ com uma lista de ações.
+ * itens: [{ texto, acao, perigo }] (itens nulos são ignorados).
+ * rotulo: texto para o leitor de tela (ex.: "Mais ações para Ana").
+ */
+export function menuAcoes(itens, rotulo = "Mais ações") {
+  const validos = itens.filter(Boolean);
+  if (!validos.length) return null;
+  const lista = el("ul", { class: "menu__lista" }, validos.map((i) => el("li", {},
+    el("button", { class: i.perigo ? "menu__item menu__item--perigo" : "menu__item", type: "button", text: i.texto,
+      onclick: () => { fechar(); i.acao(); } }))));
+  const painel = el("div", { class: "menu", hidden: true }, lista);
+  const botao = el("button", { class: "botao-icone mais-acoes__botao", type: "button", "aria-label": rotulo, "aria-expanded": "false" }, iconeMais());
+
+  function foraOuEsc(e) {
+    if (e.type === "keydown" ? e.key === "Escape" : !painel.contains(e.target) && !botao.contains(e.target)) {
+      fechar(); if (e.type === "keydown") botao.focus();
+    }
+  }
+  function fechar() {
+    painel.hidden = true; botao.setAttribute("aria-expanded", "false");
+    document.removeEventListener("click", foraOuEsc, true); document.removeEventListener("keydown", foraOuEsc);
+    if (fecharMenuAcoes === fechar) fecharMenuAcoes = null;
+  }
+  function abrir() {
+    if (fecharMenuAcoes) fecharMenuAcoes();
+    painel.hidden = false; botao.setAttribute("aria-expanded", "true");
+    document.addEventListener("click", foraOuEsc, true); document.addEventListener("keydown", foraOuEsc);
+    fecharMenuAcoes = fechar;
+    painel.querySelector("button")?.focus();
+  }
+  botao.addEventListener("click", () => (painel.hidden ? abrir() : fechar()));
+  return el("div", { class: "mais-acoes" }, botao, painel);
+}

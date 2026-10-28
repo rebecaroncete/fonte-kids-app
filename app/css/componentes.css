@@ -461,3 +461,49 @@ a.item-compacto:hover { background: var(--fundo); }
 .saudacao + .cartao { margin-bottom: var(--e4); }
 .numeros--tres { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .numeros--tres .numero { flex-direction: column; align-items: flex-start; gap: var(--e2); padding: var(--e3); }
+
+/* Listas da recepção/cadastros (Etapa 7) */
+.resumo-lista { margin: 0 0 var(--e2); font-size: .85rem; color: var(--texto-suave); }
+.item-compacto__etiquetas { display: flex; gap: var(--e1); flex: none; }
+.abas { margin: var(--e2) 0 0; }
+.abas + section .busca { padding-top: var(--e3); }
+
+/* Ficha (Etapa 7) */
+.voltar { margin: 0 0 var(--e2); }
+.voltar .botao { padding-left: 0; }
+.ficha-cabecalho { display: flex; align-items: center; gap: var(--e4); margin-bottom: var(--e4); }
+.ficha-cabecalho .avatar--foto { width: 88px; height: 88px; }
+.ficha-cabecalho .item-compacto__linha { white-space: normal; }
+.cuidados { display: flex; gap: var(--e3); align-items: flex-start; padding: var(--e3) var(--e4); margin-bottom: var(--e4);
+  background: var(--erro-claro); border: 1px solid var(--erro-borda); border-radius: var(--raio); color: var(--erro); }
+.cuidados p { margin: 2px 0 0; color: var(--texto); overflow-wrap: anywhere; }
+.secao-lista { margin-bottom: var(--e4); }
+.secao-lista .secao-titulo { margin-top: var(--e4); }
+.botao-icone--whatsapp { width: 40px; height: 40px; flex: none; background: #e3f4e9; color: #17663a; }
+.botao-icone--whatsapp:hover { background: #cdebd8; }
+.mt-2 { margin-top: var(--e2); }
+.sem-margem { margin: 0; }
+.menu__item--perigo { color: var(--erro); }
+.mais-acoes .menu { width: max-content; min-width: 180px; max-width: calc(100vw - 32px); }
+.cartao--crianca { padding: var(--e4); }
+.cartao--crianca .ficha-cabecalho { align-items: flex-start; margin-bottom: var(--e3); }
+.cartao--crianca .ficha-cabecalho .avatar--foto { width: 72px; height: 72px; }
+.item-compacto__linha--quebra { white-space: normal; }
+.mt-1 { margin-top: var(--e1); }
+.para-completar .lista { gap: var(--e3); }
+.pendencia-item { padding-top: var(--e3); border-top: 1px solid var(--amarelo-borda); }
+.pendencia-item:first-child { padding-top: 0; border-top: 0; }
+.pendencia-item .acoes-cartao { margin-top: var(--e2); }
+
+/* Pendências (Etapa 7) */
+.cartao--pendencias { padding: var(--e3) var(--e4); margin: 0; }
+.pendencia__familia-link { display: flex; align-items: center; justify-content: space-between; gap: var(--e2);
+  color: var(--texto); text-decoration: none; padding-bottom: var(--e2); border-bottom: 1px solid var(--borda-suave); }
+.pendencia__familia { font: 800 1.05rem var(--fonte-titulo); }
+.lista-pendencias { list-style: none; margin: 0; padding: 0; }
+.lista-pendencias > .pendencia { padding: var(--e3) 0; }
+.lista-pendencias > .pendencia + .pendencia { border-top: 1px solid var(--borda-suave); }
+.lista-pendencias > .pendencia:last-child { padding-bottom: 0; }
+.pendencia__linha { display: flex; align-items: flex-start; gap: var(--e3); }
+.pendencia .notif__corpo { margin: var(--e1) 0 0; font-size: .95rem; }
+.pendencia .linha a { font-size: .95rem; }

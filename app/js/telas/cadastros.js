@@ -8,6 +8,7 @@
 // Endereço: #/cadastros?aba=criancas | familias | voluntarias
 // =====================================================================
 import { el, montar, aviso, carregando, iniciais } from "../ui.js";
+import { icone } from "../icones.js";
 import { meuPerfil, listarSalas, listarCriancas, listarFamilias, listarVoluntarias } from "../supabase.js";
 import { avatarLista, preencherFotos } from "../foto.js";
 
@@ -54,13 +55,16 @@ function parametro(nome) {
   return new URLSearchParams(q).get(nome);
 }
 
-/** Lista com busca, filtro opcional e "Mostrar mais". */
+/** Lista com busca fixa, filtros em chips e "Mostrar mais". */
 function listaComBusca(painel, { itens, rotuloBusca, filtros, desenharItem, vazio }) {
-  const busca = el("input", { class: "entrada", type: "search", id: "busca-cadastros", placeholder: "Digite parte do nome", autocomplete: "off" });
-  const filtro = filtros ? el("select", { class: "entrada", id: "filtro-cadastros" },
-    filtros.map((f) => el("option", { value: f.valor, text: f.texto }))) : null;
-  const resumo = el("p", { class: "suave", role: "status" });
-  const lista = el("ul", { class: "lista" });
+  const busca = el("input", { type: "search", id: "busca-cadastros", placeholder: rotuloBusca, autocomplete: "off" });
+  let filtroAtual = filtros ? filtros[0].valor : null;
+  const chips = filtros ? filtros.map((f) => el("button", {
+    class: "chip", type: "button", "aria-pressed": f.valor === filtroAtual ? "true" : "false", text: f.texto,
+    onclick: () => { filtroAtual = f.valor; chips.forEach((c, k) => c.setAttribute("aria-pressed", String(filtros[k].valor === filtroAtual))); atualizar(); },
+  })) : null;
+  const resumo = el("p", { class: "resumo-lista", role: "status" });
+  const lista = el("ul", { class: "lista-compacta" });
   const mais = el("button", { class: "botao botao--pequeno", type: "button", text: "Mostrar mais", hidden: true });
   let achados = [];
   let mostrando = 0;
@@ -77,32 +81,34 @@ function listaComBusca(painel, { itens, rotuloBusca, filtros, desenharItem, vazi
   }
   function atualizar() {
     const termo = normalizar(busca.value);
-    const f = filtros ? filtros.find((x) => x.valor === filtro.value) || filtros[0] : null;
+    const f = filtros ? filtros.find((x) => x.valor === filtroAtual) || filtros[0] : null;
     achados = itens.filter((x) => (!f || f.teste(x)) && (!termo || x.busca.includes(termo)));
     lista.replaceChildren();
     mostrando = 0;
-    if (!achados.length) { lista.append(el("li", {}, aviso("info", vazio))); mais.hidden = true; resumo.textContent = ""; return; }
+    lista.hidden = !achados.length;
+    if (!achados.length) { mais.hidden = true; resumo.textContent = vazio; return; }
     desenharMais();
   }
   let espera = null;
   busca.addEventListener("input", () => { clearTimeout(espera); espera = setTimeout(atualizar, 200); });
-  filtro?.addEventListener("change", atualizar);
   mais.addEventListener("click", desenharMais);
 
   montar(painel,
-    el("div", { class: "campo" }, el("label", { class: "campo__rotulo", for: "busca-cadastros", text: rotuloBusca }), busca),
-    filtro ? el("div", { class: "campo" }, el("label", { class: "campo__rotulo", for: "filtro-cadastros", text: "Mostrar" }), filtro) : null,
-    resumo, lista, el("div", { class: "linha" }, mais));
+    el("div", { class: "busca" },
+      el("label", { class: "busca__campo" }, icone("busca"), el("span", { class: "so-leitor", text: rotuloBusca }), busca),
+      chips ? el("div", { class: "chips mt-3", role: "group", "aria-label": "Filtro" }, chips) : null),
+    resumo, lista, el("p", { class: "centro mt-3" }, mais));
   atualizar();
 }
 
 function itemLink(href, nome, linhas, etiquetas = [], foto = null) {
-  return el("a", { class: "lista__item lista__item--link", href },
+  return el("a", { class: "item-compacto", href },
     foto ? avatarLista(foto.tipo, foto.id, nome) : el("div", { class: "avatar", "aria-hidden": "true", text: iniciais(nome) }),
-    el("div", { class: "lista__texto" },
-      el("p", { class: "notif__titulo", text: nome }),
-      ...linhas.filter(Boolean).map((t) => el("p", { class: "notif__quando", text: t })),
-      etiquetas.length ? el("div", { class: "linha" }, etiquetas) : null));
+    el("span", { class: "item-compacto__texto" },
+      el("span", { class: "item-compacto__nome", text: nome }),
+      el("span", { class: "item-compacto__linha", text: linhas.filter(Boolean).join(" · ") })),
+    etiquetas.length ? el("span", { class: "item-compacto__etiquetas" }, etiquetas) : null,
+    icone("seta", null, "item-compacto__seta"));
 }
 
 // ---------------- Abas ----------------
@@ -120,17 +126,17 @@ async function abaCriancas(painel) {
     })
     .sort((a, b) => a.busca.localeCompare(b.busca));
   const filtros = [
-    { valor: "ativas", texto: "Todas as salas", teste: (c) => c.ativo },
+    { valor: "ativas", texto: "Todas", teste: (c) => c.ativo },
     ...salas.filter((s) => s.ativa).map((s) => ({ valor: s.id, texto: `Sala ${s.nome}`, teste: (c) => c.ativo && c.sala.sala?.id === s.id })),
-    { valor: "sem_sala", texto: "Sem sala (acima de 12 anos ou sem idade)", teste: (c) => c.ativo && !c.sala.sala },
+    { valor: "sem_sala", texto: "Sem sala", teste: (c) => c.ativo && !c.sala.sala },
     { valor: "inativas", texto: "Inativas", teste: (c) => !c.ativo },
   ];
   listaComBusca(painel, {
-    itens, filtros, rotuloBusca: "Buscar criança pelo nome", vazio: "Nenhuma criança encontrada.",
+    itens, filtros, rotuloBusca: "Buscar criança", vazio: "Nenhuma criança encontrada.",
     desenharItem: (c) => itemLink(`#/ficha?tipo=crianca&id=${encodeURIComponent(c.id)}`, c.nome,
-      [`${textoIdade(c.anos)} · ${textoSala(c.sala)}`],
+      [textoIdade(c.anos), c.sala.sala ? `Sala ${c.sala.sala.nome}` : "Sem sala"],
       [c.perfil === "visitante" ? el("span", { class: "etiqueta etiqueta--azul", text: "Visitante" }) : null,
-       !c.ativo ? el("span", { class: "etiqueta", text: "Inativa" }) : null].filter(Boolean),
+       !c.ativo ? el("span", { class: "etiqueta etiqueta--neutra", text: "Inativa" }) : null].filter(Boolean),
       { tipo: "crianca", id: c.id }),
   });
 }
@@ -149,10 +155,9 @@ async function abaFamilias(painel) {
     return { id: f.id, nome, nomesResp, cri, busca, ordem: normalizar(nomesResp[0] || "zzz") };
   }).sort((a, b) => a.ordem.localeCompare(b.ordem));
   listaComBusca(painel, {
-    itens, rotuloBusca: "Buscar pelo nome de um responsável ou de uma criança", vazio: "Nenhuma família encontrada.",
+    itens, rotuloBusca: "Buscar responsável ou criança", vazio: "Nenhuma família encontrada.",
     desenharItem: (f) => itemLink(`#/ficha?tipo=familia&id=${encodeURIComponent(f.id)}`, f.nome, [
-      f.nomesResp.length > 1 ? `Responsáveis: ${f.nomesResp.join(", ")}` : null,
-      f.cri.length ? `Crianças: ${f.cri.join(", ")}` : "Nenhuma criança ativa",
+      f.cri.length ? f.cri.join(", ") : "Nenhuma criança ativa",
     ]),
   });
 }
@@ -167,17 +172,17 @@ async function abaVoluntarias(painel) {
     .sort((a, b) => a.busca.localeCompare(b.busca));
   const filtros = [
     { valor: "ativa", texto: "Ativas", teste: (v) => v.status === "ativa" },
-    { valor: "pendente", texto: "Aguardando aprovação", teste: (v) => v.status === "pendente" },
+    { valor: "pendente", texto: "Aguardando", teste: (v) => v.status === "pendente" },
     { valor: "inativa", texto: "Inativas", teste: (v) => v.status === "inativa" },
-    { valor: "menor", texto: "Menores de idade", teste: (v) => v.anos !== null && v.anos < 18 },
+    { valor: "menor", texto: "Menores", teste: (v) => v.anos !== null && v.anos < 18 },
     { valor: "todas", texto: "Todas", teste: () => true },
   ];
   listaComBusca(painel, {
-    itens, filtros, rotuloBusca: "Buscar voluntária pelo nome", vazio: "Nenhuma voluntária encontrada.",
+    itens, filtros, rotuloBusca: "Buscar voluntária", vazio: "Nenhuma voluntária encontrada.",
     desenharItem: (v) => itemLink(`#/ficha?tipo=voluntaria&id=${encodeURIComponent(v.id)}`, v.nome,
       [NOMES_FUNCAO[v.funcao] || null],
       [v.status !== "ativa" ? el("span", { class: "etiqueta etiqueta--laranja", text: NOMES_STATUS[v.status] || v.status }) : null,
-       v.anos !== null && v.anos < 18 ? el("span", { class: "etiqueta", text: "Menor de idade" }) : null].filter(Boolean),
+       v.anos !== null && v.anos < 18 ? el("span", { class: "etiqueta", text: "Menor" }) : null].filter(Boolean),
       { tipo: "voluntaria", id: v.id }),
   });
 }
@@ -194,7 +199,7 @@ export async function render(alvo) {
   const soVoluntaria = !recepcao && perfil.temPapel("voluntaria");
 
   const abas = [
-    ...(recepcao || soVoluntaria ? [{ id: "criancas", texto: soVoluntaria ? "Crianças das minhas salas" : "Crianças", desenhar: abaCriancas }] : []),
+    ...(recepcao || soVoluntaria ? [{ id: "criancas", texto: soVoluntaria ? "Minhas salas" : "Crianças", desenhar: abaCriancas }] : []),
     ...(recepcao ? [{ id: "familias", texto: "Famílias", desenhar: abaFamilias }] : []),
     ...(lideranca ? [{ id: "voluntarias", texto: "Voluntárias", desenhar: abaVoluntarias }] : []),
   ];
@@ -219,8 +224,7 @@ export async function render(alvo) {
   }
 
   montar(alvo,
-    el("h1", { text: titulo }),
-    el("p", { class: "suave", text: "Consulta. Para corrigir um cadastro, fale com a liderança do Fonte Kids." }),
+    el("h1", { text: lideranca ? "Cadastros" : "Recepção" }),
     abas.length > 1 ? el("div", { class: "abas", role: "tablist", "aria-label": "Cadastros" }, botoes) : null,
     area);
   abrir(parametro("aba"), false);

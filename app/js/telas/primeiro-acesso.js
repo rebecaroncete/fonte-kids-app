@@ -82,7 +82,7 @@ async function passoSenha() {
   const nova = campoSenha("nova-senha", "Nova senha", "new-password");
   const conf = campoSenha("confirmar-senha", "Repita a nova senha", "new-password");
   const caixaErro = el("div", { "aria-live": "assertive" });
-  const botao = el("button", { class: "botao botao--primario botao--largo", type: "submit", text: "Salvar nova senha" });
+  const botao = el("button", { class: "botao botao--primario botao--largo", type: "submit", text: "Salvar" });
   let enviando = false;
 
   function problema(s) {
@@ -106,7 +106,7 @@ async function passoSenha() {
 
       enviando = true; botao.disabled = true; botao.textContent = "Salvando…";
       const r = await trocarSenhaInicial(s);
-      enviando = false; botao.disabled = false; botao.textContent = "Salvar nova senha";
+      enviando = false; botao.disabled = false; botao.textContent = "Salvar";
       if (!r.ok) { montar(caixaErro, aviso("erro", r.erro)); return; }
       nova.entrada.value = ""; conf.entrada.value = "";
       toast("sucesso", "Senha trocada.");
@@ -140,7 +140,7 @@ async function passoTermo() {
   const marcar = el("input", { type: "checkbox", id: "li-termo",
     onchange: () => { botao.disabled = !marcar.checked; } });
   const caixaErro = el("div", { "aria-live": "assertive" });
-  const botao = el("button", { class: "botao botao--primario botao--largo", type: "submit", text: "Aceitar e continuar", disabled: true });
+  const botao = el("button", { class: "botao botao--primario botao--largo", type: "submit", text: "Aceitar", disabled: true });
   let enviando = false;
 
   const form = el("form", { class: "cartao", novalidate: true, onsubmit: async (e) => {
@@ -149,7 +149,7 @@ async function passoTermo() {
       caixaErro.replaceChildren();
       enviando = true; botao.disabled = true; botao.textContent = "Registrando…";
       const r = await aceitarTermo(t.versao);
-      enviando = false; botao.disabled = !marcar.checked; botao.textContent = "Aceitar e continuar";
+      enviando = false; botao.disabled = !marcar.checked; botao.textContent = "Aceitar";
       if (!r.ok) { montar(caixaErro, aviso("erro", r.erro)); return; }
       toast("sucesso", "Termo aceito. Obrigado!");
       avancar();
@@ -198,7 +198,7 @@ async function passoRelacoes(ids) {
   });
 
   const caixaErro = el("div", { "aria-live": "assertive" });
-  const botao = el("button", { class: "botao botao--primario botao--largo", type: "submit", text: "Salvar e continuar" });
+  const botao = el("button", { class: "botao botao--primario botao--largo", type: "submit", text: "Continuar" });
   let enviando = false;
 
   const form = el("form", { novalidate: true, onsubmit: async (e) => {
@@ -218,7 +218,7 @@ async function passoRelacoes(ids) {
         const det = l.tipo.value === "outro" ? l.detalhe.value.trim() : null;
         const res = await informarRelacao(l.c.id, l.tipo.value, det);
         if (!res.ok) {
-          enviando = false; botao.disabled = false; botao.textContent = "Salvar e continuar";
+          enviando = false; botao.disabled = false; botao.textContent = "Continuar";
           montar(caixaErro, aviso("erro", `${l.c.nome}: ${res.erro}`));
           return;
         }
@@ -231,7 +231,7 @@ async function passoRelacoes(ids) {
     caixaErro,
     botao,
     el("p", { class: "centro" },
-      el("button", { class: "botao botao--texto", type: "button", text: "Deixar para depois",
+      el("button", { class: "botao botao--texto", type: "button", text: "Depois",
         onclick: () => { adiarRelacoes(); irPara("/inicio"); } })));
 
   montar(alvoTela,

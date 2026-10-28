@@ -19,7 +19,7 @@ export async function render(alvo) {
   });
   const caixaErro = el("div", { "aria-live": "assertive" });
   const lugarCaptcha = el("div", { class: "captcha", "data-acao": "pedido-senha" });
-  const botao = el("button", { class: "botao botao--primario botao--largo", type: "submit", text: "Pedir nova senha", disabled: true });
+  const botao = el("button", { class: "botao botao--primario botao--largo", type: "submit", text: "Enviar pedido", disabled: true });
   let captcha = null;
   let enviando = false;
 
@@ -40,12 +40,12 @@ export async function render(alvo) {
 
       enviando = true; botao.disabled = true; botao.textContent = "Enviando…";
       const r = await pedirNovaSenha(t, token);
-      enviando = false; botao.textContent = "Pedir nova senha";
+      enviando = false; botao.textContent = "Enviar pedido";
       if (r.ok) {
         montar(conteudo,
           aviso("sucesso", r.mensagem),
           el("p", { class: "centro", text: "Quando a liderança redefinir, entre com a senha inicial e troque por uma nova logo em seguida." }),
-          el("p", { class: "centro" }, el("a", { class: "botao botao--secundario", href: "#/entrar", text: "Voltar para entrar" })));
+          el("p", { class: "centro" }, el("a", { class: "botao botao--secundario", href: "#/entrar", text: "Voltar" })));
         return;
       }
       montar(caixaErro, aviso("erro", r.erro));
@@ -57,11 +57,11 @@ export async function render(alvo) {
     lugarCaptcha,
     caixaErro,
     botao,
-    el("p", { class: "centro" }, el("a", { href: "#/entrar", text: "Voltar para entrar" })));
+    el("p", { class: "centro" }, el("a", { href: "#/entrar", text: "Voltar" })));
 
   const conteudo = el("div", {},
     el("h1", { class: "marca__titulo", text: "Esqueci minha senha" }),
-    el("p", { text: "Informe o telefone do seu login. A liderança do Fonte Kids recebe o pedido e fala com você antes de redefinir a senha." }),
+    el("p", { text: "A liderança recebe o pedido e fala com você antes de redefinir." }),
     form);
 
   montar(alvo,

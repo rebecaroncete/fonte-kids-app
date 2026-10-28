@@ -123,7 +123,7 @@ export async function render(alvo) {
   function itemPedido(p, recarregar) {
     const linha = el("div", { class: "linha" });
     if (p.pode_redefinir) {
-      linha.append(el("button", { class: "botao botao--pequeno botao--azul", type: "button", text: "Redefinir senha",
+      linha.append(el("button", { class: "botao botao--pequeno botao--secundario", type: "button", text: "Redefinir",
         onclick: () => pedirConfirmacao(linha, `${AVISO_FIXO} A senha de ${p.nome} volta para a senha inicial.`, "Confirmar redefinição",
           async () => {
             const r = await gerenciarLogin({ acao: "redefinir", pessoa_id: p.pessoa_id });
@@ -132,7 +132,7 @@ export async function render(alvo) {
             recarregar();
           }) }));
     }
-    linha.append(el("button", { class: "botao botao--pequeno", type: "button", text: "Encerrar sem redefinir",
+    linha.append(el("button", { class: "botao botao--pequeno botao--texto", type: "button", text: "Encerrar",
       onclick: () => pedirConfirmacao(linha, "Use quando a pessoa já lembrou a senha ou não reconhece o pedido. A senha não muda.", "Encerrar pedido",
         async () => {
           const r = await encerrarPedido(p.id);
@@ -201,7 +201,7 @@ export async function render(alvo) {
     const linha = el("div", { class: "linha" });
 
     if (p.situacao === "sem_login") {
-      linha.append(el("button", { class: "botao botao--pequeno botao--primario", type: "button", text: "Criar login",
+      linha.append(el("button", { class: "botao botao--pequeno botao--primario", type: "button", text: "Criar",
         onclick: () => pedirConfirmacao(linha, `Criar o login de ${p.nome} com o telefone ${p.telefone_mascarado || ""}? No 1º acesso a pessoa troca a senha e (se for responsável) aceita o termo.`, "Criar login",
           async () => {
             const r = await gerenciarLogin({ acao: "criar", pessoa_id: p.pessoa_id });
@@ -210,7 +210,7 @@ export async function render(alvo) {
             recarregar();
           }) }));
     } else if (p.pode_redefinir && (p.situacao === "ativo" || p.situacao === "primeiro_acesso")) {
-      linha.append(el("button", { class: "botao botao--pequeno botao--azul", type: "button", text: "Redefinir senha",
+      linha.append(el("button", { class: "botao botao--pequeno botao--secundario", type: "button", text: "Redefinir",
         onclick: () => pedirConfirmacao(linha, `${AVISO_FIXO} A senha de ${p.nome} volta para a senha inicial.`, "Confirmar redefinição",
           async () => {
             const r = await gerenciarLogin({ acao: "redefinir", pessoa_id: p.pessoa_id });
@@ -294,7 +294,7 @@ export async function render(alvo) {
         `${erro ? `Parou antes do fim: ${erro} ` : "Terminado. "}Criados: ${criados}. Falhas: ${falhas}.`),
       lista.length ? el("section", { class: "cartao" }, el("h2", { text: "Motivos das falhas" }), el("ul", { class: "lista-simples" }, lista),
         el("p", { class: "suave", text: "Confira essas pessoas na aba Pessoas (filtro “Sem login”)." })) : null,
-      el("div", { class: "linha" }, el("button", { class: "botao", type: "button", text: "Atualizar contagens", onclick: () => abaLote(painel) })));
+      el("div", { class: "linha" }, el("button", { class: "botao", type: "button", text: "Atualizar", onclick: () => abaLote(painel) })));
   }
 
   montar(alvo,

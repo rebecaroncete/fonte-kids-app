@@ -22,12 +22,13 @@
 // no login dela não é alterado (aparece como "informada por ele(a)").
 // O banco (RLS + funções) garante que o responsável mexa só na própria família.
 // =====================================================================
-import { el, montar, aviso, carregando, mascararTelefone, telefoneParaLogin } from "../ui.js";
+import { el, montar, aviso, carregando, mascararTelefone, telefoneParaLogin, menuAcoes, iniciais } from "../ui.js";
+import { icone } from "../icones.js";
 import { minhaFamilia, informarRelacao, listarSalas, editarCrianca, incluirAutorizado, removerAutorizado,
   listarPendencias, confirmarPendencia, nomePendencia, informarRelacoesDe, informarConjuge } from "../supabase.js";
 import { avatarComFoto, avatarLista, preencherFotos } from "../foto.js";
 import { abrirJanela, janelaFoto, campo } from "../janela.js";
-import { idade, textoIdade, salaDaCrianca, textoSala } from "./cadastros.js";
+import { idade, textoIdade, salaDaCrianca } from "./cadastros.js";
 import { TIPOS_RELACAO } from "./primeiro-acesso.js";
 import { definirEtapaAcesso } from "../app.js";
 
@@ -70,7 +71,7 @@ async function desenhar(mostrarCarregando = false) {
   montar(alvoTela,
     el("h1", { text: varias ? "Minhas famílias" : "Minha família" }),
     r.familias.map((f) => blocoFamilia(f, salas, varias, pendencias.filter((x) => x.familia_id === f.id))),
-    el("p", { class: "suave", text: "As alterações valem na hora e a liderança do Fonte Kids é avisada." }));
+    el("p", { class: "suave mt-5", text: "Alterações valem na hora; a liderança é avisada." }));
   preencherFotos(alvoTela);
 }
 
@@ -83,21 +84,19 @@ function blocoFamilia(f, salas, mostrarTitulo, pendencias = []) {
     criancas.length
       ? criancas.map((c) => cartaoCrianca(c, f, salas))
       : el("p", { class: "suave", text: "Nenhuma criança nesta família." }),
-    secao("Responsáveis", listaResponsaveis(f)),
-    secao("Autorizados a retirar", listaAutorizadas(f.autorizadas),
-      el("p", { class: "acoes-cartao" }, el("button", {
-        class: "botao botao--pequeno botao--secundario", type: "button", text: "Incluir autorizado",
-        onclick: () => janelaIncluirAutorizado(f.id),
-      }))));
+    secao("Responsáveis", null, listaResponsaveis(f)),
+    secao("Autorizados a retirar", el("button", {
+        class: "botao botao--secundario botao--pequeno", type: "button", onclick: () => janelaIncluirAutorizado(f.id),
+      }, icone("adicionar"), "Incluir"),
+      listaAutorizadas(f.autorizadas)));
 }
 
 // ---------- Para completar (pendências da família) ----------
 
 function quadroPendencias(pendencias, f) {
   const criancaPorId = new Map(f.criancas.map((c) => [c.id, c]));
-  return el("section", { class: "cartao cartao--amarelo para-completar" },
+  return el("section", { class: "cartao cartao--atencao para-completar" },
     el("h2", { text: "Para completar" }),
-    el("p", { class: "atalho__texto", text: "Ajude a manter o cadastro em dia. Estes avisos somem quando o dado é preenchido ou conferido." }),
     el("ul", { class: "lista" }, pendencias.map((p) => itemPendencia(p, criancaPorId.get(p.crianca_id), f))));
 }
 
@@ -124,26 +123,24 @@ function itemPendencia(p, c, f) {
       }
     } else if (c) {
       texto = `Informe a sua relação${primeiro ? ` com ${primeiro}` : " com a criança"} (ex.: mãe, pai, avó).`;
-      acoes.push(el("button", { class: "botao botao--pequeno botao--secundario", type: "button", text: "Informar relação",
+      acoes.push(el("button", { class: "botao botao--pequeno botao--secundario", type: "button", text: "Informar",
         onclick: () => janelaRelacao(c.id, nomeCri, null) }));
     }
   } else if (p.tipo === "nascimento_vazio" && c) {
     texto = `Falta a data de nascimento${primeiro ? ` de ${primeiro}` : ""}.`;
-    acoes.push(el("button", { class: "botao botao--pequeno botao--secundario", type: "button", text: "Editar dados",
+    acoes.push(el("button", { class: "botao botao--pequeno botao--secundario", type: "button", text: "Editar",
       onclick: () => janelaEditarCrianca(c) }));
   } else if (!p.automatica) {
     if (c && p.tipo === "conferir_nascimento") {
-      acoes.push(el("button", { class: "botao botao--pequeno", type: "button", text: "Editar dados",
+      acoes.push(el("button", { class: "botao botao--pequeno", type: "button", text: "Editar",
         onclick: () => janelaEditarCrianca(c) }));
     }
-    acoes.push(el("button", { class: "botao botao--pequeno botao--secundario", type: "button", text: "Marcar como resolvida",
+    acoes.push(el("button", { class: "botao botao--pequeno botao--secundario", type: "button", text: "Resolver",
       onclick: () => janelaResolverPendencia(p) }));
   }
 
-  return el("li", { class: "notif pendencia" },
-    el("div", { class: "linha" },
-      el("span", { class: "etiqueta etiqueta--laranja", text: nomePendencia(p.tipo) }),
-      nomeCri ? el("span", { class: "notif__titulo", text: nomeCri }) : null),
+  return el("li", { class: "pendencia-item" },
+    el("p", { class: "sem-margem" }, el("strong", { text: nomeCri || nomePendencia(p.tipo) })),
     el("p", { class: "notif__corpo", text: texto }),
     acoes.length ? el("div", { class: "linha acoes-cartao" }, acoes) : null);
 }
@@ -156,7 +153,7 @@ function janelaResolverPendencia(p) {
       el("p", { text: p.mensagem }),
       el("p", { class: "suave", text: "Confirme que o dado está certo (ou que já corrigiu). A liderança do Fonte Kids é avisada." }),
     ],
-    textoSalvar: "Está certo, resolver",
+    textoSalvar: "Resolver",
     sucesso: "Pendência resolvida. Obrigado!",
     aoSalvar: async () => {
       const r = await confirmarPendencia(p.id);
@@ -167,8 +164,10 @@ function janelaResolverPendencia(p) {
   });
 }
 
-function secao(tituloSecao, ...conteudo) {
-  return el("section", { class: "cartao" }, el("h2", { text: tituloSecao }), ...conteudo);
+/** Seção: título (com uma ação à direita, opcional) + conteúdo. */
+function secao(tituloSecao, acao, ...conteudo) {
+  return el("section", { class: "secao-lista" },
+    el("div", { class: "secao-titulo" }, el("h2", { text: tituloSecao }), acao), ...conteudo);
 }
 
 function textoRelacao(rel) {
@@ -179,51 +178,49 @@ function textoRelacao(rel) {
 function cartaoCrianca(c, f, salas) {
   const nome = c.pessoa?.nome || "Sem nome";
   const anos = idade(c.pessoa?.data_nascimento);
+  const sala = salaDaCrianca(c.sala_fixa_id, anos, salas);
   const rel = f.minhasRelacoes.get(c.pessoa?.id);
   const uc = f.ultimosCheckins.get(c.id);
   const etiquetas = [
-    c.perfil === "visitante" ? el("span", { class: "etiqueta etiqueta--azul", text: "Visitante" }) : null,
-    !c.ativo ? el("span", { class: "etiqueta", text: "Inativa" }) : null,
+    c.alergias_observacoes ? el("span", { class: "etiqueta etiqueta--alergia" }, icone("alergia"), "Alergia / cuidados") : null,
+    el("span", { class: sala.sala ? "etiqueta etiqueta--azul" : "etiqueta", text: sala.sala ? `Sala ${sala.sala.nome}` : "Sem sala" }),
+    rel ? el("span", { class: "etiqueta etiqueta--neutra", text: `Você: ${textoRelacao(rel)}` }) : null,
+    c.perfil === "visitante" ? el("span", { class: "etiqueta etiqueta--laranja", text: "Visitante" }) : null,
+    !c.ativo ? el("span", { class: "etiqueta etiqueta--neutra", text: "Inativa" }) : null,
   ].filter(Boolean);
 
-  return el("section", { class: "cartao" },
-    el("div", { class: "perfil-cabecalho" }, avatarComFoto("crianca", c.id, nome),
-      el("div", {},
+  return el("section", { class: "cartao cartao--crianca" },
+    el("div", { class: "ficha-cabecalho" }, avatarComFoto("crianca", c.id, nome),
+      el("div", { class: "flex-1" },
         el("h2", { class: "perfil-cabecalho__nome", text: nome }),
-        el("p", { class: "notif__quando", text: textoIdade(anos) }),
-        el("p", { class: "notif__quando", text: textoSala(salaDaCrianca(c.sala_fixa_id, anos, salas)) }),
-        etiquetas.length ? el("div", { class: "linha" }, etiquetas) : null)),
+        el("p", { class: "item-compacto__linha", text: textoIdade(anos) }),
+        el("div", { class: "linha mt-2" }, etiquetas)),
+      menuAcoes([
+        { texto: "Editar dados", acao: () => janelaEditarCrianca(c) },
+        { texto: "Trocar foto", acao: () => janelaFoto({ tipo: "crianca", id: c.id, nome, tipoFoto: "crianca", idFoto: c.id, aoTrocar: () => desenhar() }) },
+        rel ? { texto: "Corrigir relação", acao: () => janelaRelacao(c.id, nome, rel) } : null,
+      ], `Mais ações para ${nome}`)),
     c.alergias_observacoes
-      ? aviso("atencao", `Alergias e cuidados: ${c.alergias_observacoes}`)
-      : el("p", { class: "suave", text: "Nenhuma alergia ou cuidado especial informado." }),
-    el("dl", { class: "dados" },
-      el("dt", { text: "Último check-in" }),
-      el("dd", { text: uc
-        ? `${quandoBr(uc.entrada_em)}${uc.sala?.nome ? ` · ${uc.sala.nome}` : ""}${uc.saida_em ? " · já saiu" : " · ainda sem check-out"}`
-        : "Nenhum check-in registrado." }),
-      el("dt", { text: "Sua relação" }),
-      el("dd", { text: textoRelacao(rel) || "Ainda não informada" })),
-    el("div", { class: "linha acoes-cartao" },
-      el("button", { class: "botao botao--pequeno", type: "button", text: "Editar dados", onclick: () => janelaEditarCrianca(c) }),
-      el("button", { class: "botao botao--pequeno", type: "button", text: "Trocar foto",
-        onclick: () => janelaFoto({ tipo: "crianca", id: c.id, nome, tipoFoto: "crianca", idFoto: c.id, aoTrocar: () => desenhar() }) }),
-      el("button", {
-        class: rel ? "botao botao--pequeno" : "botao botao--pequeno botao--secundario", type: "button",
-        text: rel ? "Corrigir relação" : "Informar relação",
-        onclick: () => janelaRelacao(c.id, nome, rel),
-      })));
+      ? el("div", { class: "cuidados", role: "note" },
+          icone("alergia"), el("div", {}, el("strong", { text: "Alergias e cuidados" }), el("p", { text: c.alergias_observacoes })))
+      : null,
+    el("p", { class: "item-compacto__linha sem-margem", text: uc
+      ? `Último check-in: ${quandoBr(uc.entrada_em)}${uc.sala?.nome ? ` · ${uc.sala.nome}` : ""}${uc.saida_em ? " · já saiu" : " · ainda sem check-out"}`
+      : "Nenhum check-in ainda." }),
+    rel ? null : el("p", { class: "acoes-cartao" }, el("button", {
+      class: "botao botao--primario botao--pequeno", type: "button", text: "Informar relação",
+      onclick: () => janelaRelacao(c.id, nome, null) })));
 }
 
+/** Linha compacta de um contato: foto, nome, 1 linha, ação (botão ou ⋯). */
 function contato(avatar, nome, detalhes, telefone, etiquetas = [], acao = null) {
-  return el("li", { class: "notif" },
-    el("div", { class: "lista__item-simples linha" },
-      avatar,
-      el("div", {},
-        el("p", { class: "notif__titulo", text: nome || "Sem nome" }),
-        ...detalhes.filter(Boolean).map((t) => el("p", { class: "notif__quando", text: t })),
-        etiquetas.length ? el("div", { class: "linha" }, etiquetas) : null,
-        el("p", { class: "notif__corpo", text: telefone ? mascararTelefone(telefone) : "Sem telefone no cadastro" }))),
-    acao ? el("div", { class: "linha" }, acao) : null);
+  return el("li", {}, el("div", { class: "item-compacto" },
+    avatar || el("div", { class: "avatar", "aria-hidden": "true", text: iniciais(nome) }),
+    el("span", { class: "item-compacto__texto" },
+      el("span", { class: "item-compacto__nome", text: nome || "Sem nome" }),
+      el("span", { class: "item-compacto__linha item-compacto__linha--quebra", text: [...detalhes.filter(Boolean), telefone ? mascararTelefone(telefone) : "Sem telefone"].join(" · ") }),
+      etiquetas.length ? el("span", { class: "linha mt-1" }, etiquetas) : null),
+    acao));
 }
 
 // ---------- Relações dos responsáveis ----------
@@ -252,13 +249,13 @@ function listaResponsaveis(f) {
   if (!responsaveis.length) return el("p", { class: "suave", text: "Nenhum responsável cadastrado." });
   const ordenados = [...responsaveis].sort((a, b) =>
     Number(b.pessoa?.id === eu) - Number(a.pessoa?.id === eu) || Number(b.principal) - Number(a.principal));
-  return el("ul", { class: "lista" }, ordenados.map((r) => {
+  return el("ul", { class: "lista-compacta" }, ordenados.map((r) => {
     const pid = r.pessoa?.id;
     const souEu = pid && pid === eu;
     const etiquetas = [
       souEu ? el("span", { class: "etiqueta", text: "Você" }) : null,
       r.principal ? el("span", { class: "etiqueta etiqueta--azul", text: "Principal" }) : null,
-      !souEu && pid && eu && saoConjuges(f, eu, pid) ? el("span", { class: "etiqueta etiqueta--laranja", text: "Seu cônjuge/parceiro(a)" }) : null,
+      !souEu && pid && eu && saoConjuges(f, eu, pid) ? el("span", { class: "etiqueta etiqueta--laranja", text: "Cônjuge" }) : null,
     ].filter(Boolean);
 
     let detalhe = null;
@@ -271,12 +268,11 @@ function listaResponsaveis(f) {
       }).filter(Boolean);
       const falta = cri.length - partes.length;
       detalhe = partes.length
-        ? `Relação: ${partes.join(" · ")}${falta ? ` · falta ${falta}` : ""}`
-        : "Relação com as crianças: ainda não informada";
-      acao = el("button", {
-        class: falta ? "botao botao--pequeno botao--secundario" : "botao botao--pequeno", type: "button",
-        text: falta ? "Informar relação" : "Corrigir relação", onclick: () => janelaRelacoesDe(r, f),
-      });
+        ? `${partes.join(" · ")}${falta ? ` · falta ${falta}` : ""}`
+        : "Relação não informada";
+      acao = falta
+        ? el("button", { class: "botao botao--pequeno botao--secundario", type: "button", text: "Informar", onclick: () => janelaRelacoesDe(r, f) })
+        : menuAcoes([{ texto: "Corrigir relação", acao: () => janelaRelacoesDe(r, f) }], `Mais ações para ${r.pessoa?.nome || "responsável"}`);
     }
     return contato(pid ? avatarLista("pessoa", pid, r.pessoa?.nome) : null,
       r.pessoa?.nome, [detalhe], r.pessoa?.telefone, etiquetas, acao);
@@ -285,8 +281,8 @@ function listaResponsaveis(f) {
 
 function listaAutorizadas(autorizadas) {
   if (!autorizadas.length) return el("p", { class: "suave", text: "Nenhuma pessoa autorizada além dos responsáveis." });
-  return el("ul", { class: "lista" }, autorizadas.map((a) => contato(null, a.pessoa?.nome, [a.observacao], a.pessoa?.telefone, [],
-    el("button", { class: "botao botao--pequeno", type: "button", text: "Remover", onclick: () => janelaRemoverAutorizado(a) }))));
+  return el("ul", { class: "lista-compacta" }, autorizadas.map((a) => contato(null, a.pessoa?.nome, [a.observacao], a.pessoa?.telefone, [],
+    menuAcoes([{ texto: "Remover", perigo: true, acao: () => janelaRemoverAutorizado(a) }], `Mais ações para ${a.pessoa?.nome || "autorizado"}`))));
 }
 
 // ---------- Janelinhas ----------

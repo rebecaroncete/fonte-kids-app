@@ -35,7 +35,7 @@ export async function render(alvo) {
   const conf = campoSenha("confirmar-senha", "Repita a nova senha", "new-password");
   const caixaErro = el("div", { "aria-live": "assertive" });
   const lugarCaptcha = el("div", { class: "captcha", "data-acao": "trocar_senha" });
-  const botao = el("button", { class: "botao botao--primario botao--largo", type: "submit", text: "Trocar senha", disabled: true });
+  const botao = el("button", { class: "botao botao--primario botao--largo", type: "submit", text: "Salvar", disabled: true });
   let captcha = null;
   let enviando = false;
 
@@ -62,7 +62,7 @@ export async function render(alvo) {
 
       enviando = true; botao.disabled = true; botao.textContent = "Trocando…";
       const r = await trocarSenha(atual.entrada.value, nova.entrada.value, token);
-      enviando = false; botao.textContent = "Trocar senha";
+      enviando = false; botao.textContent = "Salvar";
       atual.entrada.value = "";
       if (!r.ok) {
         montar(caixaErro, aviso("erro", r.erro));
@@ -86,7 +86,7 @@ export async function render(alvo) {
     el("h1", { text: "Trocar senha" }),
     el("p", { text: "Depois da troca, o app desconecta os outros aparelhos em que você entrou." }),
     form,
-    el("p", { class: "centro" }, el("a", { href: "#/perfil", text: "Voltar para Meu perfil" })));
+    el("p", { class: "centro" }, el("a", { href: "#/perfil", text: "Voltar" })));
   atual.entrada.focus();
 
   try {
