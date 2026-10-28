@@ -135,6 +135,7 @@ begin
     r := r || E'\n❌ aceitou público inválido'; falhas := falhas + 1;
   exception when others then r := r || E'\n✅ público inválido é recusado'; end;
   j := public.publicar_evento(ev, 'responsaveis');
+  perform set_config('role', 'postgres', true); -- conferir as notificações de todos (o RLS só mostra as próprias)
   ok := exists (select 1 from public.notificacoes where destinatario_id = u_pai and tipo = 'evento' and link = '#/eventos?id=' || ev)
     and exists (select 1 from public.notificacoes where destinatario_id = u_pai2 and tipo = 'evento')
     and not exists (select 1 from public.notificacoes where destinatario_id in (u_v1, u_lid) and tipo = 'evento')
@@ -142,6 +143,7 @@ begin
   r := r || format(E'\n%s publicar avisa só o público escolhido (responsáveis)', case when ok then '✅' else '❌' end); falhas := falhas + (not ok)::int;
   ok := not exists (select 1 from public.notificacoes where tipo = 'evento' and link = '#/eventos?id=' || ev and corpo ilike '%Qwzteste Crianca%');
   r := r || format(E'\n%s aviso do evento sem nome de criança', case when ok then '✅' else '❌' end); falhas := falhas + (not ok)::int;
+  perform set_config('role', 'authenticated', true);
   begin perform public.publicar_evento(ev, 'todos');
     r := r || E'\n❌ publicou duas vezes'; falhas := falhas + 1;
   exception when others then r := r || E'\n✅ não publica duas vezes'; end;
@@ -224,9 +226,11 @@ begin
   -- Avisar inscritos (1 por hora)
   perform set_config('request.jwt.claims', json_build_object('sub', u_lid, 'role', 'authenticated')::text, true);
   n := public.avisar_inscritos(ev, null);
+  perform set_config('role', 'postgres', true);
   ok := n = 2 and exists (select 1 from public.notificacoes where destinatario_id = u_pai and titulo like 'Lembrete:%')
     and not exists (select 1 from public.notificacoes where destinatario_id = u_v2 and titulo like 'Lembrete:%');
   r := r || format(E'\n%s "Avisar inscritos" vai só para os responsáveis dos inscritos', case when ok then '✅' else '❌' end); falhas := falhas + (not ok)::int;
+  perform set_config('role', 'authenticated', true);
   begin perform public.avisar_inscritos(ev, 'De novo');
     r := r || E'\n❌ mandou dois lembretes seguidos'; falhas := falhas + 1;
   exception when others then r := r || E'\n✅ lembrete: no máximo 1 por hora'; end;
@@ -253,9 +257,11 @@ begin
     r := r || E'\n❌ apagou evento com inscrições'; falhas := falhas + 1;
   exception when others then r := r || E'\n✅ evento com inscrições não é apagado'; end;
   n := public.cancelar_evento(ev);
+  perform set_config('role', 'postgres', true);
   ok := n = 3 and exists (select 1 from public.notificacoes where destinatario_id = u_v2 and titulo like 'Evento cancelado:%')
     and exists (select 1 from public.notificacoes where destinatario_id = u_pai2 and titulo like 'Evento cancelado:%');
   r := r || format(E'\n%s cancelar avisa os responsáveis dos inscritos e quem ia ajudar', case when ok then '✅' else '❌' end); falhas := falhas + (not ok)::int;
+  perform set_config('role', 'authenticated', true);
   begin perform public.inscrever_crianca(ev, d6);
     r := r || E'\n❌ inscreveu em evento cancelado'; falhas := falhas + 1;
   exception when others then r := r || E'\n✅ evento cancelado não recebe inscrição'; end;
