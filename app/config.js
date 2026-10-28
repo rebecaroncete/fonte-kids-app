@@ -17,5 +17,5 @@ export const CONFIG = {
 
   nomeApp: "Fonte Kids",
   // Ao mudar a versão, mude também VERSAO em sw.js (o mesmo número).
-  versao: "0.18.0 (Fase 5 · 5E – histórico)",
+  versao: "0.19.0 (Fase 5 · 5F – cadastro de voluntária)",
 };

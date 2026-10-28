@@ -13,7 +13,7 @@
 // =====================================================================
 import { icone } from "../icones.js";
 import { el, montar, aviso, carregando } from "../ui.js";
-import { meuPerfil, listarPendencias, confirmarPendencia, nomePendencia, voluntariasSemAcesso } from "../supabase.js";
+import { meuPerfil, listarPendencias, confirmarPendencia, nomePendencia, voluntariasSemAcesso, contarPedidosVoluntaria } from "../supabase.js";
 import { abrirJanela } from "../janela.js";
 import { normalizar } from "./cadastros.js";
 
@@ -61,11 +61,17 @@ async function desenhar(situacao) {
     area);
 
   montar(area, carregando());
-  const [r, vol] = await Promise.all([listarPendencias(situacao),
-    situacao === "abertas" ? voluntariasSemAcesso(true) : Promise.resolve({ ok: true, lista: [] })]);
+  const [r, vol, novas] = await Promise.all([listarPendencias(situacao),
+    situacao === "abertas" ? voluntariasSemAcesso(true) : Promise.resolve({ ok: true, lista: [] }),
+    situacao === "abertas" ? contarPedidosVoluntaria() : Promise.resolve(0)]);
   if (!area.isConnected) return;
   if (!r.ok) { montar(area, aviso("erro", r.erro)); return; }
   desenharLista(area, situacao, r.lista, vol.ok ? vol.lista : []);
+  // Fase 5 · 5F: cadastros de voluntária aguardando aprovação (só liderança)
+  if (novas > 0) area.prepend(el("section", { class: "cartao cartao--pendencias" },
+    el("a", { class: "pendencia__familia-link", href: "#/voluntarias-novas" },
+      el("span", { class: "pendencia__familia", text: `Voluntárias novas aguardando aprovação (${novas})` }),
+      icone("seta", null, "item-compacto__seta"))));
 }
 
 /** Cartão das voluntárias que ainda não entraram no app (só liderança). */

@@ -23,6 +23,17 @@
 //   • devolve só: links dos grupos certos pela idade, se o 2º responsável
 //     ganhou login e quantas fotos falharam. Nenhum dado do banco volta.
 //
+// Fase 5 · 5F – cadastro de VOLUNTÁRIA pelo link (aprovação pela liderança):
+// POST { "acao": "voluntaria_opcoes" }
+//   • devolve o termo vigente da voluntária, as salas e os cultos da agenda
+//     (nada pessoal; sem captcha).
+// POST { "acao": "voluntaria", "captchaToken": "...", "dados": {...}, "foto": dataUrl }
+//   • confere o captcha NO SERVIDOR; foto obrigatória;
+//   • grava só um PEDIDO (pedido_voluntaria_criar: valida tudo, 12 anos ou mais,
+//     limite de 30 a cada 24 h, aviso à liderança e aos pastores);
+//   • envia a foto (privada, até 400 px) e liga ao pedido;
+//   • resposta SEMPRE igual ({ ok: true }), exista o telefone ou não.
+//
 // Pública (sem login): publicar com verify_jwt = false.
 // Segredos (os mesmos já usados por outras funções):
 //   TURNSTILE_SECRET_KEY, ORIGENS_PERMITIDAS (opcional),
@@ -32,7 +43,7 @@
 // Nada de dado pessoal nos logs.
 // =====================================================================
 import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2";
-import { enviarPrivada } from "./cloudinary.ts";
+import { apagarPrivada, enviarPrivada } from "./cloudinary.ts";
 
 const ORIGENS = (Deno.env.get("ORIGENS_PERMITIDAS") || "https://rebecaroncete.github.io")
   .split(",").map((s) => s.trim()).filter(Boolean);
@@ -235,6 +246,53 @@ Deno.serve(async (req) => {
       logins_falharam: loginsFalharam,
       fotos_falharam: fotosFalharam,
     }, 200, origem);
+  }
+
+  // ================= 5F: opções do cadastro de voluntária =================
+  if (corpo.acao === "voluntaria_opcoes") {
+    const { data, error } = await admin.rpc("voluntaria_link_opcoes");
+    if (error || !data?.termo) { console.error("opcoes falhou", error?.code); return resposta({ erro: "interno" }, 500, origem); }
+    return resposta({ ok: true, termo: data.termo, salas: data.salas ?? [], cultos: data.cultos ?? [] }, 200, origem);
+  }
+
+  // ================= 5F: pedido de voluntária =================
+  if (corpo.acao === "voluntaria") {
+    const ip = req.headers.get("cf-connecting-ip") || req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || null;
+    if (!(await captchaValido(String(corpo.captchaToken ?? ""), ip))) return resposta({ erro: "captcha" }, 400, origem);
+    const dados = corpo.dados as Record<string, unknown> | undefined;
+    if (!dados || typeof dados !== "object") return resposta({ erro: "pedido" }, 400, origem);
+    const foto = corpo.foto;
+    if (typeof foto !== "string" || foto.length > MAX_FOTO || !IMAGEM.test(foto)) return resposta({ erro: "foto" }, 400, origem);
+    const tel = normalizarTelefone(dados.telefone);
+    if (!tel) return resposta({ erro: "dados", campo: "telefone" }, 409, origem);
+
+    const { data: r, error } = await admin.rpc("pedido_voluntaria_criar", { p_dados: {
+      nome: dados.nome, telefone: tel, nascimento: dados.nascimento, email: dados.email ?? null,
+      profissao: dados.profissao ?? null, sexo: dados.sexo ?? null, funcao: dados.funcao,
+      salas: dados.salas, cultos: dados.cultos, termo_versao: dados.termo_versao,
+    } });
+    if (error || !r?.pedido_id) {
+      const e = erroDoBanco(error?.message ?? "");
+      if (e.erro === "interno") console.error("pedido voluntaria falhou", error?.code);
+      return resposta(e, e.erro === "limite_diario" ? 429 : e.erro === "interno" ? 500 : 409, origem);
+    }
+
+    const apiKey = Deno.env.get("CLOUDINARY_API_KEY");
+    const apiSecret = Deno.env.get("CLOUDINARY_API_SECRET");
+    const cloudName = Deno.env.get("CLOUDINARY_CLOUD_NAME") || "tzoi5ks7";
+    let fotoFalhou = false;
+    if (apiKey && apiSecret && UUID.test(String(r.pedido_id))) {
+      const cred = { cloudName, apiKey, apiSecret };
+      try {
+        const id = await enviarPrivada(foto, `pessoas/adultos/pedido_${r.pedido_id}_${Date.now()}`, cred);
+        const { error: eg } = await admin.rpc("pedido_voluntaria_gravar_foto", { p_pedido: r.pedido_id, p_public_id: id });
+        if (eg) { await apagarPrivada(id, cred).catch(() => {}); fotoFalhou = true; }
+      } catch { fotoFalhou = true; }
+      // pedido antigo do mesmo telefone foi substituído: apaga a foto dele
+      if (typeof r.foto_antiga === "string" && r.foto_antiga) await apagarPrivada(r.foto_antiga, cred).catch(() => {});
+    } else fotoFalhou = true;
+
+    return resposta({ ok: true, foto_falhou: fotoFalhou }, 200, origem);
   }
 
   return resposta({ erro: "acao" }, 400, origem);

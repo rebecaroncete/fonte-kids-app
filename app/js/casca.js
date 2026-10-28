@@ -51,6 +51,7 @@ export const ITENS_MAIS = [
   { rota: "/cultos", texto: "Cultos e salas", icone: "calendario", papeis: LIDERANCA },
   { rota: "/telao-link", texto: "Link do telão", icone: "telao", papeis: LIDERANCA },
   { rota: "/grupos-whatsapp", texto: "Grupos de WhatsApp", icone: "conversa", papeis: LIDERANCA },
+  { rota: "/voluntarias-novas", texto: "Voluntárias novas", icone: "voluntaria", papeis: LIDERANCA },
 ];
 
 /** "lideranca" | "equipe" | "responsavel" | "basico" */
@@ -88,6 +89,7 @@ function abaDaRota(rota, abas) {
     "/cultos": "/mais",
     "/telao-link": "/mais",
     "/historico": "/mais",
+    "/voluntarias-novas": "/mais",
     "/grupos-whatsapp": "/mais",
     "/minha-familia": abas.includes("familia") ? "/minha-familia" : "/mais",
   };

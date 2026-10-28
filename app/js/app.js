@@ -45,6 +45,8 @@ const ROTAS = {
   "/cadastro":      { publica: true, carregar: () => import("./telas/cadastro.js") },
   "/grupos-whatsapp": { publica: false, carregar: () => import("./telas/grupos-whatsapp.js") },
   "/historico":     { publica: false, carregar: () => import("./telas/historico.js") },
+  "/cadastro-voluntaria": { publica: true, carregar: () => import("./telas/cadastro-voluntaria.js") },
+  "/voluntarias-novas": { publica: false, carregar: () => import("./telas/voluntarias-novas.js") },
 };
 
 /** Endereço interno conhecido? (usado para abrir links de notificações) */
@@ -156,9 +158,13 @@ sb.auth.onAuthStateChange((evento) => {
   }
 });
 
-// Link antigo do QR code da igreja (…/?tela=cadastro) → tela nova de cadastro
-if (!location.hash && new URLSearchParams(location.search).get("tela") === "cadastro") {
-  history.replaceState(null, "", `${location.pathname}#/cadastro`);
+// Links antigos do app atual → telas novas de cadastro
+//   …/?tela=cadastro (QR code da igreja) → #/cadastro
+//   …/?tela=cadastro_voluntaria          → #/cadastro-voluntaria (Fase 5 · 5F)
+{
+  const LINKS_ANTIGOS = { cadastro: "/cadastro", cadastro_voluntaria: "/cadastro-voluntaria" };
+  const destino = LINKS_ANTIGOS[new URLSearchParams(location.search).get("tela")];
+  if (!location.hash && destino) history.replaceState(null, "", `${location.pathname}#${destino}`);
 }
 
 window.addEventListener("hashchange", mostrar);

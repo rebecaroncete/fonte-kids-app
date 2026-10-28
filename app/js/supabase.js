@@ -778,12 +778,14 @@ export async function listarPendencias(situacao = "abertas") {
 /** Quantas pendências abertas o login enxerga (para o início). */
 export async function contarPendencias() {
   try {
-    const [{ count, error }, vol] = await Promise.all([
+    const [{ count, error }, vol, novas] = await Promise.all([
       sb.from("pendencias_cadastro").select("id", { count: "exact", head: true }).is("resolvida_em", null),
       voluntariasSemAcesso(),
+      contarPedidosVoluntaria(), // Fase 5 · 5F (0 para quem não é da liderança)
     ]);
     if (error) return { ok: false };
-    return { ok: true, total: (count || 0) + (vol.ok ? vol.lista.length : 0), cadastro: count || 0, voluntarias: vol.ok ? vol.lista.length : 0 };
+    return { ok: true, total: (count || 0) + (vol.ok ? vol.lista.length : 0) + novas, cadastro: count || 0,
+      voluntarias: vol.ok ? vol.lista.length : 0, voluntariasNovas: novas };
   } catch {
     return { ok: false };
   }
@@ -1117,4 +1119,59 @@ export async function historicoCulto(cultoId) {
   const r = await chamarRpc("historico_culto", { p_culto: cultoId });
   if (!r.ok) return r;
   return { ok: true, culto: r.resultado?.culto || null, salas: r.resultado?.salas || [] };
+}
+
+// =====================================================================
+// Fase 5 · 5F – Cadastro de voluntária pelo link + aprovação.
+// O link público grava só um pedido (Edge Function "cadastro-publico").
+// Aprovar/recusar passa pela Edge Function "enviar-foto" (o banco decide;
+// ela só apaga a foto que sobrar). Login novo: gerenciar-login ("criar").
+// =====================================================================
+
+/** Termo, salas e cultos para o formulário público: { ok, termo, salas, cultos } */
+export function voluntariaOpcoes() {
+  return chamarCadastroPublico({ acao: "voluntaria_opcoes" });
+}
+
+/** Envia o pedido: { ok, foto_falhou } ou { ok: false, codigo, campo } */
+export function voluntariaEnviar(captchaToken, dados, foto) {
+  return chamarCadastroPublico({ acao: "voluntaria", captchaToken, dados, foto });
+}
+
+/** Pedidos aguardando aprovação (liderança). */
+export async function pedidosVoluntaria() {
+  const r = await chamarRpc("pedidos_voluntaria_lista", {});
+  if (!r.ok) return r;
+  return { ok: true, lista: r.resultado || [] };
+}
+
+/** Quantos pedidos aguardam (0 para quem não é da liderança). */
+export async function contarPedidosVoluntaria() {
+  const perfil = await meuPerfil();
+  if (!perfil.ok || !perfil.temPapel("admin", "pastor", "lider")) return 0;
+  const r = await chamarRpc("contar_pedidos_voluntaria", {});
+  return r.ok ? Number(r.resultado) || 0 : 0;
+}
+
+/** decisao: "aprovar" | "recusar"; pessoaId: usar o cadastro que já tem o mesmo telefone (opcional). */
+export async function decidirPedidoVoluntaria(pedidoId, decisao, pessoaId = null) {
+  const s = await sessaoAtual();
+  if (!s) return { ok: false, erro: "Você não está conectado. Entre de novo." };
+  try {
+    const r = await fetch(`${CONFIG.supabaseUrl}/functions/v1/enviar-foto`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", apikey: CONFIG.supabaseChavePublica, Authorization: `Bearer ${s.access_token}` },
+      body: JSON.stringify({ acao: "decidir_pedido_voluntaria", pedido: pedidoId, decisao, pessoa: pessoaId }),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.ok) return { ok: false, erro: j.erro || "Não foi possível concluir agora. Tente de novo." };
+    return j;
+  } catch {
+    return { ok: false, erro: SEM_CONEXAO };
+  }
+}
+
+/** Link do cadastro de voluntária (o mesmo endereço do app, onde ele estiver publicado). */
+export function enderecoCadastroVoluntaria() {
+  return `${location.origin}${location.pathname}#/cadastro-voluntaria`;
 }
