@@ -140,17 +140,20 @@ function resumo(lider) {
       type: "button", onclick: () => gerar(temItens) }, temItens ? "Gerar de novo" : "Gerar escala") : null,
     rascunho && temItens ? el("button", { class: "botao botao--primario botao--pequeno", type: "button", onclick: publicar }, "Publicar") : null,
     !rascunho ? el("a", { class: "botao botao--secundario botao--pequeno", href: "#/lembretes-escala" }, icone("conversa"), "Lembretes") : null,
-    menuAcoes([
-      { texto: "Regras da escala", acao: janelaRegras },
-      { texto: "Teto por voluntária", acao: janelaTetos },
-      { texto: "Quem respondeu a indisponibilidade", acao: janelaIndisponibilidade },
-    ], "Mais ações da escala"),
   ].filter(Boolean) : [];
+  // o ⋯ fica no canto direito do cartão, para o menu abrir dentro da tela
+  const menu = lider ? menuAcoes([
+    { texto: "Regras da escala", acao: janelaRegras },
+    { texto: "Teto por voluntária", acao: janelaTetos },
+    { texto: "Quem respondeu a indisponibilidade", acao: janelaIndisponibilidade },
+  ], "Mais ações da escala") : null;
 
   return el("section", { class: "cartao mt-3" },
     el("div", { class: "linha linha--entre" },
       el("strong", { text: `Escala de ${dados.nome_mes}` }),
-      el("span", { class: rascunho ? "etiqueta etiqueta--laranja" : "etiqueta etiqueta--sucesso", text: rascunho ? "Rascunho" : "Publicada" })),
+      el("span", { class: "linha" },
+        el("span", { class: rascunho ? "etiqueta etiqueta--laranja" : "etiqueta etiqueta--sucesso", text: rascunho ? "Rascunho" : "Publicada" }),
+        menu)),
     linhas.map((t) => el("p", { class: "suave sem-margem mt-1", text: t })),
     acoes.length ? el("div", { class: "linha acoes-cartao" }, acoes) : null);
 }
