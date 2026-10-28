@@ -81,7 +81,7 @@ language plpgsql security definer set search_path to '' as $$
 declare v_n int;
 begin
   update public.checkins k
-     set saida_em = private.fim_do_culto(c.data, c.horario),
+     set saida_em = greatest(private.fim_do_culto(c.data, c.horario), k.entrada_em),  -- nunca antes da entrada
          saida_automatica = true
     from public.cultos c
    where c.id = k.culto_id and k.saida_em is null
