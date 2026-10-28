@@ -359,7 +359,7 @@ begin
   for p in 1..4 loop
     v_fun := case when p <= 2 then 'professora' when p = 3 then 'auxiliar' else 'reserva' end;
     v_modo := case when p = 2 then 2 else 1 end;
-    update pg_temp.esc_vg set esgotada = false;
+    update pg_temp.esc_vg set esgotada = false where esgotada;  -- WHERE obrigatório: a API usa pg_safeupdate
     loop
       update pg_temp.esc_vg g set n_cand = (select count(*) from private.esc_candidatas(g.id, v_modo))
        where g.voluntaria_id is null and g.funcao = v_fun and not g.esgotada;
