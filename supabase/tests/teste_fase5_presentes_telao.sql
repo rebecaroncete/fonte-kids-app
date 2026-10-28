@@ -191,10 +191,14 @@ begin
     txt := public.telao_anunciar(cod1, ch_a);
   exception when others then null;
   end;
+  perform set_config('role', 'postgres', true);  -- conferência (o telão não lê a tabela)
   select count(*) into n from public.chamadas_responsavel where id = ch_a and situacao = 'aguardando';
+  perform set_config('role', 'anon', true);
   r := r || format(E'\n%s "Anunciado" com link antigo não vale: %s (esperado 1 aguardando)', case when n=1 then '✅' else '❌' end, n); falhas := falhas + (n<>1)::int;
   txt := public.telao_anunciar(cod2, ch_a);
+  perform set_config('role', 'postgres', true);
   select count(*) into n from public.chamadas_responsavel where id = ch_a and situacao = 'anunciada' and anunciada_em is not null;
+  perform set_config('role', 'anon', true);
   r := r || format(E'\n%s telão marca "Anunciado": %s', case when n=1 then '✅' else '❌' end, n); falhas := falhas + (n<>1)::int;
   begin
     update public.chamadas_responsavel set situacao = 'aguardando' where id = ch_a;
