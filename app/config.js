@@ -20,5 +20,5 @@ export const CONFIG = {
 
   nomeApp: "Fonte Kids",
   // Ao mudar a versão, mude também VERSAO em sw.js (o mesmo número).
-  versao: "0.26.0 (Fase 11 – etiquetas na QL-800)",
+  versao: "0.26.1 (Fase 11 – etiquetas na QL-800 e WhatsApp do responsável)",
 };
