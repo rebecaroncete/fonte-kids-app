@@ -9,12 +9,15 @@
 // Semana e mês comparam com o período anterior. O relatório e o
 // "Mandar no grupo" usam só indicadores_mes, que não traz nomes nem
 // telefones: dá para mandar ao pastor ou no grupo sem expor crianças.
+// No app instalado no iPhone o "Imprimir" não funciona: "Imagem do relatório".
 // Nomes aparecem só na aba "Cuidado", dentro do app (nada é exportado).
 // =====================================================================
-import { el, montar, aviso, carregando } from "../ui.js";
+import { el, montar, aviso, carregando, toast } from "../ui.js";
 import { icone } from "../icones.js";
 import { meuPerfil, indicadoresSemana, indicadoresMes, sentimosFalta, voluntariasSemEscala } from "../supabase.js";
 import { botaoWhatsapp } from "./notificacoes.js";
+import { imagemDoRelatorio } from "../imagem-relatorio.js";
+import { janelaImagem } from "../compartilhar-imagem.js";
 import { CONFIG } from "../../config.js";
 
 export const layout = "padrao";
@@ -304,27 +307,59 @@ async function relatorio(alvo) {
   const voltar = el("a", { class: "botao botao--pequeno", href: `#/indicadores?aba=mes&mes=${m}` }, icone("voltar"), "Voltar");
   if (!r.ok) { montar(alvo, el("div", { class: "linha nao-imprimir" }, voltar), aviso("erro", r.erro)); return; }
   const d = r.resultado;
-  const a = d.atual || {}, b = d.anterior || {}, v = d.voluntarias || {};
-  const media = (x) => (x.cultos ? num(x.presencas / x.cultos) : "–");
-  const publicada = v.escala_status && v.escala_status !== "rascunho";
+  const secoes = secoesRelatorio(d);
+  const titulo = `Relatório de ${d.nome_mes}`;
+  const subtitulo = `${CONFIG.nomeApp} · gerado em ${ddmmaa(isoHoje())}`;
 
   const tabela = (cabecas, linhas) => el("table", { class: "tabela-relatorio" },
     cabecas.some(Boolean) ? el("thead", {}, el("tr", {}, cabecas.map((c, i) => el("th", { class: i ? "numero-celula" : null, scope: "col", text: c })))) : null,
     el("tbody", {}, linhas.map((l) => el("tr", {}, l.map((c, i) => i ? el("td", { class: "numero-celula", text: c }) : el("th", { scope: "row", text: c }))))));
 
+  async function imagem() {
+    try {
+      const blob = await imagemDoRelatorio(titulo, subtitulo, secoes, NOTA_RELATORIO);
+      janelaImagem({ titulo: "Imagem do relatório", blob, nomeArquivo: `relatorio-fonte-kids-${m}.png`, alt: `Prévia do ${titulo.toLowerCase()}` });
+    } catch (e) { toast("erro", e?.message || "Não foi possível gerar a imagem."); }
+  }
+
+  // No iPhone, com o app instalado na tela inicial, o "Imprimir" do navegador não funciona:
+  // lá fica só a imagem (e o "Imprimir" pelo Safari).
+  const imprime = typeof window.print === "function" && navigator.standalone !== true;
   const partes = [
     el("div", { class: "linha nao-imprimir" }, voltar,
-      el("button", { class: "botao botao--primario botao--pequeno", type: "button", onclick: () => window.print() }, icone("imprimir"), "Imprimir ou salvar PDF"),
+      imprime ? el("button", { class: "botao botao--primario botao--pequeno", type: "button", onclick: () => window.print() }, icone("imprimir"), "Imprimir ou salvar PDF") : null,
+      el("button", { class: imprime ? "botao botao--secundario botao--pequeno" : "botao botao--primario botao--pequeno", type: "button", onclick: imagem }, icone("imagem"), "Imagem do relatório"),
       botaoWhatsapp(textoMes(d))),
-    el("p", { class: "suave nao-imprimir mt-2", text: "Só números, sem nomes nem dados de crianças: pode mandar ao pastor ou no grupo." }),
+    el("p", { class: "suave nao-imprimir mt-2", text: imprime
+      ? "Só números, sem nomes nem dados de crianças: pode mandar ao pastor ou no grupo."
+      : "Só números, sem nomes nem dados de crianças. No app instalado no iPhone não dá para imprimir: use a imagem ou abra o app no Safari (Compartilhar → Imprimir)." }),
     el("header", { class: "relatorio__topo" },
       el("img", { class: "relatorio__logo", src: "img/logo.png", alt: "" }),
       el("div", {},
-        el("h1", { class: "sem-margem", text: `Relatório de ${d.nome_mes}` }),
-        el("p", { class: "suave sem-margem", text: `${CONFIG.nomeApp} · gerado em ${ddmmaa(isoHoje())}` }))),
+        el("h1", { class: "sem-margem", text: titulo }),
+        el("p", { class: "suave sem-margem", text: subtitulo }))),
+  ];
+  for (const sc of secoes) {
+    partes.push(el("h2", { text: sc.titulo }));
+    if (sc.texto) partes.push(el("p", { text: sc.texto }));
+    if (sc.linhas?.length) partes.push(tabela(sc.cabecas, sc.linhas));
+    if (sc.nota) partes.push(sc.nota);
+  }
+  partes.push(el("p", { class: "suave ind-nota mt-5", text: NOTA_RELATORIO }));
+  montar(alvo, el("article", { class: "relatorio" }, partes));
+}
 
-    el("h2", { text: "Presença" }),
-    tabela(["", maiuscula(d.nome_mes), "Mês anterior"], [
+const NOTA_RELATORIO = "Presenças contam cada check-in; \"crianças diferentes\" conta cada criança uma vez no mês. Visitante e membro seguem o perfil da ficha.";
+
+/** Seções do relatório (só números), usadas na página e na imagem. */
+function secoesRelatorio(d) {
+  const a = d.atual || {}, b = d.anterior || {}, v = d.voluntarias || {};
+  const media = (x) => (x.cultos ? num(x.presencas / x.cultos) : "–");
+  const publicada = v.escala_status && v.escala_status !== "rascunho";
+  const secoes = [{
+    titulo: "Presença",
+    cabecas: ["", maiuscula(d.nome_mes), "Mês anterior"],
+    linhas: [
       ["Presenças (check-ins)", num(a.presencas), num(b.presencas)],
       ["Cultos com check-in", num(a.cultos), num(b.cultos)],
       ["Média por culto", media(a), media(b)],
@@ -333,44 +368,38 @@ async function relatorio(alvo) {
       ["Visitantes", num(a.visitantes), num(b.visitantes)],
       ["Primeira vez", a.primeira_vez === null ? "–" : num(a.primeira_vez), b.primeira_vez === null ? "–" : num(b.primeira_vez)],
       ["Famílias novas", num(a.familias_novas), num(b.familias_novas)],
-    ]),
-    a.primeira_vez === null ? notaHistorico(d.inicio_historico) : null,
-  ];
-
+    ],
+    nota: a.primeira_vez === null ? notaHistorico(d.inicio_historico) : null,
+  }];
   if ((d.por_tipo || []).length) {
-    partes.push(el("h2", { text: "Por culto" }),
-      tabela(["Culto", "Cultos", "Média", "Máximo"], d.por_tipo.map((t) => [t.nome, num(t.cultos), num(t.media), num(t.maximo)])));
+    secoes.push({ titulo: "Por culto", cabecas: ["Culto", "Cultos", "Média", "Máximo"],
+      linhas: d.por_tipo.map((t) => [t.nome, num(t.cultos), num(t.media), num(t.maximo)]) });
   }
   if ((d.por_sala || []).length) {
-    partes.push(el("h2", { text: "Por sala" }),
-      tabela(["Sala", "Capacidade", "Média", "Máximo", "Lotou"], d.por_sala.map((s) =>
-        [s.nome, s.capacidade ? num(s.capacidade) : "–", num(s.media), num(s.maximo), s.lotou ? `${s.lotou}x` : "–"])));
+    secoes.push({ titulo: "Por sala", cabecas: ["Sala", "Capacidade", "Média", "Máximo", "Lotou"],
+      linhas: d.por_sala.map((s) => [s.nome, s.capacidade ? num(s.capacidade) : "–", num(s.media), num(s.maximo), s.lotou ? `${s.lotou}x` : "–"]) });
   }
   if (d.retorno && d.retorno.visitantes_novos) {
-    partes.push(el("h2", { text: "Visitantes" }),
-      el("p", { text: `${plural(d.retorno.visitantes_novos, "visitante veio", "visitantes vieram")} pela primeira vez; ${num(d.retorno.voltaram)} ${Number(d.retorno.voltaram) === 1 ? "voltou" : "voltaram"} (${pct(d.retorno.voltaram, d.retorno.visitantes_novos)}%).` }));
+    secoes.push({ titulo: "Visitantes", cabecas: [], linhas: [],
+      texto: `${plural(d.retorno.visitantes_novos, "visitante veio", "visitantes vieram")} pela primeira vez; ${num(d.retorno.voltaram)} ${Number(d.retorno.voltaram) === 1 ? "voltou" : "voltaram"} (${pct(d.retorno.voltaram, d.retorno.visitantes_novos)}%).` });
   }
-  partes.push(el("h2", { text: "Voluntárias e escala" }),
-    tabela(["", ""], [
-      ["Voluntárias ativas", num(v.ativas)],
-      ["Escaladas no mês", num(v.escaladas)],
-      ...(publicada ? [
-        ["Vagas preenchidas", `${num(v.preenchidas)} de ${num(v.vagas)} (${pct(v.preenchidas, v.vagas)}%)`],
-        ["Cientes", num(v.cientes)],
-        ["Sem resposta", num(v.sem_resposta)],
-        ["\"Não poderei\"", num(v.nao_poderei)],
-        ["Cultos sem líder do culto", num(v.cultos_sem_lider)],
-      ] : [["Escala do mês", v.escala_status ? "em rascunho" : "sem escala"]]),
-    ]));
+  secoes.push({ titulo: "Voluntárias e escala", cabecas: ["", ""], linhas: [
+    ["Voluntárias ativas", num(v.ativas)],
+    ["Escaladas no mês", num(v.escaladas)],
+    ...(publicada ? [
+      ["Vagas preenchidas", `${num(v.preenchidas)} de ${num(v.vagas)} (${pct(v.preenchidas, v.vagas)}%)`],
+      ["Cientes", num(v.cientes)],
+      ["Sem resposta", num(v.sem_resposta)],
+      ["\"Não poderei\"", num(v.nao_poderei)],
+      ["Cultos sem líder do culto", num(v.cultos_sem_lider)],
+    ] : [["Escala do mês", v.escala_status ? "em rascunho" : "sem escala"]]),
+  ] });
   const eventos = d.eventos || [];
   if (eventos.length) {
-    partes.push(el("h2", { text: "Eventos" }),
-      tabela(["Evento", "Data", "Inscritos", "Presentes", "Ajudantes"], eventos.map((e) =>
-        [e.cancelado ? `${e.titulo} (cancelado)` : e.titulo, ddmm(dataLocal(e.inicio)), num(e.inscritos), num(e.presentes), num(e.ajudantes)])));
+    secoes.push({ titulo: "Eventos", cabecas: ["Evento", "Data", "Inscritos", "Presentes", "Ajudantes"],
+      linhas: eventos.map((e) => [e.cancelado ? `${e.titulo} (cancelado)` : e.titulo, ddmm(dataLocal(e.inicio)), num(e.inscritos), num(e.presentes), num(e.ajudantes)]) });
   }
-  partes.push(el("p", { class: "suave ind-nota mt-5", text: "Presenças contam cada check-in; \"crianças diferentes\" conta cada criança uma vez no mês. Visitante e membro seguem o perfil da ficha." }));
-
-  montar(alvo, el("article", { class: "relatorio" }, partes));
+  return secoes;
 }
 
 // ---------- Cuidado (com nomes; só no app) ----------
