@@ -6,14 +6,16 @@
 //   #/ficha?tipo=voluntaria&id=… voluntária (só liderança ou ela mesma)
 //                               Fase 8: a liderança edita (função, contato,
 //                               faixas e cultos) e desativa/reativa.
+//                               0.28.0: "Trocar telefone" (contato e login
+//                               juntos, pela Edge Function gerenciar-login).
 // O banco (RLS) decide o que cada login pode ver. Foto pela Edge Function
 // foto-assinada (link de 5 min). Telefones com botão de WhatsApp (wa.me).
 // Foto dos responsáveis (Etapa 5C) para conferir quem retira a criança.
 // =====================================================================
-import { el, montar, aviso, carregando, mascararTelefone, iniciais, menuAcoes, toast } from "../ui.js";
+import { el, montar, aviso, carregando, mascararTelefone, telefoneParaLogin, iniciais, menuAcoes, toast } from "../ui.js";
 import { icone } from "../icones.js";
-import { fichaCrianca, fichaFamilia, fichaVoluntaria, listarSalas, meuPerfil, definirStatusVoluntaria } from "../supabase.js";
-import { abrirJanela } from "../janela.js";
+import { fichaCrianca, fichaFamilia, fichaVoluntaria, listarSalas, meuPerfil, definirStatusVoluntaria, gerenciarLogin } from "../supabase.js";
+import { abrirJanela, campo } from "../janela.js";
 import { janelaPreferencias } from "../preferencias-voluntaria.js";
 import { janelaNovaCrianca } from "../nova-crianca.js";
 import { avatarComFoto, avatarLista, preencherFotos } from "../foto.js";
@@ -235,6 +237,7 @@ async function desenharVoluntaria(alvo, id) {
       el("button", { class: "botao botao--secundario botao--pequeno", type: "button", onclick: () => janelaPreferencias(v.id, redesenhar) },
         icone("editar"), "Editar")),
     menuAcoes([
+      { texto: "Trocar telefone", acao: () => janelaTelefone(v, nome, redesenhar) },
       v.status === "ativa"
         ? { texto: "Desativar voluntária", perigo: true, acao: () => confirmarStatus(v, nome, false, redesenhar) }
         : { texto: "Reativar voluntária", acao: () => confirmarStatus(v, nome, true, redesenhar) },
@@ -254,6 +257,30 @@ async function desenharVoluntaria(alvo, id) {
       el("dt", { text: "Cultos preferidos" }), el("dd", { text: r.cultos.length ? r.cultos.join(", ") : "—" }),
       el("dt", { text: "Máximo de escalas por mês" }), el("dd", { text: v.teto_mensal ? String(v.teto_mensal) : "Padrão do departamento" }),
       el("dt", { text: "Aprovada em" }), el("dd", { text: v.aprovada_em ? dataBr(v.aprovada_em) : "—" }))));
+}
+
+/** Trocar o telefone: muda o contato e, se ela tiver login, o login junto (a senha não muda). */
+function janelaTelefone(v, nome, redesenhar) {
+  const atual = v.pessoa?.telefone ? mascararTelefone(v.pessoa.telefone) : "";
+  const tel = el("input", { class: "entrada", type: "tel", inputmode: "numeric", autocomplete: "off",
+    placeholder: "(27) 90000-0000", value: atual });
+  tel.addEventListener("input", () => { tel.value = mascararTelefone(tel.value); });
+  abrirJanela({
+    titulo: "Trocar telefone",
+    conteudo: [
+      campo("WhatsApp com DDD", tel),
+      aviso("info", `Se ${nome} já tiver login, ela passa a entrar com o número novo e a mesma senha.`),
+    ],
+    aoSalvar: async () => {
+      const novo = telefoneParaLogin(tel.value);
+      if (!novo) return "Digite o WhatsApp com DDD.";
+      const r = await gerenciarLogin({ acao: "trocar_telefone", pessoa_id: v.pessoa?.id, telefone: novo });
+      if (!r.ok) return r.erro;
+      toast("sucesso", r.sem_mudanca ? "O telefone já era esse." : r.tem_login ? "Telefone e login trocados." : "Telefone trocado.");
+      await redesenhar();
+      return null;
+    },
+  });
 }
 
 /** Desativar (sai dos rascunhos de escala e perde os papéis) ou reativar. */
