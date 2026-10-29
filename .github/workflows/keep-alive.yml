@@ -3,7 +3,8 @@
 # Roda 1 vez por dia e chama a função keep_alive() do banco, que só
 # responde "ok" (não lê nem devolve nenhum dado).
 # Usa apenas a URL e a chave PÚBLICA que já estão em app/config.js.
-# Nenhum segredo é necessário.
+# Nenhum segredo é necessário. Desde a virada (Fase 12) lê o config.js
+# do próprio main.
 # Obs.: o GitHub desliga agendamentos de repositórios públicos após 60 dias
 # sem commits; se isso acontecer, é só reativar em Actions → keep-alive.
 # =====================================================================
@@ -24,7 +25,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: supabase-migracao
+          ref: main
           sparse-checkout: app/config.js
           sparse-checkout-cone-mode: false
 

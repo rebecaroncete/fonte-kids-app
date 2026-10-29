@@ -1,0 +1,93 @@
+/* =====================================================================
+   Fonte Kids – tema (cores, fontes, espaçamentos)
+   Visual limpo (Etapa 7): fundo quase branco, cartões brancos, borda fina,
+   sombra suave. Cores da logo como destaque: laranja = ação principal,
+   azul = links/informação, amarelo = atenção, vermelho = alergia/erro.
+   Fontes servidas pelo próprio app (sem Google Fonts: nenhum dado de
+   acesso vai para terceiros).
+   ===================================================================== */
+@font-face { font-family: "Baloo 2"; font-weight: 700; font-display: swap; src: url("../fonts/baloo-2-latin-700-normal.woff2") format("woff2"); }
+@font-face { font-family: "Baloo 2"; font-weight: 800; font-display: swap; src: url("../fonts/baloo-2-latin-800-normal.woff2") format("woff2"); }
+@font-face { font-family: "Nunito"; font-weight: 400; font-display: swap; src: url("../fonts/nunito-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "Nunito"; font-weight: 600; font-display: swap; src: url("../fonts/nunito-latin-600-normal.woff2") format("woff2"); }
+@font-face { font-family: "Nunito"; font-weight: 700; font-display: swap; src: url("../fonts/nunito-latin-700-normal.woff2") format("woff2"); }
+@font-face { font-family: "Nunito"; font-weight: 800; font-display: swap; src: url("../fonts/nunito-latin-800-normal.woff2") format("woff2"); }
+
+:root {
+  color-scheme: light;
+
+  /* Marca (da logo) */
+  --laranja: #f58941;
+  --laranja-escuro: #b4500f;   /* laranja com contraste para texto */
+  --laranja-claro: #fde6d6;
+  --amarelo: #fdbb43;
+  --amarelo-claro: #fff7e3;
+  --amarelo-borda: #f6dd9c;
+  --azul: #00bff3;
+  --azul-texto: #0b6f99;       /* azul com contraste para texto/links */
+  --azul-claro: #e6f6fd;
+  --contorno: #1f1b18;         /* cor do texto escuro da logo */
+
+  /* Destaque do departamento (Fonte Kids = laranja).
+     No futuro app da igreja, cada departamento troca só estas 3:
+     [data-departamento="outro"] { --destaque: …; --destaque-claro: …; --destaque-texto: …; } */
+  --destaque: var(--laranja);
+  --destaque-claro: var(--laranja-claro);
+  --destaque-texto: var(--laranja-escuro);
+
+  /* Neutros */
+  --fundo: #faf9f7;
+  --superficie: #ffffff;
+  --texto: #1f1b18;
+  --texto-suave: #6b6460;
+  --texto-fraco: #a39b95;      /* só para ícones e setas, nunca para texto */
+  --borda: #ebe7e3;
+  --borda-suave: #f1eeea;
+  --borda-campo: #c9c2bb;      /* borda de campos e botões de contorno */
+
+  /* Estados */
+  --sucesso: #1f8a4c;  --sucesso-claro: #e3f4e9;
+  --atencao: #5c4a1c;  --atencao-claro: var(--amarelo-claro);
+  --erro: #b3261e;     --erro-claro: #fdeceb;   --erro-borda: #f3c2be;
+
+  /* Tipografia */
+  --fonte-titulo: "Baloo 2", "Nunito", system-ui, sans-serif;
+  --fonte-texto: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  /* Forma: borda fina e sombra suave */
+  --traco: 1px solid var(--borda);
+  --raio: 16px;
+  --raio-p: 12px;
+  --sombra: 0 1px 2px rgba(31, 27, 24, .04), 0 4px 12px rgba(31, 27, 24, .05);
+  --sombra-p: 0 1px 2px rgba(31, 27, 24, .05);
+  --sombra-alta: 0 8px 28px rgba(31, 27, 24, .14);
+
+  /* Espaços */
+  --e1: 4px; --e2: 8px; --e3: 12px; --e4: 16px; --e5: 24px; --e6: 32px;
+  --largura: 560px;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background: var(--fundo);
+  color: var(--texto);
+  font-family: var(--fonte-texto);
+  font-size: 16px;
+  line-height: 1.5;
+}
+h1, h2, h3 { font-family: var(--fonte-titulo); line-height: 1.15; margin: 0 0 var(--e3); }
+h1 { font-size: 1.7rem; font-weight: 800; }
+h2 { font-size: 1.2rem; font-weight: 800; }
+h3 { font-size: 1.05rem; font-weight: 700; }
+p { margin: 0 0 var(--e3); }
+a { color: var(--azul-texto); font-weight: 700; }
+img { max-width: 100%; display: block; }
+:focus-visible { outline: 3px solid var(--azul-texto); outline-offset: 2px; }
+.so-leitor { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}

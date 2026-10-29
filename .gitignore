@@ -1,0 +1,5 @@
+# Dados reais exportados da planilha – NUNCA versionar
+supabase/migracao/dados/
+*.limpo.json
+limpo.json
+relatorio_privado*

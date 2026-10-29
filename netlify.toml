@@ -1,0 +1,50 @@
+# =====================================================================
+# Fonte Kids – site no Netlify (fontekidsitaparica.netlify.app)
+# Desde a virada (Fase 12) o Netlify publica só a pasta app/: o
+# index.html do app vira a raiz do site. O QR code (/?tela=cadastro) e o
+# link antigo de voluntárias (/?tela=cadastro_voluntaria) continuam
+# funcionando porque o app.js troca esses endereços pelas telas novas.
+# Os arquivos antigos da raiz (index.html, manifest.json,
+# monitor-erros.js) não são mais servidos.
+# A CSP completa continua no <meta> do app/index.html; aqui vão só os
+# cabeçalhos que o <meta> não consegue dar.
+# =====================================================================
+
+[build]
+  publish = "app"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Content-Security-Policy = "frame-ancestors 'none'"
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "no-referrer"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=(), usb=(), serial=(), bluetooth=(), interest-cohort=()"
+
+# Sempre buscar de novo (o service worker decide quando trocar de versão)
+[[headers]]
+  for = "/"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/config.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/manifest.webmanifest"
+  [headers.values]
+    Cache-Control = "no-cache"
+    Content-Type = "application/manifest+json"
