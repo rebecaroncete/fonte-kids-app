@@ -12,6 +12,9 @@
 // Presentes (5C): crianças por sala em tempo real, com código, 🎂, alergia,
 // "Chamar responsável" (aparece no telão), "Saiu" opcional e ⋯ Desfazer.
 // Os check-ins abertos fecham sozinhos 3 h depois do início do culto.
+// Etiquetas (Fase 11): com as etiquetas ligadas, cada check-in novo pede a
+// etiqueta da criança e a do responsável; a tela "Check-in feito" mostra se
+// já saíram na estação; ⋯ "Reimprimir etiqueta" na criança.
 // Endereço: #/checkin (Entrada) ou #/checkin?aba=presentes
 // =====================================================================
 import { el, montar, aviso, carregando, toast, menuAcoes } from "../ui.js";
@@ -20,7 +23,8 @@ import { abrirJanela, campo } from "../janela.js";
 import { avatarLista, preencherFotos } from "../foto.js";
 import { meuPerfil, cultosDeHoje, buscarParaCheckin, fazerCheckin, desfazerCheckin,
   editarCrianca, nascimentoDe, confirmarPendencia, nomePendencia,
-  presentesDoCulto, marcarSaida, desfazerSaida, chamarResponsavel, cancelarChamada, ouvirCulto } from "../supabase.js";
+  presentesDoCulto, marcarSaida, desfazerSaida, chamarResponsavel, cancelarChamada, ouvirCulto,
+  situacaoEtiquetas, pedirEtiquetas, situacaoPedidos } from "../supabase.js";
 
 export const layout = "padrao";
 export const titulo = "Check-in";
@@ -44,6 +48,7 @@ let linhaResumo = null;       // texto "N crianças com check-in" do cabeçalho
 let desligarTempoReal = null;
 let relogio = null;
 let esperaPresentes = null;
+let etiquetas = null;         // { ligadas, estacao_ativa } (Fase 11)
 
 const hojeIso = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
 const cultoAtual = () => cultos.find((c) => c.id === cultoEscolhido) || cultos[0];
@@ -69,8 +74,9 @@ export async function render(alvo) {
   pararPresentes();
   abaInterna = new URLSearchParams(location.hash.split("?")[1] || "").get("aba") === "presentes" ? "presentes" : "entrada";
   montar(alvo, carregando());
-  const [r, perfil] = await Promise.all([cultosDeHoje(), meuPerfil()]);
+  const [r, perfil, etq] = await Promise.all([cultosDeHoje(), meuPerfil(), situacaoEtiquetas()]);
   lideranca = !!(perfil.ok && perfil.temPapel("admin", "pastor", "lider"));
+  etiquetas = etq.ok ? etq.resultado : null;
 
   if (!r.ok) {
     montar(alvo, el("h1", { text: "Check-in" }), aviso("erro", r.erro));
@@ -197,7 +203,9 @@ function cartaoFamilia(f, refazer) {
     botao.textContent = "Fazendo check-in…";
     const r = await fazerCheckin(cultoAtual().id, [...marcadas]);
     if (!r.ok) { toast("erro", r.erro, 6000); atualizarBotao(); return; }
-    mostrarCodigos(r.lista);
+    const novos = r.lista.filter((x) => !x.ja_tinha).map((x) => x.checkin_id);
+    const pedido = etiquetas?.ligadas && novos.length ? await pedirEtiquetas(novos) : null;
+    mostrarCodigos(r.lista, pedido);
   });
 
   return el("section", { class: "cartao cartao--familia-checkin" },
@@ -235,7 +243,8 @@ function linhaCrianca(c, marcadas, aoMudar, refazer) {
       el("div", { class: "checkin-crianca__linha" },
         avatarLista("crianca", c.id, c.nome), texto,
         el("span", { class: "codigo-mini", "aria-label": `Código ${c.checkin.codigo}`, text: c.checkin.codigo }),
-        menuAcoes([{ texto: "Desfazer check-in", perigo: true, acao: () => janelaDesfazer(c.checkin.id, c.nome, refazer) }],
+        menuAcoes([...itensReimprimir(c.checkin.id),
+          { texto: "Desfazer check-in", perigo: true, acao: () => janelaDesfazer(c.checkin.id, c.nome, refazer) }],
           `Mais ações para ${c.nome}`)),
       alergia);
   }
@@ -391,6 +400,7 @@ function linhaPresente(k, encerrado, recarregar) {
   }
 
   const menu = menuAcoes([
+    ...(k.saiu || encerrado ? [] : itensReimprimir(k.checkin_id)),
     chamando ? { texto: "Cancelar chamada", acao: () => acao(null, () => cancelarChamada(ch.id), "Chamada cancelada.") } : null,
     k.saiu && !k.saida_automatica && !encerrado ? { texto: "Desfazer saída", acao: () => acao(null, () => desfazerSaida(k.checkin_id), "Saída desfeita.") } : null,
     k.pode_desfazer && !encerrado ? { texto: "Desfazer check-in", perigo: true, acao: () => janelaDesfazer(k.checkin_id, k.nome, recarregar) } : null,
@@ -469,18 +479,21 @@ function janelaDesfazer(checkinId, nome, depois) {
 
 // ---------- Códigos depois do check-in ----------
 
-function mostrarCodigos(lista) {
+function mostrarCodigos(lista, pedido) {
   const c = cultoAtual();
   c.presentes += lista.filter((x) => !x.ja_tinha).length;
   const restantes = [...lista];
 
   pararPresentes();
+  const areaEtiquetas = el("div", { class: "etiquetas-checkin", "aria-live": "polite" });
+  acompanharEtiquetas(areaEtiquetas, pedido);
   function desenhar() {
     montar(alvoTela,
       el("div", { class: "saudacao" },
         el("h1", { text: "Check-in feito" }),
         el("p", { class: "suave", text: `${c.nome} · ${c.horario}` })),
       aviso("info", "Cada criança tem o seu código. Na hora de buscar, o responsável mostra o código na porta da sala."),
+      areaEtiquetas,
       restantes.length
         ? el("ul", { class: "lista-codigos" }, restantes.map((x) => el("li", { class: "cartao cartao--codigo" },
             el("div", { class: "flex-1" },
@@ -488,7 +501,7 @@ function mostrarCodigos(lista) {
               el("span", { class: "etiqueta etiqueta--azul mt-1", text: `Sala ${salaCurta(x.sala_nome)}` }),
               x.ja_tinha ? el("p", { class: "suave sem-margem mt-1", text: "Já estava com check-in neste culto." }) : null),
             el("span", { class: "codigo-grande", "aria-label": `Código ${x.codigo.split("").join(" ")}`, text: x.codigo }),
-            menuAcoes([{ texto: "Desfazer check-in", perigo: true,
+            menuAcoes([...itensReimprimir(x.checkin_id), { texto: "Desfazer check-in", perigo: true,
               acao: () => janelaDesfazer(x.checkin_id, x.nome, () => {
                 restantes.splice(restantes.indexOf(x), 1);
                 desenhar();
@@ -501,4 +514,49 @@ function mostrarCodigos(lista) {
   }
   desenhar();
   window.scrollTo(0, 0);
+}
+
+// ---------- Etiquetas (Fase 11) ----------
+
+function itensReimprimir(checkinId) {
+  if (!etiquetas?.ligadas) return [];
+  const pedir = async (tipo) => {
+    const r = await pedirEtiquetas([checkinId], tipo, true);
+    if (!r.ok) { toast("erro", r.erro, 6000); return; }
+    toast(r.resultado.estacao_ativa ? "sucesso" : "info", r.resultado.estacao_ativa
+      ? "Etiqueta na fila da impressora."
+      : "Etiqueta na fila, mas a estação está fechada. Ela sai quando a estação abrir (até 10 min).", 6000);
+  };
+  return [
+    { texto: "Reimprimir etiqueta", acao: () => pedir("crianca") },
+    { texto: "Reimprimir do responsável", acao: () => pedir("responsavel") },
+  ];
+}
+
+// Mostra se as etiquetas já saíram (confere a cada 3 s por até 1 min)
+function acompanharEtiquetas(area, pedido) {
+  if (!pedido) return;
+  if (!pedido.ok) { montar(area, aviso("erro", `Etiqueta não pedida: ${pedido.erro} Entregue o código ao responsável.`)); return; }
+  const ids = (pedido.resultado.pedidos || []).map((p) => p.id);
+  if (!ids.length) return;
+  let vezes = 0;
+  const mostrar = (estacaoAtiva, lista) => {
+    const impressas = lista.filter((p) => p.status === "impresso").length;
+    const falhas = lista.filter((p) => p.status === "erro").length;
+    const total = ids.length;
+    if (impressas === total) montar(area, aviso("sucesso", `Etiquetas impressas (${total}).`));
+    else if (falhas) montar(area, aviso("erro", `${falhas} etiqueta(s) não saíram. Reimprima pelo ⋯ ou entregue o código.`));
+    else if (!estacaoAtiva) montar(area, aviso("atencao", "A estação de etiquetas está fechada. Entregue o código ao responsável (a etiqueta sai se a estação abrir em até 10 min)."));
+    else montar(area, aviso("info", `Etiquetas na fila da impressora (${impressas} de ${total} impressas).`));
+    return impressas + falhas === total;
+  };
+  mostrar(pedido.resultado.estacao_ativa, []);
+  const conferir = async () => {
+    if (!area.isConnected) return;
+    const r = await situacaoPedidos(ids);
+    if (!area.isConnected || !r.ok) return;
+    const fim = mostrar(r.resultado.estacao_ativa, r.resultado.pedidos || []);
+    if (!fim && ++vezes < 20) setTimeout(conferir, 3000);
+  };
+  setTimeout(conferir, 2000);
 }

@@ -1301,3 +1301,42 @@ export function ultimoCulto() { return chamarRpc("ultimo_culto", {}); }
 export function sentimosFalta() { return chamarRpc("sentimos_falta", {}); }
 /** Voluntárias ativas sem escala há 2 meses. */
 export function voluntariasSemEscala() { return chamarRpc("voluntarias_sem_escala", {}); }
+
+// =====================================================================
+// Fase 11 – Etiquetas na Brother QL-800 (recepção; o banco confere).
+// Os celulares pedem; a "Estação de etiquetas" (computador da recepção)
+// pega os pedidos e imprime. A fila guarda só ids: o conteúdo da etiqueta
+// é montado pelo banco na hora de imprimir.
+// =====================================================================
+
+/** { ligadas, estacao_ativa, estacao_visto_em, pode_ligar } */
+export function situacaoEtiquetas() { return chamarRpc("situacao_etiquetas", {}); }
+/** Só a liderança. Devolve a situação nova. */
+export function ligarEtiquetas(ligar) { return chamarRpc("ligar_etiquetas", { p_ligar: !!ligar }); }
+/** tipo: "ambas" | "crianca" | "responsavel" → { ligadas, estacao_ativa, pedidos: [{ id, tipo, ... }] } */
+export function pedirEtiquetas(checkinIds, tipo = "ambas", reimpressao = false) {
+  return chamarRpc("pedir_etiquetas", { p_checkins: checkinIds, p_tipo: tipo, p_reimpressao: !!reimpressao });
+}
+/** { estacao_ativa, pedidos: [{ id, tipo, status, checkin_id, erro }] } */
+export function situacaoPedidos(ids) { return chamarRpc("situacao_pedidos", { p_pedidos: ids }); }
+/** Liderança: gera (ou troca) o link da estação; o código só aparece esta vez. */
+export async function gerarLinkEstacao() {
+  const r = await chamarRpc("gerar_link_estacao", {});
+  return r.ok ? { ok: true, codigo: r.resultado } : r;
+}
+export function desligarLinkEstacao() { return chamarRpc("desligar_link_estacao", {}); }
+/** Endereço completo da estação para um código. */
+export function enderecoEstacao(codigo) {
+  return `${location.origin}${location.pathname}#/estacao?c=${encodeURIComponent(codigo)}`;
+}
+
+// Estação (sem login, pelo código secreto do link)
+/** Dá o sinal de "no ar" e pega os pendentes → { ligadas, pedidos: [{ id, tipo, etiqueta }] } */
+export function estacaoBuscar(codigo) { return chamarRpc("estacao_buscar", { p_codigo: codigo }); }
+export function estacaoConcluir(codigo, ids, ok, erro = null) {
+  return chamarRpc("estacao_concluir", { p_codigo: codigo, p_pedidos: ids, p_ok: !!ok, p_erro: erro });
+}
+/** { ligadas, pedidos } de hoje, os mais novos primeiro. */
+export function estacaoLista(codigo) { return chamarRpc("estacao_lista", { p_codigo: codigo }); }
+/** "Imprimir de novo" (cria um pedido novo). */
+export function estacaoReimprimir(codigo, id) { return chamarRpc("estacao_reimprimir", { p_codigo: codigo, p_pedido: id }); }
