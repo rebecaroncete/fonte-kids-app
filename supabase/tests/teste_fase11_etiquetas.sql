@@ -104,8 +104,11 @@ begin
   if (j->>'ligadas')::boolean and (j->>'pode_ligar')::boolean and not (j->'link'->>'ativo')::boolean then r := r || E'\n✅ líder liga as etiquetas';
   else r := r || E'\n❌ ligar: ' || j::text; falhas := falhas + 1; end if;
   cod := public.gerar_link_estacao();
-  if length(cod) = 32 and (public.situacao_etiquetas()->'link'->>'ativo')::boolean
-     and not exists (select 1 from private.estacao_acesso where codigo_hash = cod) then
+  j := public.situacao_etiquetas();
+  perform set_config('role', 'postgres', true);   -- tabela privada: conferir fora do RLS
+  select count(*) into n from private.estacao_acesso where codigo_hash = cod;
+  perform set_config('role', 'authenticated', true);
+  if length(cod) = 32 and (j->'link'->>'ativo')::boolean and n = 0 then
     r := r || E'\n✅ link da estação gerado (o banco guarda só o hash)';
   else r := r || E'\n❌ link da estação'; falhas := falhas + 1; end if;
 
