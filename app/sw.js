@@ -13,7 +13,7 @@
 // Push (Fase 7): mostra a notificação que a Edge Function "enviar-push"
 // manda (título, texto e link interno) e, ao tocar, abre o app nela.
 // =====================================================================
-const VERSAO = "0.26.2";
+const VERSAO = "0.27.0";
 const PREFIXO = "fonte-kids-app-";
 const CACHE = PREFIXO + VERSAO;
 
@@ -64,6 +64,7 @@ const ARQUIVOS = [
   "js/telas/estacao.js",
   "js/telas/minha-escala.js",
   "js/telas/lembretes-escala.js",
+  "js/telas/aniversariantes.js",
   "js/telas/esqueci-senha.js",
   "js/telas/ficha.js",
   "js/telas/inicio.js",

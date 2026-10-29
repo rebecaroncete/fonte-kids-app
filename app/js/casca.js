@@ -10,6 +10,7 @@
 // Quem tem papel de equipe E de responsável fica com a barra da equipe;
 // "Minha família" aparece no "Mais".
 // Fase 9: "Indicadores" no Mais da liderança (semana, mês, relatório, cuidado).
+// Fase 13: "Aniversariantes do mês" no Mais de toda a equipe.
 // Fase 5 · 5B: a aba "Recepção" virou "Check-in"; a lista de crianças e
 // famílias da recepção foi para o "Mais". A liderança acha o Check-in no
 // "Mais" e no cartão do Início em dia de culto.
@@ -48,6 +49,7 @@ export const ITENS_MAIS = [
   { rota: "/indicadores", texto: "Indicadores", icone: "grafico", papeis: LIDERANCA },
   { rota: "/escala", texto: "Escala do mês", icone: "calendario", papeis: EQUIPE },
   { rota: "/minha-escala", texto: "Minha escala", icone: "voluntaria", papeis: EQUIPE },
+  { rota: "/aniversariantes", texto: "Aniversariantes do mês", icone: "bolo", papeis: EQUIPE },
   { rota: "/lembretes-escala", texto: "Lembretes da escala", icone: "conversa", papeis: LIDERANCA },
   { rota: "/minha-familia", texto: "Minha família", icone: "familia", papeis: ["responsavel"] },
   { rota: "/perfil", texto: "Meu perfil", icone: "perfil" },
@@ -103,6 +105,7 @@ function abaDaRota(rota, abas) {
     "/grupos-whatsapp": "/mais",
     "/escala": "/mais",
     "/lembretes-escala": "/mais",
+    "/aniversariantes": "/mais",
     "/enquetes": "/notificacoes", // Enquetes é uma aba dentro de Avisos
     "/eventos": temMais ? "/mais" : "/inicio",
     "/minha-escala": abas.includes("escala") ? "/minha-escala" : "/mais",

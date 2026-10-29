@@ -1343,3 +1343,12 @@ export function estacaoReimprimir(codigo, id) { return chamarRpc("estacao_reimpr
 
 /** Presentes: mensagem pronta (modelo "choro") + responsáveis com telefone → { mensagem, responsaveis: [{ nome, telefone, principal }] } */
 export function whatsappResponsaveis(checkinId) { return chamarRpc("whatsapp_responsaveis", { p_checkin: checkinId }); }
+
+// =====================================================================
+// Fase 13 – Aniversariantes do mês (equipe; o banco confere).
+// Telefones e mensagens prontas só para liderança e recepção.
+// =====================================================================
+
+/** Mês "YYYY-MM-01" → { mes, hoje, pode_whatsapp, mensagem_crianca, mensagem_voluntaria,
+ *  criancas: [{ dia, nome, idade, responsavel: { nome, telefone } | null }], voluntarias: [{ dia, nome, telefone }] } */
+export function aniversariantesMes(mes) { return chamarRpc("aniversariantes_mes", { p_mes: mes || null }); }
