@@ -1340,3 +1340,6 @@ export function estacaoConcluir(codigo, ids, ok, erro = null) {
 export function estacaoLista(codigo) { return chamarRpc("estacao_lista", { p_codigo: codigo }); }
 /** "Imprimir de novo" (cria um pedido novo). */
 export function estacaoReimprimir(codigo, id) { return chamarRpc("estacao_reimprimir", { p_codigo: codigo, p_pedido: id }); }
+
+/** Presentes: mensagem pronta (modelo "choro") + responsáveis com telefone → { mensagem, responsaveis: [{ nome, telefone, principal }] } */
+export function whatsappResponsaveis(checkinId) { return chamarRpc("whatsapp_responsaveis", { p_checkin: checkinId }); }

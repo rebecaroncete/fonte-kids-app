@@ -10,7 +10,8 @@
 // Sem "quem trouxe" (decisão 75). Sem check-out aqui (decisão 80).
 // Tudo grava pelas funções do banco (fazer_checkin, desfazer_checkin…).
 // Presentes (5C): crianças por sala em tempo real, com código, 🎂, alergia,
-// "Chamar responsável" (aparece no telão), "Saiu" opcional e ⋯ Desfazer.
+// "Chamar responsável" (aparece no telão), "WhatsApp" (mensagem pronta do
+// modelo "choro" para o responsável escolhido), "Saiu" opcional e ⋯ Desfazer.
 // Os check-ins abertos fecham sozinhos 3 h depois do início do culto.
 // Etiquetas (Fase 11): com as etiquetas ligadas, cada check-in novo pede a
 // etiqueta da criança e a do responsável; a tela "Check-in feito" mostra se
@@ -24,7 +25,7 @@ import { avatarLista, preencherFotos } from "../foto.js";
 import { meuPerfil, cultosDeHoje, buscarParaCheckin, fazerCheckin, desfazerCheckin,
   editarCrianca, nascimentoDe, confirmarPendencia, nomePendencia,
   presentesDoCulto, marcarSaida, desfazerSaida, chamarResponsavel, cancelarChamada, ouvirCulto,
-  situacaoEtiquetas, pedirEtiquetas, situacaoPedidos } from "../supabase.js";
+  situacaoEtiquetas, pedirEtiquetas, situacaoPedidos, whatsappResponsaveis } from "../supabase.js";
 
 export const layout = "padrao";
 export const titulo = "Check-in";
@@ -411,9 +412,11 @@ function linhaPresente(k, encerrado, recarregar) {
     const chamar = chamando ? null : el("button", { class: "botao botao--secundario botao--pequeno", type: "button" },
       icone("avisos"), ch && ch.situacao === "anunciada" ? "Chamar de novo" : "Chamar responsável");
     if (chamar) chamar.addEventListener("click", () => acao(chamar, () => chamarResponsavel(k.checkin_id), "Responsável chamado no telão."));
+    const whats = el("button", { class: "botao botao--secundario botao--pequeno", type: "button" }, icone("conversa"), "WhatsApp");
+    whats.addEventListener("click", () => janelaWhatsapp(whats, k));
     const saiu = el("button", { class: "botao botao--secundario botao--pequeno", type: "button" }, icone("checkin"), "Saiu");
     saiu.addEventListener("click", () => acao(saiu, () => marcarSaida(k.checkin_id), `Saída de ${k.nome} registrada.`));
-    botoes = el("div", { class: "linha mt-2 presentes__acoes" }, chamar, saiu);
+    botoes = el("div", { class: "linha mt-2 presentes__acoes" }, chamar, whats, saiu);
   }
 
   return el("li", { class: k.saiu ? "checkin-crianca checkin-crianca--saiu" : "checkin-crianca" },
@@ -431,6 +434,35 @@ function linhaPresente(k, encerrado, recarregar) {
 }
 
 // ---------- Janelinhas ----------
+
+// WhatsApp do responsável (como o botão "Pais" do app antigo): mensagem pronta;
+// com mais de um responsável, a recepção escolhe para quem mandar
+async function janelaWhatsapp(botao, k) {
+  botao.disabled = true;
+  const r = await whatsappResponsaveis(k.checkin_id);
+  botao.disabled = false;
+  if (!r.ok) { toast("erro", r.erro, 6000); return; }
+  const { mensagem, responsaveis } = r.resultado;
+  if (!responsaveis.length) { toast("erro", "Nenhum responsável com telefone. Use o telão.", 6000); return; }
+  const numero = (t) => {
+    const d = String(t || "").replace(/\D/g, "");
+    return d.length === 10 || d.length === 11 ? `55${d}` : d;
+  };
+  const links = responsaveis.map((p) => el("a", {
+    class: "botao botao--whatsapp botao--largo mt-2", target: "_blank", rel: "noopener noreferrer",
+    href: `https://wa.me/${numero(p.telefone)}?text=${encodeURIComponent(mensagem)}`,
+    onclick: () => setTimeout(() => document.querySelector("dialog.janela")?.close(), 300),
+  }, icone("conversa"), responsaveis.length > 1 ? `Enviar para ${p.nome}${p.principal ? " (principal)" : ""}` : `Enviar para ${p.nome}`));
+  abrirJanela({
+    titulo: `Chamar responsável de ${k.nome}`,
+    conteudo: [
+      el("p", { class: "suave", text: responsaveis.length > 1 ? "Escolha para quem mandar:" : "A mensagem abre no WhatsApp deste celular:" }),
+      el("blockquote", { class: "texto-livre", text: mensagem }),
+      ...links],
+    textoSalvar: "Fechar",
+    aoSalvar: async () => null,
+  });
+}
 
 async function janelaCorrigir(c, refazer) {
   const nascAtual = await nascimentoDe(c.pessoa_id);
