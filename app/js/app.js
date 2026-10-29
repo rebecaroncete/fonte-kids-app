@@ -54,6 +54,7 @@ const ROTAS = {
   "/enquetes":      { publica: false, carregar: () => import("./telas/enquetes.js") },
   "/eventos":       { publica: false, carregar: () => import("./telas/eventos.js") },
   "/indicadores":   { publica: false, carregar: () => import("./telas/indicadores.js") },
+  "/aniversariantes": { publica: false, carregar: () => import("./telas/aniversariantes.js") },
   "/etiquetas":     { publica: false, carregar: () => import("./telas/etiquetas.js") },
   // Estação de etiquetas: link sem login com código secreto (como o telão)
   "/estacao":       { publica: true, carregar: () => import("./telas/estacao.js") },

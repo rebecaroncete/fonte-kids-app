@@ -705,3 +705,11 @@ a.cartao.item-compacto { text-decoration: none; color: inherit; }
 .lista-fila__texto { flex: 1; min-width: 0; }
 .lista-fila__nome { display: block; font-weight: 700; overflow-wrap: anywhere; }
 .etiquetas-checkin { margin-top: var(--e3); }
+
+/* Aniversariantes do mês (Fase 13): dia em destaque à esquerda */
+.aniv-dia { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: none;
+  width: 44px; height: 44px; border-radius: 12px; background: var(--fundo); border: var(--traco); line-height: 1; }
+.aniv-dia__numero { font: 800 1.05rem var(--fonte-titulo); }
+.aniv-dia__semana { font-size: .7rem; color: var(--texto-suave); margin-top: 2px; }
+.aniv-hoje { background: var(--laranja-claro); }
+.aniv-hoje .aniv-dia { background: var(--superficie); border-color: #f9cfb2; }
