@@ -1,5 +1,6 @@
 // =====================================================================
 // Edge Function "gerenciar-login" – Fase 4 · Etapa 3 (+ Fase 10 · Etapa 5A)
+// (+ 0.28.0: trocar o telefone de contato/login)
 // Cria e redefine logins (Supabase Auth, sem SMS).
 //
 // Login = telefone. O app converte o telefone num e-mail técnico
@@ -28,6 +29,12 @@
 //   { "acao": "redefinir", "pessoa_id": "<uuid>" }
 //       volta para a senha inicial e exige nova troca. Os pedidos de nova
 //       senha pendentes desse login ficam "atendidos" (quem redefiniu).
+//   { "acao": "trocar_telefone", "pessoa_id": "<uuid>", "telefone": "55DDD9XXXXXXXX" }
+//       troca o telefone de contato e, se a pessoa tiver login, também o
+//       telefone de login (perfis + e-mail técnico do Auth). A senha não
+//       muda. Quem pede: o painel, ou quem pode redefinir a senha desse
+//       login (posso_redefinir_senha); sem login, quem pode gerir as
+//       voluntárias do departamento dela (posso_dar_papeis).
 //   { "acao": "lote", "departamento": "kids", "confirmar": false, "limite": 25,
 //     "ignorar": ["<uuid>", ...] }
 //       sem "confirmar": true só mostra as contagens. Com true, cria até
@@ -269,6 +276,66 @@ Deno.serve(async (req: Request) => {
     return resposta({ ok: true, senha_inicial: regra, troca_obrigatoria: true, pedidos_atendidos: atendidos ?? 0 });
   }
 
+  // ----- trocar_telefone -----
+  if (acao === "trocar_telefone") {
+    const pessoaId = String(corpo.pessoa_id ?? "");
+    if (!UUID.test(pessoaId)) return resposta({ erro: "pessoa_id inválido." }, 400);
+    const telefone = String(corpo.telefone ?? "").replace(/\D/g, "");
+    if (!TELEFONE.test(telefone)) return resposta({ erro: "Telefone fora do padrão 55 + DDD + número." }, 400);
+    const { data: pessoa } = await admin.from("pessoas").select("id, telefone").eq("id", pessoaId).maybeSingle();
+    if (!pessoa) return resposta({ erro: "Pessoa não encontrada." }, 404);
+    const { data: perfil } = await admin.from("perfis").select("id, telefone").eq("pessoa_id", pessoaId).maybeSingle();
+
+    if (!doPainel) {
+      let pode = false;
+      if (perfil) {
+        const { data } = await usuario!.rpc("posso_redefinir_senha", { p_perfil: perfil.id });
+        pode = data === true;
+      } else {
+        const { data: depts } = await admin.from("voluntarias").select("departamento_id").eq("pessoa_id", pessoaId);
+        if (depts?.length) {
+          const { data } = await usuario!.rpc("posso_dar_papeis", {
+            p_papeis: depts.map((x) => ({ papel: "voluntaria", departamento_id: x.departamento_id })),
+          });
+          pode = data === true;
+        } else pode = await eAdmin();
+      }
+      if (!pode) return resposta({ erro: "Você não pode trocar o telefone desta pessoa." }, 403);
+    }
+
+    if (pessoa.telefone === telefone && (!perfil || perfil.telefone === telefone)) {
+      return resposta({ ok: true, sem_mudanca: true, tem_login: !!perfil });
+    }
+    if (perfil) {
+      const { data: outro } = await admin.from("perfis").select("id").eq("telefone", telefone).neq("id", perfil.id).maybeSingle();
+      if (outro) return resposta({ erro: "Este telefone já é o login de outra pessoa." }, 409);
+
+      // 1º o Auth (é ele que recusa e-mail repetido); se o banco falhar, volta.
+      const { data: u } = await admin.auth.admin.getUserById(perfil.id);
+      const emailAntigo = u?.user?.email ?? null;
+      const metaAntiga = u?.user?.app_metadata ?? {};
+      const { error } = await admin.auth.admin.updateUserById(perfil.id, {
+        email: `${telefone}@${dominio}`,
+        email_confirm: true,
+        app_metadata: { ...metaAntiga, telefone },
+      });
+      if (error) return resposta({ erro: traduzErro(error.message) }, 409);
+      const { error: e1 } = await admin.from("perfis").update({ telefone }).eq("id", perfil.id);
+      const { error: e2 } = e1 ? { error: e1 } : await admin.from("pessoas").update({ telefone }).eq("id", pessoaId);
+      if (e1 || e2) {
+        if (!e1) await admin.from("perfis").update({ telefone: perfil.telefone }).eq("id", perfil.id);
+        if (emailAntigo) {
+          await admin.auth.admin.updateUserById(perfil.id, { email: emailAntigo, email_confirm: true, app_metadata: metaAntiga });
+        }
+        return resposta({ erro: "Não foi possível trocar o telefone. Nada foi alterado." }, 409);
+      }
+    } else {
+      const { error } = await admin.from("pessoas").update({ telefone }).eq("id", pessoaId);
+      if (error) return resposta({ erro: "Não foi possível trocar o telefone." }, 409);
+    }
+    return resposta({ ok: true, tem_login: !!perfil });
+  }
+
   // ----- lote -----
   if (acao === "lote") {
     if (!(await eAdmin())) return resposta({ erro: "Só a administração." }, 403);
@@ -316,5 +383,5 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  return resposta({ erro: 'acao deve ser "autoteste", "criar", "redefinir" ou "lote".' }, 400);
+  return resposta({ erro: 'acao deve ser "autoteste", "criar", "redefinir", "trocar_telefone" ou "lote".' }, 400);
 });

@@ -76,6 +76,7 @@ const { data } = await supabase.functions.invoke('foto-assinada', {
 | `autoteste` | cria e apaga um login fictício para conferir o domínio técnico | admin / painel |
 | `criar` | cria o login de uma pessoa (`pessoa_id`, `telefone_login` opcional, papéis extras); voluntária/responsável entram sozinhos | quem pode dar todos os papéis |
 | `redefinir` | volta para a senha inicial e exige nova troca | quem pode gerir todos os papéis da pessoa |
+| `trocar_telefone` | troca o telefone de contato (`pessoa_id`, `telefone`) e, se houver login, o telefone de login e o e-mail técnico juntos; a senha não muda | quem pode redefinir a senha do login (sem login: quem gere as voluntárias do departamento) |
 | `lote` | sem `confirmar` só mostra contagens; com `confirmar: true` cria até `limite` por chamada | admin / painel |
 
 **Configuração no painel** (Authentication): desligar o cadastro público (*Allow new users to sign up*), senha mínima de 8 caracteres e sem exigência de letras/símbolos (as senhas iniciais são só números).

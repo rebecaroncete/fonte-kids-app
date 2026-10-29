@@ -13,7 +13,7 @@
 // Push (Fase 7): mostra a notificação que a Edge Function "enviar-push"
 // manda (título, texto e link interno) e, ao tocar, abre o app nela.
 // =====================================================================
-const VERSAO = "0.27.0";
+const VERSAO = "0.28.0";
 const PREFIXO = "fonte-kids-app-";
 const CACHE = PREFIXO + VERSAO;
 
