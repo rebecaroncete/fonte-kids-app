@@ -87,7 +87,6 @@ export async function render(alvo) {
       el("img", { src: "img/logo.png", alt: "Logo do Fonte Kids" }),
       el("p", { class: "marca__titulo", text: "Fonte Kids" }),
       el("p", { class: "marca__sub", text: "Ministério infantil · Fonte de Vida Itaparica" })),
-    aviso("info", "Versão de teste do app novo."),
     form);
 
   try {

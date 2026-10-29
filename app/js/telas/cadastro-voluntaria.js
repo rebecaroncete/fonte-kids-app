@@ -23,7 +23,7 @@ const TOTAL_PASSOS = 3;
 const DIAS = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 const FUNCOES = [["professora", "Professor(a)", "Conduz a lição e as atividades da sala."],
                  ["auxiliar", "Auxiliar", "Ajuda o(a) professor(a) e cuida das crianças."]];
-const SEXOS = [["", "Prefiro não informar"], ["F", "Feminino"], ["M", "Masculino"]];
+const SEXOS = [["", "Escolha"], ["F", "Feminino"], ["M", "Masculino"]];
 const ORDINAL = ["1ª opção (preferida)", "2ª opção", "3ª opção", "4ª opção"];
 
 const hojeIso = () => new Date().toLocaleDateString("en-CA", { timeZone: FUSO });
@@ -122,6 +122,7 @@ function passo1() {
       if (anos === null || s.nascimento < "1920-01-01") return erro(nasc, "Informe a sua data de nascimento.");
       if (anos < 12) return erro(nasc, "O voluntariado no Fonte Kids é a partir de 12 anos.");
       if (s.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s.email)) return erro(email, "E-mail inválido. Confira ou deixe em branco.");
+      if (!s.sexo) return erro(sexo, "Escolha o sexo: feminino ou masculino.");
       passo2();
     } },
     campo("Nome completo", nome),
