@@ -652,3 +652,56 @@ a.cartao.item-compacto { text-decoration: none; color: inherit; }
   .tabela-relatorio { break-inside: avoid; }
 }
 .cartao--indicador > .numero__icone { background: var(--azul-claro); color: var(--azul-texto); }
+
+/* Fase 11 – etiquetas da QL-800 (rolo 62 mm contínuo) e estação de etiquetas */
+.etq { box-sizing: border-box; width: 62mm; padding: 2mm 3mm; overflow: hidden; background: #fff; color: #000;
+  font-family: Arial, Helvetica, sans-serif; line-height: 1.1; break-after: page; page-break-after: always; }
+.etq--crianca { height: 40mm; page: etq-crianca; display: flex; flex-direction: column; }
+.etq--resp-1 { height: 40mm; page: etq-resp-1; }
+.etq--resp-2 { height: 50mm; page: etq-resp-2; }
+.etq--resp-3 { height: 60mm; page: etq-resp-3; }
+.etq--resp-4 { height: 70mm; page: etq-resp-4; }
+.etq--resp-5 { height: 80mm; page: etq-resp-5; }
+.etq--resp-6 { height: 90mm; page: etq-resp-6; }
+.etq__topo { display: flex; justify-content: space-between; gap: 2mm; font-size: 7pt; font-weight: 700; letter-spacing: .02em;
+  border-bottom: .3mm solid #000; padding-bottom: .8mm; }
+.etq__nome { margin-top: 1mm; font-size: 16pt; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.etq__sala { font-size: 9pt; margin-top: .5mm; }
+.etq__codigo { margin-top: auto; font: 700 24pt/1 "Courier New", Courier, monospace; letter-spacing: 1.5mm; text-align: center; }
+.etq__alergia { margin-top: 1mm; padding: .6mm 1mm; background: #000; color: #fff; font-size: 8pt; font-weight: 700; text-align: center;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.etq__responsavel { margin-top: .8mm; font-size: 8pt; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.etq__lista { list-style: none; margin: 1.5mm 0 0; padding: 0; }
+.etq__linha { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: baseline; gap: 2mm; height: 10mm; }
+.etq__linha + .etq__linha { border-top: .2mm dashed #000; }
+.etq__linha-nome { font-size: 11pt; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.etq__linha-sala { font-size: 7pt; }
+.etq__linha-codigo { font: 700 16pt/1 "Courier New", Courier, monospace; letter-spacing: .8mm; }
+.etq__rodape { margin-top: 1mm; font-size: 7pt; text-align: center; }
+.etq:last-child { break-after: auto; page-break-after: auto; }
+.folha-etiquetas { display: none; }
+@page etq-crianca { size: 62mm 40mm; margin: 0; }
+@page etq-resp-1 { size: 62mm 40mm; margin: 0; }
+@page etq-resp-2 { size: 62mm 50mm; margin: 0; }
+@page etq-resp-3 { size: 62mm 60mm; margin: 0; }
+@page etq-resp-4 { size: 62mm 70mm; margin: 0; }
+@page etq-resp-5 { size: 62mm 80mm; margin: 0; }
+@page etq-resp-6 { size: 62mm 90mm; margin: 0; }
+@media print {
+  body.modo-etiqueta { padding: 0; margin: 0; background: #fff; }
+  body.modo-etiqueta > :not(.folha-etiquetas) { display: none !important; }
+  body.modo-etiqueta .folha-etiquetas { display: block; }
+}
+/* prévia na tela da estação (mesmo desenho do papel) */
+.previa-etiquetas { display: flex; flex-wrap: wrap; gap: var(--e3); margin-top: var(--e3); }
+.previa-etiquetas .etq { border: 1px solid var(--borda); border-radius: 4px; box-shadow: var(--sombra-p); }
+.estacao-status { display: flex; align-items: center; gap: var(--e2); }
+.estacao-status__ponto { width: 12px; height: 12px; border-radius: 50%; background: var(--texto-fraco); flex: none; }
+.estacao-status__ponto--no-ar { background: var(--sucesso); }
+.estacao-status__ponto--erro { background: var(--erro); }
+.lista-fila { list-style: none; margin: var(--e3) 0 0; padding: 0; }
+.lista-fila > li { display: flex; align-items: center; gap: var(--e3); padding: var(--e2) 0; }
+.lista-fila > li + li { border-top: 1px solid var(--borda-suave); }
+.lista-fila__texto { flex: 1; min-width: 0; }
+.lista-fila__nome { display: block; font-weight: 700; overflow-wrap: anywhere; }
+.etiquetas-checkin { margin-top: var(--e3); }

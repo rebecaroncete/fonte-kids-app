@@ -54,6 +54,9 @@ const ROTAS = {
   "/enquetes":      { publica: false, carregar: () => import("./telas/enquetes.js") },
   "/eventos":       { publica: false, carregar: () => import("./telas/eventos.js") },
   "/indicadores":   { publica: false, carregar: () => import("./telas/indicadores.js") },
+  "/etiquetas":     { publica: false, carregar: () => import("./telas/etiquetas.js") },
+  // Estação de etiquetas: link sem login com código secreto (como o telão)
+  "/estacao":       { publica: true, carregar: () => import("./telas/estacao.js") },
 };
 
 /** Endereço interno conhecido? (usado para abrir links de notificações) */
@@ -132,8 +135,8 @@ async function mostrar() {
   if (meu !== renderAtual) return; // usuário já navegou para outra tela
 
   document.title = tela.titulo ? `${tela.titulo} · ${CONFIG.nomeApp}` : CONFIG.nomeApp;
-  // "central" (login, 1º acesso) e "telao" (tela do telão) não têm topo nem barra
-  const semCasca = tela.layout === "central" || tela.layout === "telao";
+  // "central" (login, 1º acesso), "telao" e "estacao" (estação de etiquetas) não têm topo nem barra
+  const semCasca = tela.layout === "central" || tela.layout === "telao" || tela.layout === "estacao";
   const classe = tela.layout === "central" ? "tela-central" : tela.layout === "telao" ? "telao" : "conteudo";
   const principal = el("main", { class: classe, id: "principal", tabindex: "-1" });
   if (sessao && !semCasca) iniciarNotificacoes(); // sino (só depois do 1º acesso)
