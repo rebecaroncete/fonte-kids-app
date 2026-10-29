@@ -1,6 +1,6 @@
 // =====================================================================
 // Edge Function "gerenciar-login" – Fase 4 · Etapa 3 (+ Fase 10 · Etapa 5A)
-// (+ 0.28.0: trocar o telefone de contato/login)
+// (+ 0.28.0: trocar o telefone de contato/login; 0.28.1: grava pelo banco)
 // Cria e redefine logins (Supabase Auth, sem SMS).
 //
 // Login = telefone. O app converte o telefone num e-mail técnico
@@ -320,17 +320,16 @@ Deno.serve(async (req: Request) => {
         app_metadata: { ...metaAntiga, telefone },
       });
       if (error) return resposta({ erro: traduzErro(error.message) }, 409);
-      const { error: e1 } = await admin.from("perfis").update({ telefone }).eq("id", perfil.id);
-      const { error: e2 } = e1 ? { error: e1 } : await admin.from("pessoas").update({ telefone }).eq("id", pessoaId);
-      if (e1 || e2) {
-        if (!e1) await admin.from("perfis").update({ telefone: perfil.telefone }).eq("id", perfil.id);
+      // perfis + pessoas numa transação só (trocar_telefone_pessoa, no banco)
+      const { error: e1 } = await admin.rpc("trocar_telefone_pessoa", { p_pessoa: pessoaId, p_telefone: telefone });
+      if (e1) {
         if (emailAntigo) {
           await admin.auth.admin.updateUserById(perfil.id, { email: emailAntigo, email_confirm: true, app_metadata: metaAntiga });
         }
         return resposta({ erro: "Não foi possível trocar o telefone. Nada foi alterado." }, 409);
       }
     } else {
-      const { error } = await admin.from("pessoas").update({ telefone }).eq("id", pessoaId);
+      const { error } = await admin.rpc("trocar_telefone_pessoa", { p_pessoa: pessoaId, p_telefone: telefone });
       if (error) return resposta({ erro: "Não foi possível trocar o telefone." }, 409);
     }
     return resposta({ ok: true, tem_login: !!perfil });
