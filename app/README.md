@@ -43,9 +43,9 @@ app/
 | `#/perfil` | Meu perfil (só leitura) | 4 |
 | `#/trocar-senha` | Trocar senha (senha atual + captcha) | 4 |
 
-## Teste
-GitHub Pages servindo o branch `supabase-migracao` (pasta raiz):
-`https://rebecaroncete.github.io/fonte-kids-app/app/`
+## No ar
+Netlify publicando o `main` (pasta `app/`, ver `netlify.toml`): `https://fontekidsitaparica.netlify.app/`.
+O GitHub Pages (teste até a virada) foi desligado em 07/11/2026.
 
 ## Etapa 2 – login (27/10/2026)
 - `js/supabase.js`: login (telefone → e-mail técnico), "Manter conectado" (marcado = sessão no aparelho; desmarcado = só nesta aba), sair, pedido de nova senha. Erros sempre genéricos.
