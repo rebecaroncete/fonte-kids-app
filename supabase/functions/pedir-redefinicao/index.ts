@@ -15,7 +15,7 @@
 // Segredos (painel do Supabase → Edge Functions → Secrets):
 //   TURNSTILE_SECRET_KEY  – chave secreta do Turnstile (obrigatória)
 //   ORIGENS_PERMITIDAS    – opcional, lista separada por vírgula
-//                           (padrão: https://rebecaroncete.github.io)
+//                           (padrão: https://fontekidsitaparica.netlify.app)
 // SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY já existem por padrão.
 // =====================================================================
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -23,7 +23,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 const MENSAGEM = "Pedido enviado. A liderança vai falar com você.";
 const TELEFONE = /^55\d{10,11}$/;
 
-const ORIGENS = (Deno.env.get("ORIGENS_PERMITIDAS") || "https://rebecaroncete.github.io")
+const ORIGENS = (Deno.env.get("ORIGENS_PERMITIDAS") || "https://fontekidsitaparica.netlify.app")
   .split(",").map((s) => s.trim()).filter(Boolean);
 
 function cabecalhos(origem: string | null): HeadersInit {

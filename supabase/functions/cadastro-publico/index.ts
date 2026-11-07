@@ -45,7 +45,7 @@
 import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { apagarPrivada, enviarPrivada } from "./cloudinary.ts";
 
-const ORIGENS = (Deno.env.get("ORIGENS_PERMITIDAS") || "https://rebecaroncete.github.io")
+const ORIGENS = (Deno.env.get("ORIGENS_PERMITIDAS") || "https://fontekidsitaparica.netlify.app")
   .split(",").map((s) => s.trim()).filter(Boolean);
 const TELEFONE = /^55[1-9][0-9]9?[0-9]{8}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

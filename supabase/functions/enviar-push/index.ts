@@ -40,7 +40,7 @@ Deno.serve(async (req) => {
   const vapid = {
     publica: Deno.env.get("VAPID_PUBLIC_KEY") || "",
     privada: Deno.env.get("VAPID_PRIVATE_KEY") || "",
-    assunto: Deno.env.get("VAPID_SUBJECT") || "https://rebecaroncete.github.io/fonte-kids-app/app/",
+    assunto: Deno.env.get("VAPID_SUBJECT") || "https://fontekidsitaparica.netlify.app/",
   };
   if (!vapid.publica || !vapid.privada) return resposta({ erro: "Push não configurado." }, 503);
 
