@@ -20,5 +20,5 @@ export const CONFIG = {
 
   nomeApp: "Fonte Kids",
   // Ao mudar a versão, mude também VERSAO em sw.js (o mesmo número).
-  versao: "0.28.0 (trocar telefone da voluntária)",
+  versao: "0.29.0 (WhatsApp na gestão de logins e corrigir dados no check-in)",
 };

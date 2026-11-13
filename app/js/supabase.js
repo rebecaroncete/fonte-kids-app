@@ -432,6 +432,24 @@ export async function situacaoLogins() {
   }
 }
 
+/**
+ * Telefone completo das voluntárias (para o botão de WhatsApp da Gestão de
+ * logins) e se a pessoa tem data de nascimento (define a senha inicial).
+ * O banco (RLS) só mostra as voluntárias para a liderança.
+ * Retorna Map(pessoa_id → { telefone, tem_nascimento }); vazio se der erro.
+ */
+export async function contatoVoluntarias() {
+  const mapa = new Map();
+  try {
+    const { data, error } = await sb.from("voluntarias").select("pessoa:pessoas(id, telefone)").limit(2000);
+    if (error) return mapa;
+    const pessoas = (data || []).map((v) => v.pessoa).filter((x) => x?.id && x.telefone);
+    await preencherNascimentos(pessoas);
+    for (const x of pessoas) mapa.set(x.id, { telefone: x.telefone, tem_nascimento: !!x.data_nascimento });
+  } catch { /* sem botão de WhatsApp */ }
+  return mapa;
+}
+
 /** Encerra um pedido de nova senha sem redefinir. */
 export async function encerrarPedido(id) {
   try {
