@@ -16,12 +16,14 @@
 // Etiquetas (Fase 11): com as etiquetas ligadas, cada check-in novo pede a
 // etiqueta da criança e a do responsável; a tela "Check-in feito" mostra se
 // já saíram na estação; ⋯ "Reimprimir etiqueta" na criança.
+// 0.29.0: "Corrigir dados" em toda criança (também já com check-in e na aba
+// Presentes), com troca de foto na mesma janelinha.
 // Endereço: #/checkin (Entrada) ou #/checkin?aba=presentes
 // =====================================================================
 import { el, montar, aviso, carregando, toast, menuAcoes } from "../ui.js";
 import { icone } from "../icones.js";
 import { abrirJanela, campo } from "../janela.js";
-import { avatarLista, preencherFotos } from "../foto.js";
+import { avatarLista, preencherFotos, prepararFoto, enviarFoto, esquecerFoto } from "../foto.js";
 import { meuPerfil, cultosDeHoje, buscarParaCheckin, fazerCheckin, desfazerCheckin,
   editarCrianca, nascimentoDe, confirmarPendencia, nomePendencia,
   presentesDoCulto, marcarSaida, desfazerSaida, chamarResponsavel, cancelarChamada, ouvirCulto,
@@ -244,7 +246,8 @@ function linhaCrianca(c, marcadas, aoMudar, refazer) {
       el("div", { class: "checkin-crianca__linha" },
         avatarLista("crianca", c.id, c.nome), texto,
         el("span", { class: "codigo-mini", "aria-label": `Código ${c.checkin.codigo}`, text: c.checkin.codigo }),
-        menuAcoes([...itensReimprimir(c.checkin.id),
+        menuAcoes([{ texto: "Corrigir dados", acao: () => janelaCorrigir(c, refazer) },
+          ...itensReimprimir(c.checkin.id),
           { texto: "Desfazer check-in", perigo: true, acao: () => janelaDesfazer(c.checkin.id, c.nome, refazer) }],
           `Mais ações para ${c.nome}`)),
       alergia);
@@ -252,12 +255,11 @@ function linhaCrianca(c, marcadas, aoMudar, refazer) {
 
   // Sem sala: corrigir os dados na hora (decisão 76)
   if (!c.sala_id) {
-    const podeCorrigir = c.sem_sala !== "sala_fechada" && c.sem_sala !== "acima_idade";
     return el("li", { class: "checkin-crianca" },
       el("div", { class: "checkin-crianca__linha" },
         avatarLista("crianca", c.id, c.nome), texto,
-        podeCorrigir ? el("button", { class: "botao botao--secundario botao--pequeno", type: "button", text: "Corrigir dados",
-          onclick: () => janelaCorrigir(c, refazer) }) : null),
+        el("button", { class: "botao botao--secundario botao--pequeno", type: "button", text: "Corrigir dados",
+          onclick: () => janelaCorrigir(c, refazer) })),
       c.sem_sala === "sala_fechada" ? el("p", { class: "suave sem-margem mt-1", text: "A sala desta idade está fechada neste culto. Fale com a liderança." }) : null,
       c.sem_sala === "acima_idade" ? el("p", { class: "suave sem-margem mt-1", text: "Acima da idade das salas. Fale com a liderança se precisar de uma exceção." }) : null,
       alergia);
@@ -401,6 +403,7 @@ function linhaPresente(k, encerrado, recarregar) {
   }
 
   const menu = menuAcoes([
+    { texto: "Corrigir dados", acao: () => janelaCorrigir({ id: k.crianca_id, pessoa_id: k.pessoa_id, nome: k.nome, alergias: k.alergias }, recarregar) },
     ...(k.saiu || encerrado ? [] : itensReimprimir(k.checkin_id)),
     chamando ? { texto: "Cancelar chamada", acao: () => acao(null, () => cancelarChamada(ch.id), "Chamada cancelada.") } : null,
     k.saiu && !k.saida_automatica && !encerrado ? { texto: "Desfazer saída", acao: () => acao(null, () => desfazerSaida(k.checkin_id), "Saída desfeita.") } : null,
@@ -464,24 +467,56 @@ async function janelaWhatsapp(botao, k) {
   });
 }
 
+// Corrigir dados da criança: nome, nascimento, alergias e foto (decisão 76;
+// 0.29.0: também a foto e também para quem já fez check-in)
 async function janelaCorrigir(c, refazer) {
   const nascAtual = await nascimentoDe(c.pessoa_id);
   const nome = el("input", { class: "entrada", type: "text", maxlength: "120", autocomplete: "off", value: c.nome || "" });
   const nasc = el("input", { class: "entrada", type: "date", max: hojeIso(), value: nascAtual || "" });
   const alerg = el("textarea", { class: "entrada", maxlength: "500" });
   alerg.value = c.alergias || "";
+
+  // Foto (opcional): só troca se escolher uma nova
+  let fotoPronta = null;
+  const previa = el("div", { class: "avatar avatar--grande previa-foto", "aria-hidden": "true" });
+  const situacaoFoto = el("p", { class: "suave sem-margem", text: "Deixe sem escolher para manter a foto atual." });
+  const arquivo = el("input", { type: "file", accept: "image/*", class: "entrada" });
+  arquivo.addEventListener("change", async () => {
+    fotoPronta = null;
+    previa.replaceChildren();
+    const f = arquivo.files?.[0];
+    if (!f) { situacaoFoto.textContent = "Deixe sem escolher para manter a foto atual."; return; }
+    situacaoFoto.textContent = "Preparando a foto…";
+    try {
+      fotoPronta = await prepararFoto(f);
+      previa.replaceChildren(el("img", { src: fotoPronta, alt: "" }));
+      situacaoFoto.textContent = "Confira a prévia. A foto nova vai junto quando tocar em Salvar.";
+    } catch (e) {
+      situacaoFoto.textContent = e.message;
+    }
+  });
+
   abrirJanela({
     titulo: "Dados da criança",
     conteudo: [
       aviso("info", "Confirme com o responsável antes de salvar."),
       campo("Nome completo", nome),
-      campo("Data de nascimento", nasc, "A sala é escolhida pela idade."),
+      campo("Data de nascimento", nasc, c.checkin ? "A sala é escolhida pela idade. O check-in de hoje continua na mesma sala." : "A sala é escolhida pela idade."),
       campo("Alergias e cuidados", alerg, "Deixe em branco se não houver."),
+      campo("Trocar foto", arquivo, "Pode tirar na hora ou escolher da galeria. Só o rosto, de frente, com boa luz."),
+      el("div", { class: "linha" }, previa, situacaoFoto),
     ],
     sucesso: "Dados salvos.",
     aoSalvar: async () => {
       if (nome.value.trim().length < 3) { nome.focus(); return "Informe o nome completo."; }
       if (!nasc.value) { nasc.focus(); return "Informe a data de nascimento."; }
+      if (fotoPronta) {
+        const f = await enviarFoto("crianca", c.id, fotoPronta);
+        if (!f.ok) return `${f.erro} Nada foi salvo.`;
+        esquecerFoto("crianca", c.id);
+        fotoPronta = null; // já foi: se os dados derem erro, não manda de novo
+        situacaoFoto.textContent = "Foto nova já salva.";
+      }
       const r = await editarCrianca(c.id, nome.value, nasc.value, alerg.value);
       if (!r.ok) return r.erro;
       refazer();

@@ -6,9 +6,13 @@
 //   • Criar em lote (só admin): simular (contagens) e criar todos.
 // Telefone aparece sempre mascarado. Nenhuma senha passa por esta tela:
 // ela só informa QUAL regra de senha inicial vale para a pessoa.
+// 0.29.0: filtro "Quem" (voluntárias / responsáveis) e botão de WhatsApp em
+// cada voluntária (com mensagem pronta de 1º acesso quando ainda não entrou).
 // =====================================================================
 import { el, montar, aviso, carregando, toast } from "../ui.js";
-import { meuPerfil, listarPedidosRedefinicao, situacaoLogins, encerrarPedido, gerenciarLogin } from "../supabase.js";
+import { icone } from "../icones.js";
+import { meuPerfil, listarPedidosRedefinicao, situacaoLogins, encerrarPedido, gerenciarLogin,
+  contatoVoluntarias, enderecoApp } from "../supabase.js";
 
 export const layout = "padrao";
 export const titulo = "Gestão de logins";
@@ -38,6 +42,12 @@ const FILTROS = [
   { valor: "problema", texto: "Com problema no cadastro", teste: (s) => ["sem_telefone", "telefone_invalido", "telefone_em_uso", "inativo"].includes(s) },
 ];
 
+const QUEM = [
+  { valor: "todos", texto: "Todo mundo", teste: () => true },
+  { valor: "voluntarias", texto: "Só voluntárias", teste: (p) => p.e_voluntaria },
+  { valor: "responsaveis", texto: "Só responsáveis", teste: (p) => p.e_responsavel },
+];
+
 // Quem já falhou no lote nesta aba (para não tentar de novo a cada rodada)
 const ignorarNoLote = new Set();
 let loteRodando = false;
@@ -50,6 +60,26 @@ function quando(iso) {
   if (min < 60) return `há ${Math.max(min, 1)} min`;
   if (min < 24 * 60) return `há ${Math.round(min / 60)} h`;
   return d.toLocaleString("pt-BR", { timeZone: FUSO, day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+}
+
+/** Número para o wa.me (55 + DDD + número) ou null. */
+function numeroWhatsapp(telefone) {
+  let d = String(telefone || "").replace(/\D/g, "");
+  if (d.length === 10 || d.length === 11) d = `55${d}`;
+  return /^55[1-9][0-9]9?[0-9]{8}$/.test(d) ? d : null;
+}
+
+/** Mensagem pronta para a voluntária fazer o 1º acesso. */
+function textoPrimeiroAcesso(nome, temNascimento) {
+  const primeiro = String(nome || "").trim().split(/\s+/)[0] || "";
+  const senha = temNascimento
+    ? "a sua data de nascimento, só os números (DDMMAAAA). Exemplo: 05/03/1990 vira 05031990"
+    : "o seu número de WhatsApp com 55 e DDD, só os números";
+  return `Oi${primeiro ? `, ${primeiro}` : ""}! Tudo bem? Aqui é da liderança do Fonte Kids 💛\n\n` +
+    `O seu acesso ao app do Fonte Kids já está pronto. É por ele que você vê a sua escala, faz o check-in das crianças e recebe os avisos.\n\n` +
+    `Para entrar:\n1. Abra ${enderecoApp("/login")}\n2. No login, digite o seu número de WhatsApp com DDD\n` +
+    `3. A senha inicial é ${senha}\n4. O app vai pedir para você criar uma senha nova\n\n` +
+    `Se der qualquer problema, me chama aqui!`;
 }
 
 function textoSenhaInicial(regra) {
@@ -157,6 +187,13 @@ export async function render(alvo) {
       if (!painel.isConnected) return;
       if (!r.ok) { montar(painel, aviso("erro", r.erro)); return; }
       pessoasCache = r.lista.map((p) => ({ ...p, busca: normalizar(p.nome) }));
+      // telefone completo só das voluntárias (para o botão de WhatsApp)
+      const contatos = await contatoVoluntarias();
+      if (!painel.isConnected) return;
+      for (const p of pessoasCache) {
+        const c = p.e_voluntaria ? contatos.get(p.pessoa_id) : null;
+        if (c) { p.whatsapp = numeroWhatsapp(c.telefone); p.tem_nascimento = c.tem_nascimento; }
+      }
     }
     const todos = pessoasCache;
     const recarregar = () => abaPessoas(painel, true);
@@ -167,6 +204,8 @@ export async function render(alvo) {
       `${todos.length} pessoas · ${contagem.ativo || 0} com login ativo · ${contagem.primeiro_acesso || 0} aguardando 1º acesso · ${contagem.sem_login || 0} sem login` });
 
     const busca = el("input", { class: "entrada", type: "search", id: "busca-logins", placeholder: "Digite parte do nome", autocomplete: "off" });
+    const filtroQuem = el("select", { class: "entrada", id: "filtro-quem-logins" },
+      QUEM.map((f) => el("option", { value: f.valor, text: f.texto })));
     const filtro = el("select", { class: "entrada", id: "filtro-logins" },
       FILTROS.map((f) => el("option", { value: f.valor, text: f.texto })));
     const resultado = el("div", {});
@@ -174,20 +213,24 @@ export async function render(alvo) {
     function atualizar() {
       const termo = normalizar(busca.value);
       const f = FILTROS.find((x) => x.valor === filtro.value) || FILTROS[0];
-      const achados = todos.filter((p) => f.teste(p.situacao) && (!termo || p.busca.includes(termo)));
+      const q = QUEM.find((x) => x.valor === filtroQuem.value) || QUEM[0];
+      const achados = todos.filter((p) => q.teste(p) && f.teste(p.situacao) && (!termo || p.busca.includes(termo)));
       if (!achados.length) { montar(resultado, aviso("info", "Ninguém encontrado com esse filtro.")); return; }
       montar(resultado,
+        el("p", { class: "suave", text: `${achados.length} ${achados.length === 1 ? "pessoa" : "pessoas"} neste filtro.` }),
         achados.length > MAX_LISTA ? el("p", { class: "suave", text: `Mostrando ${MAX_LISTA} de ${achados.length}. Digite parte do nome para encontrar mais rápido.` }) : null,
         el("ul", { class: "lista" }, achados.slice(0, MAX_LISTA).map((p) => itemPessoa(p, recarregar))));
     }
     let espera = null;
     busca.addEventListener("input", () => { clearTimeout(espera); espera = setTimeout(atualizar, 200); });
     filtro.addEventListener("change", atualizar);
+    filtroQuem.addEventListener("change", atualizar);
 
     montar(painel,
       resumo,
       el("div", { class: "campo" }, el("label", { class: "campo__rotulo", for: "busca-logins", text: "Buscar pelo nome" }), busca),
-      el("div", { class: "campo" }, el("label", { class: "campo__rotulo", for: "filtro-logins", text: "Mostrar" }), filtro),
+      el("div", { class: "campo" }, el("label", { class: "campo__rotulo", for: "filtro-quem-logins", text: "Quem" }), filtroQuem),
+      el("div", { class: "campo" }, el("label", { class: "campo__rotulo", for: "filtro-logins", text: "Situação do login" }), filtro),
       resultado);
     atualizar();
   }
@@ -220,6 +263,17 @@ export async function render(alvo) {
           }) }));
     } else if (["sem_telefone", "telefone_invalido", "telefone_em_uso"].includes(p.situacao)) {
       linha.append(el("p", { class: "suave", text: "Corrija o telefone no cadastro antes de criar o login." }));
+    }
+
+    // WhatsApp da voluntária: no 1º acesso já vai com a mensagem de como entrar
+    if (p.e_voluntaria && p.whatsapp) {
+      const primeiroAcesso = p.situacao === "primeiro_acesso";
+      const href = primeiroAcesso
+        ? `https://wa.me/${p.whatsapp}?text=${encodeURIComponent(textoPrimeiroAcesso(p.nome, p.tem_nascimento))}`
+        : `https://wa.me/${p.whatsapp}`;
+      linha.append(el("a", { class: "botao botao--pequeno botao--whatsapp", href, target: "_blank", rel: "noopener noreferrer",
+        "aria-label": primeiroAcesso ? `Chamar ${p.nome} no WhatsApp para o 1º acesso` : `Chamar ${p.nome} no WhatsApp` },
+        icone("conversa"), primeiroAcesso ? "Chamar p/ 1º acesso" : "WhatsApp"));
     }
 
     return el("li", { class: "notif" },
